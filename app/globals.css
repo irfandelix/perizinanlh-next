@@ -157,3 +157,92 @@ html, body {
 .rekap-table .col-kegiatan { left: 240px; border-right: 2px solid #9ca3af; } 
 
 /* Catatan: Tombol Excel harus menggunakan Tailwind classes langsung di JSX */
+
+/* --- app/globals.css (Di dalam block @media print) --- */
+@media print {
+    /* ========================================= */
+    /* 1. KONTROL TATA LETAK & MARGIN KERTAS */
+    /* ========================================= */
+    @page {
+        /* Mengatur margin kertas ke nol (Ini membantu menghilangkan whitespace) */
+        margin: 0;
+        
+        /* Ini adalah pengaturan browser, yang berfungsi di Firefox, 
+           tetapi tidak di Chrome/Edge (harus dinonaktifkan manual oleh user) */
+        size: A4 portrait; 
+    }
+
+    /* Memastikan body tidak memiliki margin atau padding */
+    body {
+        margin: 0 !important;
+        padding: 0 !important;
+        /* Mengatur ukuran body menjadi 100% lebar kertas */
+        width: 100%;
+    }
+
+    /* ========================================= */
+    /* 2. MENYEMBUNYIKAN ELEMEN UI */
+    /* ========================================= */
+    
+    /* Asumsi sidebar Anda menggunakan class 'sidebar' atau sejenisnya.
+       Periksa kode register/page.tsx atau layout.tsx Anda untuk nama class yang tepat. */
+    .sidebar-container, 
+    .navbar-header, 
+    .exit-system-button,
+    .main-navigation { /* Contoh class yang harus disembunyikan */
+        display: none !important;
+    }
+    
+    /* ========================================= */
+    /* 3. MENYESUAIKAN TAMPILAN KONTEN UTAMA */
+    /* ========================================= */
+    
+    /* Pastikan konten utama (yang berisi tanda terima) menggunakan 100% lebar */
+    .main-content-area { 
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        min-height: auto !important;
+    }
+
+    /* Pastikan Tanda Terima (cetak) berada di tengah halaman */
+    .tanda-terima-container { /* Asumsi class container tanda terima */
+        padding: 20px;
+        margin: auto;
+    }
+    
+    /* Pastikan tidak ada warna latar belakang */
+    * {
+        background: transparent !important;
+        color: #000 !important; 
+        box-shadow: none !important;
+        text-shadow: none !important;
+    }
+    
+    /* ------------------------------------------------ */
+    /* ATURAN UMUM UNTUK PRINT-ONLY WRAPPER */
+    /* ------------------------------------------------ */
+    .print-only-wrapper {
+        display: none !important; /* Secara default, semua konten cetak tersembunyi */
+        /* Tambahkan style untuk membatalkan print:hidden bawaan Tailwind */
+    }
+
+    /* ------------------------------------------------ */
+    /* KONTROL DISPLAY BERDASARKAN MODE DARI JAVASCRIPT */
+    /* ------------------------------------------------ */
+    
+    /* MODE: Cetak Tanda Terima */
+    body.mode-print-terima #print-terima {
+        display: block !important;
+    }
+    
+    /* MODE: Cetak Checklist */
+    body.mode-print-checklist #print-checklist {
+        display: block !important;
+    }
+    
+    /* Pastikan KONTEN LAYAR (Input Form) tersembunyi di kedua mode */
+    .print\\:hidden { /* Tailwind's print:hidden class */
+        display: none !important;
+    }
+}

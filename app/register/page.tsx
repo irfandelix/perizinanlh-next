@@ -68,13 +68,26 @@ export default function RegisterDokumenPage() {
         setChecklistNotes(prev => ({ ...prev, [index]: value }));
     };
 
-    const handleSimpanDanCetak = () => {
-        // Di sini bisa ditambahkan logika simpan ke database (API Call)
-        console.log("Menyimpan Data...", { formData, checklistStatus, statusVerifikasi });
+    // --- HANDLERS (LOGIKA CETAK TERPISAH) ---
+    
+    const triggerPrint = (mode: 'terima' | 'checklist') => {
+        // 1. Tambahkan class ke body untuk memberi tahu CSS apa yang harus ditampilkan
+        document.body.classList.add(`mode-print-${mode}`);
         
-        // Trigger Print
+        // 2. Memicu dialog cetak browser
         window.print();
-    };
+        
+        // 3. Bersihkan class setelah mencetak
+        // Menggunakan setTimeout untuk memberi waktu dialog print muncul
+        setTimeout(() => {
+            document.body.classList.remove(`mode-print-${mode}`);
+        }, 500); 
+    }
+
+    const handleSimpan = () => {
+        // Logika Simpan ke Database
+        console.log("Menyimpan Data...", { formData, checklistStatus, statusVerifikasi });
+    };
 
     // Styling Variables
     const labelClass = "block mb-2 text-sm font-medium text-slate-700";
@@ -307,14 +320,33 @@ export default function RegisterDokumenPage() {
                     </div>
                 </div>
 
-                {/* Tombol Simpan & Cetak */}
-                <div className="mt-8 mb-12">
+               {/* Tombol Simpan & Cetak BARU */}
+                <div className="mt-8 mb-12 flex space-x-4">
+                    {/* Tombol Simpan */}
                     <button 
-                        onClick={handleSimpanDanCetak} 
-                        className="bg-blue-600 text-white w-full py-4 rounded-xl font-bold hover:bg-blue-700 transition shadow-lg flex justify-center items-center gap-2 text-lg"
+                        onClick={handleSimpan} 
+                        className="bg-blue-600 flex-1 text-white py-4 rounded-xl font-bold hover:bg-blue-700 transition shadow-lg flex justify-center items-center gap-2 text-lg"
                     >
                         <Save className="w-5 h-5" />
-                        Simpan & Cetak Tanda Terima
+                        Simpan Data
+                    </button>
+
+                    {/* Tombol Cetak Tanda Terima */}
+                    <button 
+                        onClick={() => triggerPrint('terima')} 
+                        className="bg-green-600 flex-1 text-white py-4 rounded-xl font-bold hover:bg-green-700 transition shadow-lg flex justify-center items-center gap-2 text-lg"
+                    >
+                        <Printer className="w-5 h-5" />
+                        Cetak Tanda Terima
+                    </button>
+                    
+                    {/* Tombol Cetak Checklist */}
+                    <button 
+                        onClick={() => triggerPrint('checklist')} 
+                        className="bg-yellow-600 flex-1 text-white py-4 rounded-xl font-bold hover:bg-yellow-700 transition shadow-lg flex justify-center items-center gap-2 text-lg"
+                    >
+                        <FileText className="w-5 h-5" />
+                        Cetak Checklist
                     </button>
                 </div>
             </div>
