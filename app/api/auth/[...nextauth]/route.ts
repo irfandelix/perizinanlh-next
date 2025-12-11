@@ -12,15 +12,15 @@ const handler = NextAuth({
       async authorize(credentials) {
         const { username, password } = credentials || {};
 
-        // 1. Logika User MPP
-        if (username === "mpp" && password === "123") {
-          return { id: "1", name: "Petugas MPP", role: "mpp" };
-        }
+      // 1. Logika User MPP
+      if (username === process.env.MPP_USER && password === process.env.MPP_PASS) {
+        return { id: "1", name: "Petugas MPP", role: "mpp" };
+      }
 
-        // 2. Logika User DLH
-        if (username === "dlh" && password === "123") {
-          return { id: "2", name: "Admin DLH", role: "dlh" };
-        }
+      // 2. Logika User DLH
+      if (username === process.env.DLH_USER && password === process.env.DLH_PASS) {
+        return { id: "2", name: "Admin DLH", role: "dlh" };
+      }
 
         // Jika salah
         return null;
