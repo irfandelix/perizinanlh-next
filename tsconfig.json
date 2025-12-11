@@ -29,6 +29,6 @@
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
     "**/*.mts"
-  ],
+, "app/api/submit/pengembalian/route.js"  ],
   "exclude": ["node_modules"]
 }

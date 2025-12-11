@@ -1,65 +1,116 @@
-import Image from "next/image";
+'use client';
 
-export default function Home() {
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+import React, { useState } from 'react';
+import { useRouter } from 'next/navigation'; // Pengganti useNavigate
+import { signIn } from 'next-auth/react'; // NextAuth
+import { Leaf, Lock, User } from 'lucide-react'; // Ikon
+
+export default function LoginPage() {
+    const router = useRouter();
+    const [username, setUsername] = useState('');
+    const [password, setPassword] = useState('');
+    const [error, setError] = useState('');
+    const [loading, setLoading] = useState(false);
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setLoading(true);
+        setError('');
+
+        // Menggunakan NextAuth signIn
+        const res = await signIn('credentials', {
+            username,
+            password,
+            redirect: false,
+        });
+
+        if (res?.error) {
+            setError('Username atau Password salah.');
+            setLoading(false);
+        } else {
+            // Redirect ke root, middleware akan mengarahkan ke dashboard spesifik role
+            router.push('/dashboard'); 
+            router.refresh();
+        }
+    };
+
+    return (
+        // Kunci Centering: w-screen h-screen dan flex-center
+        <div 
+            className="flex items-center justify-center w-screen h-screen" 
+            style={{ 
+                // Latar belakang gradien
+                backgroundImage: 'linear-gradient(to bottom right, #f0fdf4, #e0f2f1)', 
+                overflow: 'hidden' // Amankan dari scroll di wrapper ini
+            }}
+        > 
+            {/* Kotak Login */}
+            <div className="bg-white p-8 rounded-xl shadow-2xl w-full max-w-sm text-center"> 
+
+                {/* Ikon */}
+                <div className="w-16 h-16 bg-green-600 text-white rounded-full flex items-center justify-center mx-auto mb-6 shadow-md shadow-green-500/50">
+                    <Leaf size={32} /> 
+                </div>
+
+                <h2 className="text-2xl font-bold text-slate-800">Login Aplikasi</h2>
+                <p className="text-sm text-slate-500 mb-6">Silakan masukkan username dan password Anda.</p>
+                
+                {error && (
+                    <div className="p-3 bg-red-50 text-red-600 text-sm rounded-lg border border-red-200 text-center font-medium mb-4">
+                        {error}
+                    </div>
+                )}
+
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    {/* Username Input */}
+                    <div>
+                        <label htmlFor="username" className="text-sm font-medium text-slate-700 block text-left mb-1">Username</label>
+                        <div className="relative">
+                            <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={20} />
+                            <input 
+                                id="username"
+                                type="text" 
+                                value={username} 
+                                onChange={(e) => setUsername(e.target.value)} 
+                                required 
+                                placeholder="Username"
+                                className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:border-green-500 transition"
+                            />
+                        </div>
+                    </div>
+
+                    {/* Password Input */}
+                    <div>
+                        <label htmlFor="password" className="text-sm font-medium text-slate-700 block text-left mb-1">Password</label>
+                        <div className="relative">
+                            <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={20} />
+                            <input 
+                                id="password"
+                                type="password" 
+                                value={password} 
+                                onChange={(e) => setPassword(e.target.value)} 
+                                required 
+                                placeholder="Password"
+                                className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:border-green-500 transition"
+                            />
+                        </div>
+                    </div>
+                    
+                    <button 
+                        type="submit" 
+                        disabled={loading}
+                        className="w-full py-2.5 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 transition disabled:opacity-50 mt-6"
+                    >
+                        {loading ? 'Memproses...' : 'Login'}
+                    </button>
+                </form>
+
+                <div className="mt-6 text-center">
+                    <p className="text-xs text-slate-400">
+                        &copy; {new Date().getFullYear()} DLH Kabupaten Sragen
+                    </p>
+                </div>
+            </div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
-  );
+    );
 }
