@@ -3,246 +3,233 @@
 
 /* --- 2. STYLING GLOBAL & ANTI-SCROLL (DLH THEME) --- */
 /* Target HTML dan BODY secara mutlak untuk menghilangkan margin/padding */
-html, body {
+html,
+body {
   margin: 0 !important;
   padding: 0 !important;
-  box-sizing: border-box; 
-  /* JANGAN SET HEIGHT/WIDTH DI SINI, agar layout lain bisa scroll */
-  
+  box-sizing: border-box;
+
   /* Style visual */
-  background-color: #f8fafc; 
-  color: #1e293b; 
+  background-color: #f8fafc;
+  color: #1e293b;
   font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
-/* --- KUNCI: MENGAKTIFKAN ANTI-SCROLL HANYA PADA WRAPPER LOGIN --- */
-/* Karena komponen Login Anda menggunakan w-screen h-screen, kita hanya perlu 
-   memastikan body tidak ada margin. SCROLLBAR AKAN HILANG karena overflow: hidden 
-   di komponen Login Anda. */
-
-/* --- Hapus Custom Scrollbar dari Body --- */
-/* Anda bisa menggunakan scrollbar ini di elemen MAIN atau DIV spesifik */
-/* KODE SCROLLBAR LAMA ANDA: */
-/*
-::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-track { background: #f1f5f9; }
-::-webkit-scrollbar-thumb { background: #15803d; border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: #166534; }
-*/
-
-
-/* --- 3. KHUSUS MODE CETAK --- */
-@media print {
-    /* Sembunyikan Tombol dan Elemen Navigasi */
-    .excel-button,
-    .main-sidebar, /* Asumsi Anda punya sidebar */
-    .print-hide {
-        display: none !important;
-    }
-
-    /* Tampilkan elemen yang tersembunyi */
-    .print-show {
-        display: block !important;
-    }
-    
-    /* Batalkan Efek Freeze Column dan Sticky Header */
-    .rekap-table .freeze, 
-    .rekap-table th {
-        position: static !important; /* Hapus efek sticky saat dicetak */
-        z-index: auto !important;
-    }
-
-    /* Pastikan Header Tabel tetap terlihat di setiap halaman (Print) */
-    .rekap-table thead {
-        display: table-header-group;
-    }
-
-    /* Hapus Warna Latar Belakang dan Bayangan */
-    body {
-        background-color: white !important;
-    }
-    .rekap-table-wrapper,
-    .rekap-table,
-    .rekap-table th,
-    .rekap-table td {
-        box-shadow: none !important;
-        background-color: white !important;
-        color: black !important;
-    }
-
-    /* Tampilkan Border Hitam */
-    .rekap-table th,
-    .rekap-table td {
-        border-color: #333 !important; /* Border lebih gelap untuk cetak */
-    }
-}
-
 /* ================================================= */
-/* STYLING KHUSUS REKAP TABEL (DARI rekapTableStyles) */
+/* STYLING KHUSUS REKAP TABEL */
 /* ================================================= */
 
 /* Wrapper */
 .rekap-table-wrapper {
-    max-height: 75vh;
-    overflow: auto;
-    margin-top: 1.5rem;
-    border: 1px solid #e5e7eb;
-    border-radius: 8px;
-    position: relative;
-    background: white;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  max-height: 75vh;
+  overflow: auto;
+  margin-top: 1.5rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  position: relative;
+  background: white;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
 
 /* Base Table */
 .rekap-table {
-    width: 100%;
-    border-collapse: separate; 
-    border-spacing: 0;
-    font-size: 0.85rem;
-    min-width: 2500px; 
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0.85rem;
+  min-width: 2500px;
 }
 
 /* Sel Header & Data */
-.rekap-table th, .rekap-table td {
-    border-bottom: 1px solid #e5e7eb;
-    border-right: 1px solid #e5e7eb;
-    padding: 0.75rem;
-    text-align: left;
-    white-space: nowrap;
-    vertical-align: top;
+.rekap-table th,
+.rekap-table td {
+  border-bottom: 1px solid #e5e7eb;
+  border-right: 1px solid #e5e7eb;
+  padding: 0.75rem;
+  text-align: left;
+  white-space: nowrap;
+  vertical-align: top;
 }
 
 /* Header Sticky */
 .rekap-table th {
-    background-color: #d1fae5;
-    color: #065f46;
-    font-weight: 700;
-    position: sticky;
-    top: 0;
-    z-index: 10;
-    border-top: 1px solid #e5e7eb;
+  background-color: #d1fae5;
+  color: #065f46;
+  font-weight: 700;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  border-top: 1px solid #e5e7eb;
 }
 
 /* Wrap text khusus kolom Nama Kegiatan */
 .rekap-table .wrap-text {
-    white-space: normal;
-    word-wrap: break-word;
-    min-width: 300px;
-    max-width: 400px;
+  white-space: normal;
+  word-wrap: break-word;
+  min-width: 300px;
+  max-width: 400px;
 }
 
 /* --- FREEZE COLUMN LOGIC --- */
 .rekap-table .freeze {
-    position: sticky;
-    z-index: 20;
-    background-color: white; 
+  position: sticky;
+  z-index: 20;
+  background-color: white;
 }
 
 .rekap-table th.freeze {
-    z-index: 30;
-    background-color: #d1fae5;
+  z-index: 30;
+  background-color: #d1fae5;
 }
 
 /* Warna selang-seling */
 .rekap-table tbody tr:nth-child(even) td {
-    background-color: #f9fafb;
+  background-color: #f9fafb;
 }
+
 .rekap-table tbody tr:nth-child(even) td.freeze {
-    background-color: #f9fafb;
+  background-color: #f9fafb;
 }
 
 /* Posisi Sticky (Left) */
-.rekap-table .col-no { left: 0; width: 60px; min-width: 60px; text-align: center; }
-.rekap-table .col-checklist { left: 60px; width: 180px; min-width: 180px; }
-.rekap-table .col-kegiatan { left: 240px; border-right: 2px solid #9ca3af; } 
+.rekap-table .col-no {
+  left: 0;
+  width: 60px;
+  min-width: 60px;
+  text-align: center;
+}
 
-/* Catatan: Tombol Excel harus menggunakan Tailwind classes langsung di JSX */
+.rekap-table .col-checklist {
+  left: 60px;
+  width: 180px;
+  min-width: 180px;
+}
 
-/* --- app/globals.css (Di dalam block @media print) --- */
+.rekap-table .col-kegiatan {
+  left: 240px;
+  border-right: 2px solid #9ca3af;
+}
+
+/* --- 3. KHUSUS MODE CETAK --- */
 @media print {
-    /* ========================================= */
-    /* 1. KONTROL TATA LETAK & MARGIN KERTAS */
-    /* ========================================= */
-    @page {
-        /* Mengatur margin kertas ke nol (Ini membantu menghilangkan whitespace) */
-        margin: 0;
-        
-        /* Ini adalah pengaturan browser, yang berfungsi di Firefox, 
-           tetapi tidak di Chrome/Edge (harus dinonaktifkan manual oleh user) */
-        size: A4 portrait; 
-    }
 
-    /* Memastikan body tidak memiliki margin atau padding */
-    body {
-        margin: 0 !important;
-        padding: 0 !important;
-        /* Mengatur ukuran body menjadi 100% lebar kertas */
-        width: 100%;
-    }
+  /* ========================================= */
+  /* 1. KONTROL TATA LETAK & MARGIN KERTAS */
+  /* ========================================= */
+  @page {
+    margin: 0;
+    size: A4 portrait;
+  }
 
-    /* ========================================= */
-    /* 2. MENYEMBUNYIKAN ELEMEN UI */
-    /* ========================================= */
-    
-    /* Asumsi sidebar Anda menggunakan class 'sidebar' atau sejenisnya.
-       Periksa kode register/page.tsx atau layout.tsx Anda untuk nama class yang tepat. */
-    .sidebar-container, 
-    .navbar-header, 
-    .exit-system-button,
-    .main-navigation { /* Contoh class yang harus disembunyikan */
-        display: none !important;
-    }
-    
-    /* ========================================= */
-    /* 3. MENYESUAIKAN TAMPILAN KONTEN UTAMA */
-    /* ========================================= */
-    
-    /* Pastikan konten utama (yang berisi tanda terima) menggunakan 100% lebar */
-    .main-content-area { 
-        width: 100% !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        min-height: auto !important;
-    }
+  body {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100%;
+    background-color: white !important;
+    color: black !important;
+  }
 
-    /* Pastikan Tanda Terima (cetak) berada di tengah halaman */
-    .tanda-terima-container { /* Asumsi class container tanda terima */
-        padding: 20px;
-        margin: auto;
-    }
-    
-    /* Pastikan tidak ada warna latar belakang */
-    * {
-        background: transparent !important;
-        color: #000 !important; 
-        box-shadow: none !important;
-        text-shadow: none !important;
-    }
-    
-    /* ------------------------------------------------ */
-    /* ATURAN UMUM UNTUK PRINT-ONLY WRAPPER */
-    /* ------------------------------------------------ */
-    .print-only-wrapper {
-        display: none !important; /* Secara default, semua konten cetak tersembunyi */
-        /* Tambahkan style untuk membatalkan print:hidden bawaan Tailwind */
-    }
+  /* ========================================= */
+  /* 2. MENYEMBUNYIKAN ELEMEN UI & INPUT FORM */
+  /* ========================================= */
 
-    /* ------------------------------------------------ */
-    /* KONTROL DISPLAY BERDASARKAN MODE DARI JAVASCRIPT */
-    /* ------------------------------------------------ */
-    
-    /* MODE: Cetak Tanda Terima */
-    body.mode-print-terima #print-terima {
-        display: block !important;
-    }
-    
-    /* MODE: Cetak Checklist */
-    body.mode-print-checklist #print-checklist {
-        display: block !important;
-    }
-    
-    /* Pastikan KONTEN LAYAR (Input Form) tersembunyi di kedua mode */
-    .print\\:hidden { /* Tailwind's print:hidden class */
-        display: none !important;
-    }
+  /* Menyembunyikan Wrapper Form Input */
+  .max-w-5xl.mx-auto {
+    display: none !important;
+  }
+
+  /* Sembunyikan Navigasi & Tombol */
+  .excel-button,
+  .main-sidebar,
+  .navbar-header,
+  .exit-system-button,
+  .print-actions,
+  .print-hide {
+    display: none !important;
+  }
+
+  /* ------------------------------------------------ */
+  /* KONTROL DISPLAY BERDASARKAN MODE DARI JAVASCRIPT */
+  /* ------------------------------------------------ */
+
+  /* Secara default, semua konten cetak tersembunyi */
+  #print-terima,
+  #print-checklist {
+    display: none !important;
+  }
+
+  .print-only-wrapper {
+    display: none !important;
+  }
+
+  /* MODE: Cetak Tanda Terima */
+  body.mode-print-terima #print-terima {
+    display: block !important;
+  }
+
+  /* MODE: Cetak Checklist */
+  body.mode-print-checklist #print-checklist {
+    display: block !important;
+  }
+
+  /* Tampilkan elemen yang memang ditujukan untuk print */
+  .print-show {
+    display: block !important;
+  }
+
+  /* ========================================= */
+  /* 3. PERBAIKAN STYLING TABEL REKAP */
+  /* ========================================= */
+
+  /* Batalkan Efek Freeze Column dan Sticky Header */
+  .rekap-table .freeze,
+  .rekap-table th {
+    position: static !important;
+    z-index: auto !important;
+  }
+
+  /* Pastikan Header Tabel tetap terlihat di setiap halaman (Print) */
+  .rekap-table thead {
+    display: table-header-group;
+  }
+
+  /* Hapus Box Shadow dan Atur Warna Hitam Putih untuk Cetak */
+  .rekap-table-wrapper,
+  .rekap-table,
+  .rekap-table th,
+  .rekap-table td {
+    box-shadow: none !important;
+    background-color: white !important;
+    color: black !important;
+  }
+
+  /* Tampilkan Border Hitam */
+  .rekap-table th,
+  .rekap-table td {
+    border-color: #333 !important;
+  }
+
+  /* ------------------------------------------------ */
+  /* PENGATURAN KONTEN UTAMA & TANDA TERIMA */
+  /* ------------------------------------------------ */
+
+  .main-content-area {
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    min-height: auto !important;
+  }
+
+  .tanda-terima-container {
+    padding: 20px;
+    margin: auto;
+  }
+
+  /* Hapus sisa bayangan dan warna */
+  * {
+    background: transparent !important;
+    color: #000 !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
 }
