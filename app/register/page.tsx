@@ -2,6 +2,11 @@
 
 import React, { useState } from 'react';
 import { MapPin, User, Phone, FileText, Printer, Save } from 'lucide-react';
+import { renderToStaticMarkup } from 'react-dom/server';
+
+// --- IMPORT COMPONENT TEMPLATE CETAK ---
+import { TandaTerimaPDF } from '@/components/pdf/TandaTerimaPDF'; 
+import { ChecklistPrintTemplate } from '@/components/pdf/ChecklistPrintTemplate'; 
 
 export default function RegisterDokumenPage() {
     // --- STATE 1: DATA FORMULIR ---
@@ -13,7 +18,7 @@ export default function RegisterDokumenPage() {
         lokasiKegiatan: '',
         jenisKegiatan: 'Perumahan',
         jenisDokumen: 'UKL-UPL',
-        tanggalMasukDokumen: new Date().toISOString().split('T')[0], // Default hari ini
+        tanggalMasukDokumen: new Date().toISOString().split('T')[0], 
         namaPemrakarsa: '',
         teleponPemrakarsa: '',
         namaKonsultan: '',
@@ -28,11 +33,13 @@ export default function RegisterDokumenPage() {
     const [checklistStatus, setChecklistStatus] = useState<Record<number, boolean>>({});
     const [checklistNotes, setChecklistNotes] = useState<Record<number, string>>({});
 
-    // --- STATE 3: STATUS AKHIR (KESIMPULAN) ---
+    // --- STATE 3: STATUS AKHIR ---
     const [statusVerifikasi, setStatusVerifikasi] = useState("Diterima");
+    
+    // State loading untuk tombol cetak
+    const [isPrinting, setIsPrinting] = useState(false);
 
-    // --- DATA ITEMS CHECKLIST (18 ITEM) ---
-    // Bintang (*) hanya pada nomor 1, 2, dan 3 sesuai request
+    // --- DATA ITEMS CHECKLIST ---
     const checklistItems = [
         { id: 1, label: "Surat Permohonan Pemeriksaan Dokumen UKL-UPL / SPPL*" },
         { id: 2, label: "Pernyataan Pengelolaan dan Pemantauan Lingkungan (Bermaterai)*" },
@@ -68,26 +75,56 @@ export default function RegisterDokumenPage() {
         setChecklistNotes(prev => ({ ...prev, [index]: value }));
     };
 
-    // --- HANDLERS (LOGIKA CETAK TERPISAH) ---
-    
-    const triggerPrint = (mode: 'terima' | 'checklist') => {
-        // 1. Tambahkan class ke body untuk memberi tahu CSS apa yang harus ditampilkan
-        document.body.classList.add(`mode-print-${mode}`);
-        
-        // 2. Memicu dialog cetak browser
-        window.print();
-        
-        // 3. Bersihkan class setelah mencetak
-        // Menggunakan setTimeout untuk memberi waktu dialog print muncul
-        setTimeout(() => {
-            document.body.classList.remove(`mode-print-${mode}`);
-        }, 500); 
-    }
+    // --- LOGIKA CETAK PDF (PUPPETEER API) ---
+    const handleCetakPDF = async (mode: 'terima' | 'checklist') => {
+        setIsPrinting(true);
+        try {
+            let htmlString = '';
 
-    const handleSimpan = () => {
-        // Logika Simpan ke Database
-        console.log("Menyimpan Data...", { formData, checklistStatus, statusVerifikasi });
-    };
+            // 1. Pilih Template HTML berdasarkan tombol yang diklik
+            if (mode === 'terima') {
+                htmlString = renderToStaticMarkup(
+                    <TandaTerimaPDF data={formData} />
+                );
+            } else if (mode === 'checklist') {
+                htmlString = renderToStaticMarkup(
+                    <ChecklistPrintTemplate 
+                        data={formData} 
+                        checklistStatus={checklistStatus}
+                        statusVerifikasi={statusVerifikasi}
+                    />
+                );
+            }
+
+            // 2. Kirim HTML ke API Puppeteer Vercel
+            const response = await fetch('/api/print', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ htmlContent: htmlString }),
+            });
+
+            if (!response.ok) {
+                const errData = await response.json();
+                throw new Error(errData.details || errData.error || 'Gagal generate PDF');
+            }
+
+            // 3. Buka PDF hasilnya di tab baru
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            window.open(url, '_blank');
+
+        } catch (error) {
+            console.error(error);
+            alert('Gagal mencetak: ' + error);
+        } finally {
+            setIsPrinting(false);
+        }
+    };
+
+    const handleSimpan = () => {
+        console.log("Menyimpan Data...", { formData, checklistStatus, statusVerifikasi });
+        alert("Simpan Data Berhasil (Simulasi)");
+    };
 
     // Styling Variables
     const labelClass = "block mb-2 text-sm font-medium text-slate-700";
@@ -96,10 +133,8 @@ export default function RegisterDokumenPage() {
     return (
         <div className="bg-slate-100 min-h-screen p-4 md:p-8 font-sans">
             
-            {/* ================================================================= */}
-            {/* TAMPILAN LAYAR (INPUT FORM) - Hidden Saat Print                   */}
-            {/* ================================================================= */}
-            <div className="max-w-5xl mx-auto print:hidden">
+            {/* Hanya Tampilan Form Input (Tidak ada bagian hidden print lagi) */}
+            <div className="max-w-5xl mx-auto">
                 
                 <h1 className="text-2xl font-bold text-slate-800 mb-6 flex items-center gap-2">
                     <FileText className="text-green-600" />
@@ -114,7 +149,8 @@ export default function RegisterDokumenPage() {
                     </h3>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {/* Data Surat */}
+                        {/* ... (INPUT FIELD SAMA SEPERTI SEBELUMNYA) ... */}
+                        {/* Saya singkat agar muat, isinya sama persis dengan form input Anda */}
                         <div>
                             <label className={labelClass}>Nomor Surat Permohonan</label>
                             <input name="nomorSuratPermohonan" className={inputClass} onChange={handleInputChange} placeholder="Nomor surat..." />
@@ -127,8 +163,6 @@ export default function RegisterDokumenPage() {
                             <label className={labelClass}>Perihal Surat</label>
                             <input name="perihalSuratPermohonan" className={inputClass} onChange={handleInputChange} placeholder="Perihal surat..." />
                         </div>
-
-                        {/* Data Kegiatan */}
                         <div className="md:col-span-2">
                             <label className={labelClass}>Nama Kegiatan</label>
                             <input name="namaKegiatan" className={inputClass} onChange={handleInputChange} placeholder="Contoh: Pembangunan Perumahan..." />
@@ -162,8 +196,6 @@ export default function RegisterDokumenPage() {
                             <label className={labelClass}>Tanggal Masuk Dokumen</label>
                             <input name="tanggalMasukDokumen" type="date" className={inputClass} onChange={handleInputChange} value={formData.tanggalMasukDokumen} />
                         </div>
-
-                        {/* Data Kontak */}
                         <div className="md:col-span-2 border-t border-slate-200 pt-4 mt-2">
                             <p className="text-sm font-semibold text-slate-500 mb-3">Data Kontak</p>
                         </div>
@@ -181,7 +213,6 @@ export default function RegisterDokumenPage() {
                                 <input name="teleponPemrakarsa" className={`${inputClass} pl-10`} onChange={handleInputChange} placeholder="+62..." />
                             </div>
                         </div>
-                        
                         <div>
                             <label className={labelClass}>Nama Konsultan (Opsional)</label>
                             <input name="namaKonsultan" className={inputClass} onChange={handleInputChange} placeholder="Nama konsultan..." />
@@ -190,8 +221,6 @@ export default function RegisterDokumenPage() {
                             <label className={labelClass}>No. Telp Konsultan</label>
                             <input name="teleponKonsultan" className={inputClass} onChange={handleInputChange} placeholder="+62..." />
                         </div>
-
-                        {/* Data Pengiriman */}
                         <div className="md:col-span-2 border-t border-slate-200 pt-4 mt-2">
                             <p className="text-sm font-semibold text-slate-500 mb-3">Data Pengiriman</p>
                         </div>
@@ -237,7 +266,6 @@ export default function RegisterDokumenPage() {
                             </thead>
                             <tbody>
                                 {checklistItems.map((item, index) => {
-                                    // Logika: Tanda bintang (*) hanya di item 1, 2, 3
                                     const isRequired = item.label.includes('*');
                                     const labelText = item.label.replace('*', '');
                                     const isChecked = checklistStatus[index] || false;
@@ -279,7 +307,7 @@ export default function RegisterDokumenPage() {
                     </div>
                 </div>
 
-                {/* --- BAGIAN 3: KESIMPULAN / STATUS AKHIR (PERMINTAAN TERBARU) --- */}
+                {/* --- BAGIAN 3: KESIMPULAN / STATUS AKHIR --- */}
                 <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 mt-6 shadow-sm">
                     <h3 className="text-slate-800 font-bold text-lg mb-4 flex items-center border-b border-slate-200 pb-2">
                         <span className="bg-blue-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs mr-2">3</span>
@@ -303,13 +331,13 @@ export default function RegisterDokumenPage() {
                                 <option value="Ditolak">DITOLAK / DIKEMBALIKAN</option>
                             </select>
                             <p className="mt-2 text-xs text-slate-500">
-                                *Pilih status akhir. Status ini akan tercetak pada Tanda Terima.
+                                *Pilih status akhir. Status ini akan tercetak pada Tanda Terima PDF.
                             </p>
                         </div>
 
                         {/* Preview */}
                         <div className="hidden md:block p-4 rounded-lg border border-slate-200 bg-white">
-                            <p className="text-xs text-slate-400 uppercase mb-1">Preview pada Cetakan:</p>
+                            <p className="text-xs text-slate-400 uppercase mb-1">Preview Status:</p>
                             <div className="border border-black p-2 text-center">
                                 <span className="font-bold text-xs mr-2">Status Kelengkapan Berkas*:</span>
                                 <span className="border border-black px-3 py-0.5 font-bold text-xs bg-white inline-block">
@@ -320,7 +348,7 @@ export default function RegisterDokumenPage() {
                     </div>
                 </div>
 
-               {/* Tombol Simpan & Cetak BARU */}
+               {/* Tombol Simpan & Cetak (API PDF) */}
                 <div className="mt-8 mb-12 flex space-x-4">
                     {/* Tombol Simpan */}
                     <button 
@@ -331,85 +359,25 @@ export default function RegisterDokumenPage() {
                         Simpan Data
                     </button>
 
-                    {/* Tombol Cetak Tanda Terima */}
+                    {/* Tombol Cetak Tanda Terima (API) */}
                     <button 
-                        onClick={() => triggerPrint('terima')} 
-                        className="bg-green-600 flex-1 text-white py-4 rounded-xl font-bold hover:bg-green-700 transition shadow-lg flex justify-center items-center gap-2 text-lg"
+                        onClick={() => handleCetakPDF('terima')} 
+                        disabled={isPrinting}
+                        className="bg-green-600 flex-1 text-white py-4 rounded-xl font-bold hover:bg-green-700 transition shadow-lg flex justify-center items-center gap-2 text-lg disabled:bg-green-400 disabled:cursor-not-allowed"
                     >
                         <Printer className="w-5 h-5" />
-                        Cetak Tanda Terima
+                        {isPrinting ? 'Membuat PDF...' : 'Cetak Tanda Terima'}
                     </button>
                     
-                    {/* Tombol Cetak Checklist */}
+                    {/* Tombol Cetak Checklist (API) */}
                     <button 
-                        onClick={() => triggerPrint('checklist')} 
-                        className="bg-yellow-600 flex-1 text-white py-4 rounded-xl font-bold hover:bg-yellow-700 transition shadow-lg flex justify-center items-center gap-2 text-lg"
+                        onClick={() => handleCetakPDF('checklist')} 
+                        disabled={isPrinting}
+                        className="bg-yellow-600 flex-1 text-white py-4 rounded-xl font-bold hover:bg-yellow-700 transition shadow-lg flex justify-center items-center gap-2 text-lg disabled:bg-yellow-400 disabled:cursor-not-allowed"
                     >
                         <FileText className="w-5 h-5" />
-                        Cetak Checklist
+                        {isPrinting ? 'Membuat PDF...' : 'Cetak Checklist'}
                     </button>
-                </div>
-            </div>
-
-            {/* ================================================================= */}
-            {/* TAMPILAN CETAK (PRINT ONLY) - Tanda Terima                        */}
-            {/* ================================================================= */}
-            <div className="hidden print:block font-serif text-black bg-white w-full h-auto p-8">
-                
-                {/* 1. KOP SURAT */}
-                <div className="border-b-4 border-double border-black pb-4 mb-6 text-center">
-                    <h4 className="font-bold text-lg uppercase tracking-wide">Pemerintah Kabupaten Sragen</h4>
-                    <h2 className="font-bold text-2xl uppercase tracking-wider">Dinas Lingkungan Hidup</h2>
-                    <p className="text-sm">Jl. Raya Sukowati No. 20, Sragen, Jawa Tengah</p>
-                </div>
-
-                {/* 2. JUDUL */}
-                <div className="text-center mb-8">
-                    <h1 className="text-xl font-bold underline uppercase">TANDA TERIMA DOKUMEN</h1>
-                    <p className="text-sm mt-1">Nomor Registrasi: ________ / DLH / {new Date().getFullYear()}</p>
-                </div>
-
-                {/* 3. ISI UTAMA */}
-                <div className="text-sm leading-loose mb-6">
-                    <p>Telah diterima berkas dokumen permohonan persetujuan lingkungan pada tanggal <b>{formData.tanggalMasukDokumen}</b> dengan rincian:</p>
-                    <table className="w-full mt-4 align-top">
-                        <tbody>
-                            <tr><td className="w-48 py-1">1. Nama Pemrakarsa</td><td className="py-1">: <b>{formData.namaPemrakarsa || "................................................"}</b></td></tr>
-                            <tr><td className="py-1">2. Judul Kegiatan</td><td className="py-1">: {formData.namaKegiatan || "................................................"}</td></tr>
-                            <tr><td className="py-1">3. Lokasi Kegiatan</td><td className="py-1">: {formData.lokasiKegiatan || "................................................"}</td></tr>
-                            <tr><td className="py-1">4. No. Surat Permohonan</td><td className="py-1">: {formData.nomorSuratPermohonan || "................................................"}</td></tr>
-                            <tr><td className="py-1">5. Jenis Dokumen</td><td className="py-1">: {formData.jenisDokumen}</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-
-                {/* 4. STATUS AKHIR (HASIL DARI BAGIAN 3) */}
-                <div className="border-2 border-black p-4 mb-8 text-center">
-                    <p className="font-bold mb-2 uppercase text-xs tracking-wider">Status Kelengkapan Berkas</p>
-                    <div className="inline-block border-b-2 border-black pb-1 text-lg font-bold">
-                        {statusVerifikasi.toUpperCase()}
-                    </div>
-                    {statusVerifikasi !== 'Diterima' && (
-                        <p className="text-xs italic mt-2">Catatan: Silakan lengkapi kekurangan berkas sesuai checklist terlampir.</p>
-                    )}
-                </div>
-
-                {/* 5. TANDA TANGAN */}
-                <div className="flex justify-between px-4 mt-12">
-                    <div className="text-center w-64">
-                        <p className="mb-20">Yang Menyerahkan,</p>
-                        <p className="font-bold border-b border-black">{formData.namaPengirim || "(....................................)"}</p>
-                        <p className="text-xs text-left mt-1">{formData.pengirimSebagai}</p>
-                    </div>
-                    <div className="text-center w-64">
-                        <p className="mb-20">Petugas Penerima,</p>
-                        <p className="font-bold border-b border-black">{formData.namaPetugas || "(....................................)"}</p>
-                        <p className="text-xs text-left mt-1">NIP. ....................................</p>
-                    </div>
-                </div>
-
-                <div className="fixed bottom-4 left-0 w-full text-center text-[10px] text-slate-400 italic">
-                    Dicetak melalui Sistem Informasi Lingkungan Hidup pada {new Date().toLocaleString()}
                 </div>
             </div>
         </div>
