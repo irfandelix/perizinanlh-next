@@ -1,5 +1,5 @@
 import { NextResponse, NextRequest } from 'next/server';
-import clientPromise from '@/lib/db'; // Hapus DB_NAME jika mau pakai default dari URI
+import clientPromise from '@/lib/db'; // Cukup import clientPromise saja
 
 // --- DEFINISI TIPE ---
 type Params = {

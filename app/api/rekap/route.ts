@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
-import clientPromise, { DB_NAME } from '@/lib/db';
+import clientPromise from '@/lib/db'; // Cukup import clientPromise saja
 
 export const dynamic = 'force-dynamic'; // Agar data selalu fresh (tidak dicache)
 
 export async function GET() {
   try {
     const client = await clientPromise;
-    const db = client.db(DB_NAME);
+    const db = client.db();
     const collection = db.collection('dokumen'); // Pastikan nama collection 'dokumen' atau 'records'
 
     // Ambil semua data, urutkan berdasarkan noUrut

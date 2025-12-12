@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import clientPromise, { DB_NAME } from '@/lib/db';
+import clientPromise from '@/lib/db'; // Cukup import clientPromise saja
 
 export async function POST(request: Request) {
     try {
@@ -10,7 +10,7 @@ export async function POST(request: Request) {
         }
 
         const client = await clientPromise;
-        const db = client.db(DB_NAME);
+        const db = client.db();
         
         const record = await db.collection('dokumen').findOne({ nomorChecklist });
 

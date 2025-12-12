@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import clientPromise, { DB_NAME } from '@/lib/db';
+import clientPromise from '@/lib/db'; // Cukup import clientPromise saja
 
 export const dynamic = 'force-dynamic';
 
@@ -9,7 +9,7 @@ export async function GET(request: Request) {
     const year = searchParams.get('year') || new Date().getFullYear().toString();
 
     const client = await clientPromise;
-    const db = client.db(DB_NAME);
+    const db = client.db();
     const collection = db.collection('dokumen');
 
     // Define Date Range for the selected year

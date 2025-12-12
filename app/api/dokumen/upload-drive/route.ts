@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import clientPromise, { DB_NAME } from '@/lib/db';
+import clientPromise from '@/lib/db'; // Cukup import clientPromise saja
 import { getDriveService } from '@/lib/drive';
 import { Readable } from 'stream';
 
@@ -48,7 +48,7 @@ export async function POST(request: Request) {
 
         // Update MongoDB
         const client = await clientPromise;
-        const collection = client.db(DB_NAME).collection('dokumen');
+        const collection = client.db().collection('dokumen');
         
         await collection.updateOne(
             { noUrut: parseInt(noUrut) },
