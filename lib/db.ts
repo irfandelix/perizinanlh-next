@@ -1,30 +1,33 @@
 import { MongoClient } from 'mongodb';
 
-const uri = process.env.MONGO_URI || "";
+if (!process.env.MONGO_URI) {
+  throw new Error('Invalid/Missing environment variable: "MONGO_URI"');
+}
+
+const uri = process.env.MONGO_URI;
 const options = {};
 
 let client;
 let clientPromise: Promise<MongoClient>;
 
-if (!process.env.MONGO_URI) {
-  throw new Error('Please add your Mongo URI to .env.local');
-}
-
-// Global variable hack untuk development agar koneksi tidak numpuk saat hot-reload
+// Deklarasi global agar TypeScript tidak protes
 declare global {
   var _mongoClientPromise: Promise<MongoClient> | undefined;
 }
 
 if (process.env.NODE_ENV === 'development') {
+  // Mode Development: Gunakan variabel global agar koneksi awet saat hot-reload
   if (!global._mongoClientPromise) {
     client = new MongoClient(uri, options);
     global._mongoClientPromise = client.connect();
   }
   clientPromise = global._mongoClientPromise;
 } else {
+  // Mode Production: Selalu buat koneksi baru
   client = new MongoClient(uri, options);
   clientPromise = client.connect();
 }
 
+// Cukup export clientPromise saja.
+// Tidak perlu export DB_NAME lagi.
 export default clientPromise;
-export const DB_NAME = 'db_perizinan_lh'; // Sesuaikan nama DB
