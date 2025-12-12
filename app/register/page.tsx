@@ -121,9 +121,54 @@ export default function RegisterDokumenPage() {
         }
     };
 
-    const handleSimpan = () => {
-        console.log("Menyimpan Data...", { formData, checklistStatus, statusVerifikasi });
-        alert("Simpan Data Berhasil (Simulasi)");
+// --- HANDLER SIMPAN KE DB (UPDATED) ---
+    const handleSimpan = async () => {
+        // 1. Validasi Sederhana (Opsional)
+        if (!formData.nomorSuratPermohonan) {
+            alert("Mohon isi Nomor Surat Permohonan!");
+            return;
+        }
+
+        setIsPrinting(true); // Pakai loading state biar user tau lagi proses
+
+        try {
+            // 2. Siapkan Payload
+            // Kita gabungkan formData dengan status checklist
+            const payload = {
+                ...formData,       // Data form (nomor surat, pemrakarsa, dll)
+                checklistStatus,   // Status centang checklist
+                checklistNotes,    // Catatan checklist (jika ada)
+                statusVerifikasi   // Status akhir (Diterima/Ditolak)
+            };
+
+            // 3. Kirim ke API (Sesuai folder api/submit/[tahap])
+            // Kita pakai parameter 'tahap-a' karena ini halaman registrasi
+            const response = await fetch('/api/submit/tahap-a', { 
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(payload),
+            });
+
+            const result = await response.json();
+
+            if (!response.ok) {
+                throw new Error(result.message || "Gagal menyimpan data ke server.");
+            }
+
+            // 4. Sukses
+            alert(`✅ BERHASIL DISIMPAN!\n\nNomor Checklist: ${result.generatedData.nomorChecklist}\nNo Urut: ${result.generatedData.noUrut}`);
+            
+            // Opsi: Reset form atau redirect halaman setelah simpan
+            // window.location.href = '/dashboard'; 
+
+        } catch (error: any) {
+            console.error("Error saving:", error);
+            alert("❌ TERJADI KESALAHAN:\n" + error.message);
+        } finally {
+            setIsPrinting(false); // Matikan loading
+        }
     };
 
     // Styling Variables

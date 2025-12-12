@@ -1,7 +1,8 @@
 import { NextResponse, NextRequest } from 'next/server';
-import clientPromise from '@/lib/db'; // Cukup import clientPromise saja
+import clientPromise from '@/lib/db'; 
 
 // --- DEFINISI TIPE ---
+// Sesuai nama folder [tahap]
 type Params = {
     tahap: string;
 };
@@ -21,12 +22,14 @@ const getDateParts = (dateString: string) => {
 const getKodeJenisDokumen = (inputJenis: string) => {
     if (!inputJenis) return 'DOK';
     const normalized = inputJenis.trim().toUpperCase();
+
     const map: Record<string, string> = {
         'SPPL': 'SPPL', 'UKLUPL': 'UKLUPL', 'UKL-UPL': 'UKLUPL',
         'RINTEK LB3': 'RINTEK.LB3', 'PERTEK AIR LIMBAH': 'PERTEK.AL',
         'PERTEK EMISI': 'PERTEK.EM', 'SLO': 'SLO', 'DPLH': 'DPLH',
         'DELH': 'DELH', 'AMDAL': 'AMDAL'
     };
+
     return map[normalized] || normalized;
 };
 
@@ -41,20 +44,31 @@ const generateNomor = (noUrut: number, dateString: string, tahapan: string, jeni
 
 export async function POST(
     request: NextRequest, 
-    { params }: { params: Promise<Params> }
+    { params }: { params: Promise<Params> } 
 ) {
     let generatedNomorStr: string = '';
 
     try {
+        // MENANGKAP VARIABEL DARI NAMA FOLDER [tahap]
         const { tahap } = await params;
-        const body = await request.json();
         
-        console.log(`[API] Menerima Request Tahap: ${tahap}`); // DEBUG LOG
-        console.log(`[API] Body Data:`, body); // DEBUG LOG
+        // 1. AMBIL RAW BODY & FLATTENING DATA
+        const rawBody = await request.json();
+        let body = rawBody;
+
+        // Cek jika data terbungkus dalam 'formData', kita keluarkan isinya
+        if (rawBody.formData) {
+            body = {
+                ...rawBody.formData,      
+                ...rawBody,               
+            };
+            delete body.formData;         
+        }
+
+        console.log(`[API] Processing Tahap: ${tahap}`);
 
         const client = await clientPromise;
-        // PENTING: Pakai default db dari URI connection string
-        const db = client.db(); 
+        const db = client.db(); // Default DB dari URI
         const collection = db.collection('dokumen'); 
 
         // ==========================================
@@ -68,11 +82,10 @@ export async function POST(
             
             const newRecord = {
                 ...body,
-                noUrut, // Disimpan sebagai NUMBER
+                noUrut, 
                 nomorChecklist,
                 statusTerakhir: 'PROSES',
                 createdAt: new Date(),
-                // Field placeholder
                 nomorUjiBerkas: "", tanggalUjiBerkas: "",
                 nomorBAVerlap: "", tanggalVerlap: "",
                 nomorBAPemeriksaan: "", tanggalPemeriksaan: "",
@@ -81,8 +94,7 @@ export async function POST(
                 fileTahapB: "", fileTahapC: "", fileTahapD: "", filePKPLH: "" 
             };
             
-            const result = await collection.insertOne(newRecord);
-            console.log("[API] Insert Result:", result); // DEBUG LOG
+            await collection.insertOne(newRecord);
             
             return NextResponse.json({ 
                 success: true, 
@@ -92,24 +104,19 @@ export async function POST(
         }
 
         // ==========================================
-        // LOGIKA UPDATE
+        // LOGIKA UPDATE (TAHAP SELANJUTNYA)
         // ==========================================
         
         const { noUrut } = body; 
         
         if (!noUrut) {
-            console.error("[API] Error: No Urut tidak dikirim!");
             return NextResponse.json({ success: false, message: 'No Urut tidak ditemukan di body request.' }, { status: 400 });
         }
 
-        // Konversi ke Integer agar cocok dengan database
         const queryNoUrut = parseInt(noUrut);
-        console.log(`[API] Mencari data dengan No Urut: ${queryNoUrut} (Tipe: ${typeof queryNoUrut})`);
-
         const existingData = await collection.findOne({ noUrut: queryNoUrut });
         
         if (!existingData) {
-            console.error(`[API] Data tidak ditemukan untuk No Urut: ${queryNoUrut}`);
             return NextResponse.json({ success: false, message: `Data dengan No Urut ${queryNoUrut} tidak ditemukan.` }, { status: 404 });
         }
 
@@ -121,93 +128,79 @@ export async function POST(
             generatedNomorStr = existingData.nomorUjiBerkas || generateNomor(queryNoUrut, tanggalPenerbitanUa, 'BA.HUA', existingData.jenisDokumen);
             updateQuery = { nomorUjiBerkas: generatedNomorStr, tanggalUjiBerkas: tanggalPenerbitanUa };
         } 
+        
         // --- TAHAP C ---
         else if (tahap === 'c') {
             const { tanggalVerifikasi } = body;
             generatedNomorStr = existingData.nomorBAVerlap || generateNomor(queryNoUrut, tanggalVerifikasi, 'BA.V', existingData.jenisDokumen);
             updateQuery = { nomorBAVerlap: generatedNomorStr, tanggalVerlap: tanggalVerifikasi };
         }
+        
         // --- TAHAP D ---
         else if (tahap === 'd') {
             const { tanggalPemeriksaan } = body;
             generatedNomorStr = existingData.nomorBAPemeriksaan || generateNomor(queryNoUrut, tanggalPemeriksaan, 'BA.P', existingData.jenisDokumen);
             updateQuery = { nomorBAPemeriksaan: generatedNomorStr, tanggalPemeriksaan: tanggalPemeriksaan };
         }
+        
         // --- TAHAP E (REVISI) ---
         else if (tahap === 'e') {
             const { tanggalRevisi, nomorRevisi } = body;
-            const revisionMap: any = { '1': 'nomorRevisi1', '2': 'nomorRevisi2', '3': 'nomorRevisi3', '4': 'nomorRevisi4', '5': 'nomorRevisi5' };
-            const dateMap: any = { '1': 'tanggalRevisi1', '2': 'tanggalRevisi2', '3': 'tanggalRevisi3', '4': 'tanggalRevisi4', '5': 'tanggalRevisi5' };
+            const revisionMap: Record<string, string> = { '1': 'nomorRevisi1', '2': 'nomorRevisi2', '3': 'nomorRevisi3', '4': 'nomorRevisi4', '5': 'nomorRevisi5' };
+            const dateMap: Record<string, string> = { '1': 'tanggalRevisi1', '2': 'tanggalRevisi2', '3': 'tanggalRevisi3', '4': 'tanggalRevisi4', '5': 'tanggalRevisi5' };
 
             const fieldNo = revisionMap[nomorRevisi];
             const fieldTgl = dateMap[nomorRevisi];
             
-            if (!fieldNo) return NextResponse.json({ success: false, message: 'Nomor Revisi salah' }, { status: 400 });
+            if (!fieldNo || !fieldTgl) return NextResponse.json({ success: false, message: 'Nomor Revisi tidak valid.' }, { status: 400 });
 
             generatedNomorStr = generateNomor(queryNoUrut, tanggalRevisi, `BA.P.${nomorRevisi}`, existingData.jenisDokumen);
             updateQuery = { [fieldNo]: generatedNomorStr, [fieldTgl]: tanggalRevisi, statusTerakhir: 'REVISI' };
         }
+
         // --- TAHAP F (PHP) ---
         else if (tahap === 'f' || tahap === 'penerimaan') {
             const { tanggalPenyerahanPerbaikan, petugasPenerimaPerbaikan, nomorRevisi } = body;
-            
-            // Mapping Logic (sama seperti kodemu)
-            // ... (Kode mapping disingkat agar muat, logikamu sudah benar disini) ...
-             const phpFieldMap: Record<string, string> = { 
-                '1': 'nomorPHP', '2': 'nomorPHP1', '3': 'nomorPHP2', 
-                '4': 'nomorPHP3', '5': 'nomorPHP4' 
-            };
-             const petugasFieldMap: Record<string, string> = {
-                '1': 'petugasPenerimaPerbaikan', '2': 'petugasPHP1', '3': 'petugasPHP2',
-                '4': 'petugasPHP3', '5': 'petugasPHP4'
-            };
-            const dateFieldMap: Record<string, string> = {
-                '1': 'tanggalPHP', '2': 'tanggalPHP1', '3': 'tanggalPHP2',
-                '4': 'tanggalPHP3', '5': 'tanggalPHP4'
-            };
+            const phpFieldMap: Record<string, string> = { '1': 'nomorPHP', '2': 'nomorPHP1', '3': 'nomorPHP2', '4': 'nomorPHP3', '5': 'nomorPHP4' };
+            const petugasFieldMap: Record<string, string> = { '1': 'petugasPenerimaPerbaikan', '2': 'petugasPHP1', '3': 'petugasPHP2', '4': 'petugasPHP3', '5': 'petugasPHP4' };
+            const dateFieldMap: Record<string, string> = { '1': 'tanggalPHP', '2': 'tanggalPHP1', '3': 'tanggalPHP2', '4': 'tanggalPHP3', '5': 'tanggalPHP4' };
 
             const fieldNo = phpFieldMap[nomorRevisi];
             const fieldPetugas = petugasFieldMap[nomorRevisi];
             const fieldTgl = dateFieldMap[nomorRevisi];
 
+            if (!fieldNo) return NextResponse.json({ success: false, message: 'Nomor Revisi PHP tidak valid.' }, { status: 400 });
+
             let kodeTahapan = 'PHP';
             if (nomorRevisi !== '1') kodeTahapan = `PHP.${parseInt(nomorRevisi) - 1}`;
 
             generatedNomorStr = generateNomor(queryNoUrut, tanggalPenyerahanPerbaikan, kodeTahapan, existingData.jenisDokumen);
-            
-            updateQuery = { 
-                [fieldNo]: generatedNomorStr, 
-                [fieldTgl]: tanggalPenyerahanPerbaikan, 
-                [fieldPetugas]: petugasPenerimaPerbaikan,
-                statusTerakhir: 'DIPERIKSA', 
-                updatedAt: new Date()
-            };
+            updateQuery = { [fieldNo]: generatedNomorStr, [fieldTgl]: tanggalPenyerahanPerbaikan, [fieldPetugas]: petugasPenerimaPerbaikan, statusTerakhir: 'DIPERIKSA', updatedAt: new Date() };
         }
+
         // --- TAHAP G ---
         else if (tahap === 'g') {
             const { tanggalPembuatanRisalah } = body;
             generatedNomorStr = generateNomor(queryNoUrut, tanggalPembuatanRisalah, 'RPD', existingData.jenisDokumen);
             updateQuery = { tanggalRisalah: tanggalPembuatanRisalah, nomorRisalah: generatedNomorStr };
         }
+        
+        // --- TAHAP PENGEMBALIAN ---
         else if (tahap === 'pengembalian') {
-             const { tanggalPengembalian } = body;
-             updateQuery = { tanggalPengembalian: tanggalPengembalian, statusTerakhir: 'DIKEMBALIKAN', updatedAt: new Date() };
+            const { tanggalPengembalian } = body;
+            if (!tanggalPengembalian) return NextResponse.json({ success: false, message: 'Tanggal Pengembalian wajib diisi.' }, { status: 400 });
+            updateQuery = { tanggalPengembalian: tanggalPengembalian, statusTerakhir: 'DIKEMBALIKAN', updatedAt: new Date() };
         }
+        
         else {
-            return NextResponse.json({ success: false, message: 'Tahap tidak dikenali' }, { status: 400 });
+            return NextResponse.json({ success: false, message: 'Tahap tidak valid atau URL salah.' }, { status: 400 });
         }
 
-        // ==========================================
         // EKSEKUSI UPDATE
-        // ==========================================
-        console.log(`[API] Melakukan Update ke DB... Query:`, updateQuery); // DEBUG LOG
-        
         const updateResult = await collection.updateOne({ noUrut: queryNoUrut }, { $set: updateQuery });
         
-        console.log(`[API] Update Result:`, updateResult); // DEBUG LOG
-
-        if (updateResult.matchedCount === 0) {
-             return NextResponse.json({ success: false, message: 'Gagal update: Data tidak ditemukan saat query akhir.' }, { status: 500 });
+        if (updateResult.modifiedCount === 0 && updateResult.matchedCount === 0) {
+             return NextResponse.json({ success: false, message: 'Gagal update data. Data mungkin tidak ditemukan.' }, { status: 500 });
         }
 
         return NextResponse.json({ 
@@ -217,7 +210,7 @@ export async function POST(
         });
 
     } catch (error: any) {
-        console.error("API Error FATAL:", error);
-        return NextResponse.json({ success: false, message: error.message }, { status: 500 });
+        console.error("API Error:", error);
+        return NextResponse.json({ success: false, message: error.message || "Terjadi kesalahan internal pada server." }, { status: 500 });
     }
 }
