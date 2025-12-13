@@ -1,10 +1,13 @@
 "use client";
 
-import React, { useState } from 'react';
-import { MapPin, User, Phone, FileText, Printer, Save } from 'lucide-react';
-import { renderToStaticMarkup } from 'react-dom/server';
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { MapPin, User, Phone, FileText, Printer, Save, Download } from 'lucide-react';
 
-// --- IMPORT COMPONENT TEMPLATE CETAK ---
+// --- IMPORT LIBRARY PDF CLIENT-SIDE ---
+import { PDFDownloadLink } from '@react-pdf/renderer';
+
+// --- IMPORT TEMPLATE PDF YANG SUDAH DIPERBAIKI ---
 import { TandaTerimaPDF } from '@/components/pdf/TandaTerimaPDF'; 
 import { ChecklistPrintTemplate } from '@/components/pdf/ChecklistPrintTemplate'; 
 
@@ -36,8 +39,11 @@ export default function RegisterDokumenPage() {
     // --- STATE 3: STATUS AKHIR ---
     const [statusVerifikasi, setStatusVerifikasi] = useState("Diterima");
     
-    // State loading untuk tombol cetak
-    const [isPrinting, setIsPrinting] = useState(false);
+    // --- HYDRATION FIX (Wajib untuk Next.js App Router) ---
+    const [isClient, setIsClient] = useState(false);
+    useEffect(() => { setIsClient(true); }, []);
+
+    const router = useRouter();
 
     // --- DATA ITEMS CHECKLIST ---
     const checklistItems = [
@@ -75,79 +81,24 @@ export default function RegisterDokumenPage() {
         setChecklistNotes(prev => ({ ...prev, [index]: value }));
     };
 
-    // --- LOGIKA CETAK PDF (PUPPETEER API) ---
-    const handleCetakPDF = async (mode: 'terima' | 'checklist') => {
-        setIsPrinting(true);
-        try {
-            let htmlString = '';
-
-            // 1. Pilih Template HTML berdasarkan tombol yang diklik
-            if (mode === 'terima') {
-                htmlString = renderToStaticMarkup(
-                    <TandaTerimaPDF data={formData} />
-                );
-            } else if (mode === 'checklist') {
-                htmlString = renderToStaticMarkup(
-                    <ChecklistPrintTemplate 
-                        data={formData} 
-                        checklistStatus={checklistStatus}
-                        statusVerifikasi={statusVerifikasi}
-                    />
-                );
-            }
-
-            // 2. Kirim HTML ke API Puppeteer Vercel
-            const response = await fetch('/api/print', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ htmlContent: htmlString }),
-            });
-
-            if (!response.ok) {
-                const errData = await response.json();
-                throw new Error(errData.details || errData.error || 'Gagal generate PDF');
-            }
-
-            // 3. Buka PDF hasilnya di tab baru
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            window.open(url, '_blank');
-
-        } catch (error) {
-            console.error(error);
-            alert('Gagal mencetak: ' + error);
-        } finally {
-            setIsPrinting(false);
-        }
-    };
-
-// --- HANDLER SIMPAN KE DB (UPDATED) ---
+    // --- HANDLER SIMPAN KE DB ---
     const handleSimpan = async () => {
-        // 1. Validasi Sederhana (Opsional)
         if (!formData.nomorSuratPermohonan) {
             alert("Mohon isi Nomor Surat Permohonan!");
             return;
         }
 
-        setIsPrinting(true); // Pakai loading state biar user tau lagi proses
-
         try {
-            // 2. Siapkan Payload
-            // Kita gabungkan formData dengan status checklist
             const payload = {
-                ...formData,       // Data form (nomor surat, pemrakarsa, dll)
-                checklistStatus,   // Status centang checklist
-                checklistNotes,    // Catatan checklist (jika ada)
-                statusVerifikasi   // Status akhir (Diterima/Ditolak)
+                ...formData,       
+                checklistStatus,   
+                checklistNotes,    
+                statusVerifikasi   
             };
 
-            // 3. Kirim ke API (Sesuai folder api/submit/[tahap])
-            // Kita pakai parameter 'tahap-a' karena ini halaman registrasi
             const response = await fetch('/api/submit/tahap-a', { 
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload),
             });
 
@@ -157,17 +108,19 @@ export default function RegisterDokumenPage() {
                 throw new Error(result.message || "Gagal menyimpan data ke server.");
             }
 
-            // 4. Sukses
+            // Update nomor registrasi di state agar masuk ke PDF jika user download setelah simpan
+            if (result.generatedData && result.generatedData.nomorChecklist) {
+                setFormData(prev => ({ ...prev, nomorRegistrasi: result.generatedData.nomorChecklist }));
+            }
+
             alert(`✅ BERHASIL DISIMPAN!\n\nNomor Checklist: ${result.generatedData.nomorChecklist}\nNo Urut: ${result.generatedData.noUrut}`);
             
-            // Opsi: Reset form atau redirect halaman setelah simpan
-            // window.location.href = '/dashboard'; 
+            // Redirect jika diperlukan
+            // router.push('/dashboard'); 
 
         } catch (error: any) {
             console.error("Error saving:", error);
             alert("❌ TERJADI KESALAHAN:\n" + error.message);
-        } finally {
-            setIsPrinting(false); // Matikan loading
         }
     };
 
@@ -178,15 +131,13 @@ export default function RegisterDokumenPage() {
     return (
         <div className="bg-slate-100 min-h-screen p-4 md:p-8 font-sans">
             
-            {/* Hanya Tampilan Form Input (Tidak ada bagian hidden print lagi) */}
             <div className="max-w-5xl mx-auto">
-                
                 <h1 className="text-2xl font-bold text-slate-800 mb-6 flex items-center gap-2">
                     <FileText className="text-green-600" />
                     Registrasi Dokumen Masuk
                 </h1>
 
-                {/* --- BAGIAN 1: DATA REGISTRASI LENGKAP --- */}
+                {/* --- BAGIAN 1: DATA REGISTRASI --- */}
                 <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
                     <h3 className="text-green-800 font-bold text-lg mb-6 flex items-center border-b border-slate-200 pb-2">
                         <span className="bg-orange-500 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs mr-2">1</span>
@@ -194,8 +145,6 @@ export default function RegisterDokumenPage() {
                     </h3>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {/* ... (INPUT FIELD SAMA SEPERTI SEBELUMNYA) ... */}
-                        {/* Saya singkat agar muat, isinya sama persis dengan form input Anda */}
                         <div>
                             <label className={labelClass}>Nomor Surat Permohonan</label>
                             <input name="nomorSuratPermohonan" className={inputClass} onChange={handleInputChange} placeholder="Nomor surat..." />
@@ -241,9 +190,11 @@ export default function RegisterDokumenPage() {
                             <label className={labelClass}>Tanggal Masuk Dokumen</label>
                             <input name="tanggalMasukDokumen" type="date" className={inputClass} onChange={handleInputChange} value={formData.tanggalMasukDokumen} />
                         </div>
+                        
                         <div className="md:col-span-2 border-t border-slate-200 pt-4 mt-2">
                             <p className="text-sm font-semibold text-slate-500 mb-3">Data Kontak</p>
                         </div>
+                        
                         <div>
                             <label className={labelClass}>Nama Pemrakarsa</label>
                             <div className="relative">
@@ -266,9 +217,11 @@ export default function RegisterDokumenPage() {
                             <label className={labelClass}>No. Telp Konsultan</label>
                             <input name="teleponKonsultan" className={inputClass} onChange={handleInputChange} placeholder="+62..." />
                         </div>
+                        
                         <div className="md:col-span-2 border-t border-slate-200 pt-4 mt-2">
                             <p className="text-sm font-semibold text-slate-500 mb-3">Data Pengiriman</p>
                         </div>
+                        
                         <div>
                             <label className={labelClass}>Nama Pengirim</label>
                             <input name="namaPengirim" className={inputClass} onChange={handleInputChange} />
@@ -375,27 +328,15 @@ export default function RegisterDokumenPage() {
                                 <option value="Diterima dengan Catatan">DITERIMA DENGAN CATATAN (Melengkapi Dahulu)</option>
                                 <option value="Ditolak">DITOLAK / DIKEMBALIKAN</option>
                             </select>
-                            <p className="mt-2 text-xs text-slate-500">
-                                *Pilih status akhir. Status ini akan tercetak pada Tanda Terima PDF.
-                            </p>
-                        </div>
-
-                        {/* Preview */}
-                        <div className="hidden md:block p-4 rounded-lg border border-slate-200 bg-white">
-                            <p className="text-xs text-slate-400 uppercase mb-1">Preview Status:</p>
-                            <div className="border border-black p-2 text-center">
-                                <span className="font-bold text-xs mr-2">Status Kelengkapan Berkas*:</span>
-                                <span className="border border-black px-3 py-0.5 font-bold text-xs bg-white inline-block">
-                                    {statusVerifikasi}
-                                </span>
-                            </div>
+                            <p className="mt-2 text-xs text-slate-500">*Pilih status akhir. Status ini akan tercetak pada Tanda Terima PDF.</p>
                         </div>
                     </div>
                 </div>
 
-               {/* Tombol Simpan & Cetak (API PDF) */}
-                <div className="mt-8 mb-12 flex space-x-4">
-                    {/* Tombol Simpan */}
+                {/* --- TOMBOL AKSI (SIMPAN & DOWNLOAD) --- */}
+                <div className="mt-8 mb-12 flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4">
+                    
+                    {/* 1. TOMBOL SIMPAN */}
                     <button 
                         onClick={handleSimpan} 
                         className="bg-blue-600 flex-1 text-white py-4 rounded-xl font-bold hover:bg-blue-700 transition shadow-lg flex justify-center items-center gap-2 text-lg"
@@ -404,25 +345,57 @@ export default function RegisterDokumenPage() {
                         Simpan Data
                     </button>
 
-                    {/* Tombol Cetak Tanda Terima (API) */}
-                    <button 
-                        onClick={() => handleCetakPDF('terima')} 
-                        disabled={isPrinting}
-                        className="bg-green-600 flex-1 text-white py-4 rounded-xl font-bold hover:bg-green-700 transition shadow-lg flex justify-center items-center gap-2 text-lg disabled:bg-green-400 disabled:cursor-not-allowed"
-                    >
-                        <Printer className="w-5 h-5" />
-                        {isPrinting ? 'Membuat PDF...' : 'Cetak Tanda Terima'}
-                    </button>
-                    
-                    {/* Tombol Cetak Checklist (API) */}
-                    <button 
-                        onClick={() => handleCetakPDF('checklist')} 
-                        disabled={isPrinting}
-                        className="bg-yellow-600 flex-1 text-white py-4 rounded-xl font-bold hover:bg-yellow-700 transition shadow-lg flex justify-center items-center gap-2 text-lg disabled:bg-yellow-400 disabled:cursor-not-allowed"
-                    >
-                        <FileText className="w-5 h-5" />
-                        {isPrinting ? 'Membuat PDF...' : 'Cetak Checklist'}
-                    </button>
+                    {/* 2. TOMBOL DOWNLOAD TANDA TERIMA */}
+                    {isClient && (
+                        <div className="flex-1">
+                            <PDFDownloadLink 
+                                document={<TandaTerimaPDF data={formData} />} 
+                                fileName={`TandaTerima_${formData.nomorSuratPermohonan || 'Draft'}.pdf`}
+                                className="w-full"
+                            >
+                                {({ blob, url, loading, error }) => (
+                                    <button 
+                                        disabled={loading}
+                                        className={`w-full py-4 rounded-xl font-bold transition shadow-lg flex justify-center items-center gap-2 text-lg ${
+                                            loading ? 'bg-gray-400 cursor-not-allowed text-white' : 'bg-green-600 hover:bg-green-700 text-white'
+                                        }`}
+                                    >
+                                        <Download className="w-5 h-5" />
+                                        {loading ? 'Menyiapkan PDF...' : 'Unduh Tanda Terima'}
+                                    </button>
+                                )}
+                            </PDFDownloadLink>
+                        </div>
+                    )}
+
+                    {/* 3. TOMBOL DOWNLOAD CHECKLIST */}
+                    {isClient && (
+                        <div className="flex-1">
+                            <PDFDownloadLink 
+                                document={
+                                    <ChecklistPrintTemplate 
+                                        data={formData} 
+                                        checklistStatus={checklistStatus}
+                                        statusVerifikasi={statusVerifikasi}
+                                    />
+                                } 
+                                fileName={`Checklist_${formData.nomorSuratPermohonan || 'Draft'}.pdf`}
+                                className="w-full"
+                            >
+                                {({ blob, url, loading, error }) => (
+                                    <button 
+                                        disabled={loading}
+                                        className={`w-full py-4 rounded-xl font-bold transition shadow-lg flex justify-center items-center gap-2 text-lg ${
+                                            loading ? 'bg-gray-400 cursor-not-allowed text-white' : 'bg-yellow-600 hover:bg-yellow-700 text-white'
+                                        }`}
+                                    >
+                                        <FileText className="w-5 h-5" />
+                                        {loading ? 'Menyiapkan PDF...' : 'Unduh Checklist'}
+                                    </button>
+                                )}
+                            </PDFDownloadLink>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

@@ -1,164 +1,80 @@
 import React from 'react';
+import { Page, Text, View, Document, StyleSheet } from '@react-pdf/renderer';
 
-// Format tanggal bahasa Indonesia
 const formatDate = (dateString: string) => {
     if (!dateString) return '-';
     const date = new Date(dateString);
-    if (isNaN(date.getTime())) return '-';
-    return new Intl.DateTimeFormat('id-ID', { day: '2-digit', month: 'long', year: 'numeric' }).format(date);
+    return isNaN(date.getTime()) ? '-' : `${date.getDate()}-${date.getMonth() + 1}-${date.getFullYear()}`;
 };
 
-// Data Checklist Static
 const allChecklistItems = [
-    "Surat Permohonan Pemeriksaan Dokumen UKL-UPL / SPPL", 
-    "Pernyataan Pengelolaan dan Pemantauan Lingkungan (Bermaterai)",
-    "Dokumen Lingkungan", 
-    "Peta (Peta Tapak, Peta Pengelolaan, Peta Pemantauan, dll) - Siteplan di Kertas A3", 
-    "PKKPR",
-    "NIB (Untuk Swasta atau Perorangan)", 
-    "Fotocopy Status Lahan (Sertifikat)", 
-    "Fotocopy KTP Penanggungjawab Kegiatan",
-    "Foto Eksisting Lokasi Rencana Kegiatan Disertai dengan Titik Koordinat", 
-    "Lembar Penapisan dari AMDALNET / Arahan dari Instansi Lingkungan Hidup",
-    "Surat Kuasa Pekerjaan dari Pemrakarsa ke Konsultan (Bermaterai)", 
-    "Perizinan yang Sudah Dimiliki atau Izin yang Lama (Jika Ada)",
-    "Pemenuhan Persetujuan Teknis Air Limbah*", 
-    "Pemenuhan Rincian Teknis Limbah B3 Sementara*", 
-    "Pemenuhan Persetujuan Teknis Emisi*",
-    "Pemenuhan Persetujuan Teknis Andalalin*", 
-    "Hasil Penapisan Kewajiban Pemenuhan Persetujuan Teknis*",
-    "Bukti Upload Permohonan pada AMDALNET dan/atau SIDARLING"
+    "Surat Permohonan Pemeriksaan Dokumen UKL-UPL / SPPL", "Pernyataan Pengelolaan dan Pemantauan Lingkungan (Bermaterai)",
+    "Dokumen Lingkungan", "Peta / Siteplan (A3)", "PKKPR", "NIB", "Status Lahan (Sertifikat)", 
+    "KTP Penanggungjawab", "Foto Eksisting Lokasi", "Lembar Penapisan AMDALNET", "Surat Kuasa (Bermaterai)", 
+    "Izin Lama (Jika Ada)", "Persetujuan Teknis Air Limbah*", "Rincian Teknis Limbah B3*", 
+    "Persetujuan Teknis Emisi*", "Persetujuan Teknis Andalalin*", "Hasil Penapisan Peryek*", "Bukti Upload AMDALNET"
 ];
 
-export const ChecklistPrintTemplate = ({ data, checklistStatus, statusVerifikasi }: any) => {
-  // Style pembantu untuk border tabel yang rapi
-  const tableStyle = { width: '100%', borderCollapse: 'collapse' as const, marginBottom: '10px', fontSize: '12px' };
-  const cellStyle = { border: '1px solid black', padding: '4px 8px' };
-  const headerCellStyle = { ...cellStyle, backgroundColor: '#f3f4f6', fontWeight: 'bold', textAlign: 'center' as const };
+const styles = StyleSheet.create({
+    page: { padding: 30, fontFamily: 'Helvetica', fontSize: 9 },
+    header: { textAlign: 'center', marginBottom: 15 },
+    title: { fontSize: 12, fontWeight: 'bold', textDecoration: 'underline' },
+    subtitle: { fontSize: 10, marginTop: 4 },
+    infoBox: { borderTop: 1, borderLeft: 1, borderColor: '#000', marginBottom: 10 },
+    row: { flexDirection: 'row' },
+    label: { width: '30%', padding: 4, borderRight: 1, borderBottom: 1, backgroundColor: '#f3f4f6' },
+    sep: { width: '2%', padding: 4, borderRight: 1, borderBottom: 1, textAlign: 'center' },
+    val: { width: '68%', padding: 4, borderRight: 1, borderBottom: 1, fontWeight: 'bold' },
+    table: { borderTop: 1, borderLeft: 1, borderColor: '#000' },
+    cell: { borderRight: 1, borderBottom: 1, padding: 4 },
+    headerCell: { backgroundColor: '#e5e7eb', fontWeight: 'bold', textAlign: 'center' },
+    c1: { width: '6%', textAlign: 'center' }, c2: { width: '59%' }, c3: { width: '15%', textAlign: 'center' }, c4: { width: '20%' },
+    footer: { marginTop: 15, borderTop: 1, borderLeft: 1 },
+    ftRow: { flexDirection: 'row' },
+    ftCap: { width: '40%', height: 70, borderRight: 1, borderBottom: 1, justifyContent: 'center', textAlign: 'center', color: '#888' },
+    ftRight: { width: '60%' },
+    ftStatus: { padding: 5, textAlign: 'center', fontWeight: 'bold', borderRight: 1, borderBottom: 1, backgroundColor: '#f3f4f6' },
+    ftSignBox: { flexDirection: 'row', height: 45 },
+    ftSign: { width: '50%', borderRight: 1, borderBottom: 1, padding: 4, justifyContent: 'flex-end', textAlign: 'center' }
+});
 
-  return (
-    <div style={{ fontFamily: 'Arial, Helvetica, sans-serif', padding: '40px', color: 'black', backgroundColor: 'white' }}>
-      
-      {/* JUDUL */}
-      <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-        <h2 style={{ fontSize: '16px', textDecoration: 'underline', margin: 0, textTransform: 'uppercase' }}>
-          CHECKLIST KELENGKAPAN BERKAS
-        </h2>
-        <h3 style={{ fontSize: '14px', margin: '5px 0', textTransform: 'uppercase' }}>
-          PERMOHONAN PERSETUJUAN LINGKUNGAN
-        </h3>
-      </div>
-
-      {/* INFORMASI KEGIATAN */}
-      <table style={{ ...tableStyle, border: '1px solid black' }}>
-        <tbody>
-            <tr>
-                <td style={{ ...cellStyle, width: '30%', borderRight: 'none' }}>Nama Kegiatan</td>
-                <td style={{ ...cellStyle, width: '2%', borderLeft: 'none', borderRight: 'none' }}>:</td>
-                <td style={{ ...cellStyle, borderLeft: 'none' }}>{data.namaKegiatan}</td>
-            </tr>
-            <tr>
-                <td style={{ ...cellStyle, borderRight: 'none' }}>Jenis Permohonan*</td>
-                <td style={{ ...cellStyle, borderLeft: 'none', borderRight: 'none' }}>:</td>
-                <td style={{ ...cellStyle, borderLeft: 'none' }}>{data.jenisDokumen}</td>
-            </tr>
-            <tr>
-                <td style={{ ...cellStyle, borderRight: 'none' }}>No. Surat Permohonan</td>
-                <td style={{ ...cellStyle, borderLeft: 'none', borderRight: 'none' }}>:</td>
-                <td style={{ ...cellStyle, borderLeft: 'none' }}>{data.nomorSuratPermohonan || '-'}</td>
-            </tr>
-            <tr>
-                <td style={{ ...cellStyle, borderRight: 'none' }}>Tanggal Masuk</td>
-                <td style={{ ...cellStyle, borderLeft: 'none', borderRight: 'none' }}>:</td>
-                <td style={{ ...cellStyle, borderLeft: 'none' }}>{formatDate(data.tanggalMasukDokumen)}</td>
-            </tr>
-        </tbody>
-      </table>
-
-      {/* TABEL CHECKLIST */}
-      <table style={tableStyle}>
-        <thead>
-            <tr>
-                <th style={{ ...headerCellStyle, width: '5%' }}>No</th>
-                <th style={headerCellStyle}>Persyaratan Dokumen</th>
-                <th style={{ ...headerCellStyle, width: '15%' }}>Ada / Tidak</th>
-                <th style={{ ...headerCellStyle, width: '20%' }}>Keterangan</th>
-            </tr>
-        </thead>
-        <tbody>
-            {allChecklistItems.map((item, index) => {
-                const isChecked = checklistStatus[index]; // Ambil status centang
-                return (
-                    <tr key={index}>
-                        <td style={{ ...cellStyle, textAlign: 'center' }}>{index + 1}</td>
-                        <td style={cellStyle}>{item}</td>
-                        <td style={{ ...cellStyle, textAlign: 'center', fontWeight: 'bold' }}>
-                            {isChecked ? 'V' : ''}
-                        </td>
-                        <td style={cellStyle}>
-                            {/* Keterangan kosong manual atau bisa diambil dari state notes jika ada */}
-                        </td>
-                    </tr>
-                );
-            })}
-        </tbody>
-      </table>
-
-      {/* FOOTER & TANDA TANGAN */}
-      <div style={{ border: '1px solid black', marginTop: '20px', fontSize: '12px' }}>
-          {/* Header Contact */}
-          <div style={{ backgroundColor: '#f3f4f6', padding: '5px', fontWeight: 'bold', borderBottom: '1px solid black' }}>
-              Contact Person
-          </div>
-          
-          <div style={{ padding: '10px' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                  <tbody>
-                      <tr>
-                          <td style={{ width: '30%' }}>Pemohon</td>
-                          <td>: {data.namaPemrakarsa} ({data.teleponPemrakarsa})</td>
-                      </tr>
-                      <tr>
-                          <td>Penerima Kuasa</td>
-                          <td>: {data.namaKonsultan || '-'} ({data.teleponKonsultan || '-'})</td>
-                      </tr>
-                  </tbody>
-              </table>
-          </div>
-
-          {/* Area Tanda Tangan */}
-          <div style={{ display: 'flex', borderTop: '1px solid black' }}>
-              {/* Kolom Kiri: Cap Dinas */}
-              <div style={{ width: '40%', padding: '10px', borderRight: '1px solid black', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', minHeight: '100px' }}>
-                  (Ruang Cap Dinas)
-              </div>
-
-              {/* Kolom Kanan: Status & TTD */}
-              <div style={{ width: '60%' }}>
-                  {/* Status */}
-                  <div style={{ padding: '8px', textAlign: 'center', borderBottom: '1px solid black', fontWeight: 'bold' }}>
-                      Status Kelengkapan: {statusVerifikasi.toUpperCase()}
-                  </div>
-                  
-                  {/* Tanda Tangan Wrapper */}
-                  <div style={{ display: 'flex' }}>
-                      <div style={{ width: '50%', padding: '10px', borderRight: '1px solid black', textAlign: 'center' }}>
-                          <p style={{ marginBottom: '50px', fontSize: '11px' }}>Pemohon / Penyerah</p>
-                          <p style={{ fontWeight: 'bold', textDecoration: 'underline' }}>{data.namaPengirim}</p>
-                      </div>
-                      <div style={{ width: '50%', padding: '10px', textAlign: 'center' }}>
-                          <p style={{ marginBottom: '50px', fontSize: '11px' }}>Petugas Penerima</p>
-                          <p style={{ fontWeight: 'bold', textDecoration: 'underline' }}>{data.namaPetugas}</p>
-                      </div>
-                  </div>
-              </div>
-          </div>
-      </div>
-
-      <p style={{ fontSize: '10px', fontStyle: 'italic', marginTop: '10px' }}>
-        *) Berlaku untuk UKL-UPL
-      </p>
-
-    </div>
-  );
-};
+export const ChecklistPrintTemplate = ({ data, checklistStatus, statusVerifikasi }: any) => (
+  <Document>
+    <Page size="A4" style={styles.page}>
+        <View style={styles.header}>
+            <Text style={styles.title}>CHECKLIST KELENGKAPAN BERKAS</Text>
+            <Text style={styles.subtitle}>PERMOHONAN PERSETUJUAN LINGKUNGAN</Text>
+        </View>
+        <View style={styles.infoBox}>
+            <View style={styles.row}><Text style={styles.label}>Kegiatan</Text><Text style={styles.sep}>:</Text><Text style={styles.val}>{data.namaKegiatan}</Text></View>
+            <View style={styles.row}><Text style={styles.label}>No. Surat</Text><Text style={styles.sep}>:</Text><Text style={styles.val}>{data.nomorSuratPermohonan}</Text></View>
+            <View style={styles.row}><Text style={styles.label}>Tanggal</Text><Text style={styles.sep}>:</Text><Text style={styles.val}>{formatDate(data.tanggalMasukDokumen)}</Text></View>
+        </View>
+        <View style={styles.table}>
+            <View style={styles.row} fixed>
+                <Text style={[styles.cell, styles.headerCell, styles.c1]}>No</Text><Text style={[styles.cell, styles.headerCell, styles.c2]}>Dokumen</Text>
+                <Text style={[styles.cell, styles.headerCell, styles.c3]}>Ada</Text><Text style={[styles.cell, styles.headerCell, styles.c4]}>Ket</Text>
+            </View>
+            {allChecklistItems.map((item, i) => (
+                <View style={styles.row} key={i}>
+                    <Text style={[styles.cell, styles.c1]}>{i + 1}</Text><Text style={[styles.cell, styles.c2]}>{item}</Text>
+                    <Text style={[styles.cell, styles.c3, { color: checklistStatus[i] ? 'green' : 'red', fontWeight: 'bold' }]}>{checklistStatus[i] ? 'V' : ''}</Text>
+                    <Text style={[styles.cell, styles.c4]}></Text>
+                </View>
+            ))}
+        </View>
+        <View style={styles.footer}>
+            <View style={styles.ftRow}>
+                <View style={styles.ftCap}><Text>(Cap Dinas)</Text></View>
+                <View style={styles.ftRight}>
+                    <Text style={styles.ftStatus}>Status: {statusVerifikasi?.toUpperCase()}</Text>
+                    <View style={styles.ftSignBox}>
+                        <View style={styles.ftSign}><Text style={{fontSize:8}}>Penyerah</Text><Text style={{fontWeight:'bold'}}>{data.namaPengirim}</Text></View>
+                        <View style={styles.ftSign}><Text style={{fontSize:8}}>Penerima</Text><Text style={{fontWeight:'bold'}}>{data.namaPetugas}</Text></View>
+                    </View>
+                </View>
+            </View>
+        </View>
+    </Page>
+  </Document>
+);
