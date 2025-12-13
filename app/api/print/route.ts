@@ -1,69 +1,69 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import puppeteer from 'puppeteer-core';
 import chromium from '@sparticuz/chromium';
 
-// Konfigurasi agar Chromium berjalan di Vercel (Wajib)
-export const dynamic = 'force-dynamic';
+export async function POST(request: NextRequest) {
+    try {
+        const { htmlContent } = await request.json();
 
-export async function POST(req: NextRequest) {
-  try {
-    const { htmlContent } = await req.json();
+        let browser;
 
-    if (!htmlContent) {
-      return NextResponse.json({ error: 'No HTML content provided' }, { status: 400 });
+        // --- LOGIKA PEMILIHAN BROWSER ---
+        if (process.env.NODE_ENV === 'production') {
+            // 1. BLOK VERCEL (PRODUCTION)
+            
+            // Load font (opsional, agar teks aman)
+            await chromium.font('https://raw.githack.com/googlei18n/noto-emoji/master/fonts/NotoColorEmoji.ttf');
+
+            // KITA CASTING (chromium as any) AGAR TYPESCRIPT TIDAK PROTES
+            browser = await puppeteer.launch({
+                args: (chromium as any).args,
+                defaultViewport: (chromium as any).defaultViewport,
+                executablePath: await chromium.executablePath(),
+                headless: (chromium as any).headless,
+                ignoreHTTPSErrors: true,
+            } as any);
+
+        } else {
+            // 2. BLOK LOCALHOST (DEVELOPMENT)
+            
+            // Sesuaikan path ini dengan lokasi Chrome di laptopmu
+            const localExecutablePath = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'; 
+            
+            browser = await puppeteer.launch({
+                args: [],
+                executablePath: localExecutablePath, 
+                headless: true,
+            } as any);
+        }
+
+        const page = await browser.newPage();
+
+        // Set konten HTML
+        await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
+
+        // Generate PDF
+        const pdfBuffer = await page.pdf({
+            format: 'A4',
+            printBackground: true,
+            margin: { top: '20px', right: '20px', bottom: '20px', left: '20px' },
+        });
+
+        await browser.close();
+
+        // Bungkus dengan Buffer.from() agar aman
+        return new NextResponse(Buffer.from(pdfBuffer), {
+            headers: {
+                'Content-Type': 'application/pdf',
+                'Content-Disposition': 'inline; filename="dokumen.pdf"',
+            },
+        });
+
+    } catch (error: any) {
+        console.error("Print Error:", error);
+        return NextResponse.json(
+            { error: 'Gagal mencetak PDF', details: error.message }, 
+            { status: 500 }
+        );
     }
-
-    // --- SETUP PATH BROWSER ---
-    let executablePath: string;
-    
-    if (process.env.NODE_ENV === 'development') {
-        // GANTI DENGAN PATH CHROME DI KOMPUTER ANDA
-        executablePath = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'; 
-    } else {
-        // Path otomatis untuk Vercel
-        executablePath = await chromium.executablePath();
-    }
-
-    // --- LAUNCH BROWSER ---
-    // Solusi Error TypeScript: Kita cast 'chromium' ke 'any' untuk mengakses properti args/headless
-    const chromiumAny = chromium as any;
-
-    const browser = await puppeteer.launch({
-      args: chromiumAny.args,
-      defaultViewport: chromiumAny.defaultViewport,
-      executablePath: executablePath,
-      headless: chromiumAny.headless,
-      ignoreHTTPSErrors: true,
-    } as any); // <--- KUNCI PERBAIKAN: Tambahkan 'as any' di sini
-
-    const page = await browser.newPage();
-
-    // Set Konten HTML
-    await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
-
-    // Generate PDF (Format A4)
-    const pdfBuffer = await page.pdf({
-      format: 'A4',
-      printBackground: true,
-      margin: { top: '20px', right: '20px', bottom: '20px', left: '20px' }
-    });
-
-    await browser.close();
-
-    // --- RETURN RESPONSE ---
-    // Solusi Error Uint8Array: Cast ke 'any' agar diterima sebagai BodyInit
-    return new NextResponse(pdfBuffer as any, {
-      headers: {
-        'Content-Type': 'application/pdf',
-        'Content-Disposition': 'inline; filename="tanda_terima.pdf"',
-      },
-    });
-
-  } catch (error) {
-    console.error('PDF Generation Error:', error);
-    return NextResponse.json(
-      { error: 'Failed to generate PDF', details: String(error) }, 
-      { status: 500 }
-    );
-  }
 }
