@@ -2,37 +2,40 @@ import { NextResponse, NextRequest } from 'next/server';
 import puppeteer from 'puppeteer-core';
 import chromium from '@sparticuz/chromium';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
     try {
         const { htmlContent } = await request.json();
 
         let browser;
 
-        // --- LOGIKA PEMILIHAN BROWSER ---
         if (process.env.NODE_ENV === 'production') {
-            // 1. BLOK VERCEL (PRODUCTION)
+            // --- SETTING VERCEL (Versi 119.0.0) ---
             
-            // Load font (opsional, agar teks aman)
+            // Konfigurasi khusus @sparticuz/chromium v119
+            chromium.setGraphicsMode = false;
+            
+            // Load font agar emoji/text terbaca (Opsional tapi disarankan)
             await chromium.font('https://raw.githack.com/googlei18n/noto-emoji/master/fonts/NotoColorEmoji.ttf');
 
-            // KITA CASTING (chromium as any) AGAR TYPESCRIPT TIDAK PROTES
             browser = await puppeteer.launch({
-                args: (chromium as any).args,
-                defaultViewport: (chromium as any).defaultViewport,
+                args: chromium.args,
+                defaultViewport: chromium.defaultViewport,
                 executablePath: await chromium.executablePath(),
-                headless: (chromium as any).headless,
+                headless: chromium.headless,
                 ignoreHTTPSErrors: true,
             } as any);
 
         } else {
-            // 2. BLOK LOCALHOST (DEVELOPMENT)
+            // --- SETTING LOCALHOST (Windows) ---
             
-            // Sesuaikan path ini dengan lokasi Chrome di laptopmu
+            // Pastikan path ini benar sesuai laptop kamu
             const localExecutablePath = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'; 
             
             browser = await puppeteer.launch({
                 args: [],
-                executablePath: localExecutablePath, 
+                executablePath: localExecutablePath,
                 headless: true,
             } as any);
         }
@@ -51,7 +54,6 @@ export async function POST(request: NextRequest) {
 
         await browser.close();
 
-        // Bungkus dengan Buffer.from() agar aman
         return new NextResponse(Buffer.from(pdfBuffer), {
             headers: {
                 'Content-Type': 'application/pdf',
