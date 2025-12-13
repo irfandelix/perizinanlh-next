@@ -111,7 +111,7 @@ export default function Sidebar() {
                 {/* Tombol Logout */}
                 <div className="p-4 bg-[#052e16]">
                     <button 
-                        onClick={() => signOut({ callbackUrl: '/login' })}
+                        onClick={() => signOut({ callbackUrl: '/' })}
                         className="flex items-center justify-center w-full px-4 py-3 text-sm font-medium text-red-200 bg-red-900/30 rounded-xl hover:bg-red-900/50 hover:text-red-100 transition border border-red-900/30"
                     >
                         <LogOut size={18} className="mr-2" />
