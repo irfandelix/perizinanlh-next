@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Tambahkan konfigurasi ini:
-  serverExternalPackages: ['@sparticuz/chromium', 'puppeteer-core'],
+    // Ubah jadi @sparticuz/chromium-min
+    serverExternalPackages: ['@sparticuz/chromium-min', 'puppeteer-core'],
 };
 
 export default nextConfig;

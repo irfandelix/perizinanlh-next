@@ -1,6 +1,6 @@
 import { NextResponse, NextRequest } from 'next/server';
 import puppeteer from 'puppeteer-core';
-import chromium from '@sparticuz/chromium';
+import chromium from '@sparticuz/chromium-min';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,26 +11,27 @@ export async function POST(request: NextRequest) {
         let browser;
 
         if (process.env.NODE_ENV === 'production') {
-            // --- SETTING VERCEL (Versi 119.0.0) ---
+            // --- LOGIKA VERCEL (REMOTE DOWNLOAD) ---
             
-            // Konfigurasi khusus @sparticuz/chromium v119
+            // Konfigurasi performa
             chromium.setGraphicsMode = false;
             
-            // Load font agar emoji/text terbaca (Opsional tapi disarankan)
+            // Link download binary KHUSUS VERCEL (v119)
+            // Ini akan mendownload Chromium lengkap dengan libnss3 ke folder /tmp
+            const remoteExecutablePath = 'https://github.com/Sparticuz/chromium/releases/download/v119.0.0/chromium-v119.0.0-pack.tar';
+
             await chromium.font('https://raw.githack.com/googlei18n/noto-emoji/master/fonts/NotoColorEmoji.ttf');
 
             browser = await puppeteer.launch({
-                args: chromium.args,
+                args: [...chromium.args, '--hide-scrollbars', '--disable-web-security'],
                 defaultViewport: chromium.defaultViewport,
-                executablePath: await chromium.executablePath(),
+                executablePath: await chromium.executablePath(remoteExecutablePath),
                 headless: chromium.headless,
                 ignoreHTTPSErrors: true,
             } as any);
 
         } else {
-            // --- SETTING LOCALHOST (Windows) ---
-            
-            // Pastikan path ini benar sesuai laptop kamu
+            // --- LOGIKA LOCALHOST ---
             const localExecutablePath = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'; 
             
             browser = await puppeteer.launch({
@@ -41,11 +42,8 @@ export async function POST(request: NextRequest) {
         }
 
         const page = await browser.newPage();
-
-        // Set konten HTML
         await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
 
-        // Generate PDF
         const pdfBuffer = await page.pdf({
             format: 'A4',
             printBackground: true,
