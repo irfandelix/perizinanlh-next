@@ -81,14 +81,16 @@ export default function RegisterDokumenPage() {
         setChecklistNotes(prev => ({ ...prev, [index]: value }));
     };
 
-    // --- HANDLER SIMPAN KE DB ---
+    // --- HANDLER SIMPAN KE DB (FINAL) ---
     const handleSimpan = async () => {
+        // 1. Validasi Input
         if (!formData.nomorSuratPermohonan) {
             alert("Mohon isi Nomor Surat Permohonan!");
             return;
         }
 
         try {
+            // 2. Siapkan Data
             const payload = {
                 ...formData,       
                 checklistStatus,   
@@ -96,6 +98,7 @@ export default function RegisterDokumenPage() {
                 statusVerifikasi   
             };
 
+            // 3. Kirim ke API
             const response = await fetch('/api/submit/tahap-a', { 
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -108,14 +111,20 @@ export default function RegisterDokumenPage() {
                 throw new Error(result.message || "Gagal menyimpan data ke server.");
             }
 
-            // Update nomor registrasi di state agar masuk ke PDF jika user download setelah simpan
+            // 4. UPDATE STATE (PENTING!)
+            // Agar nomor registrasi langsung muncul di PDF tanpa perlu refresh halaman
             if (result.generatedData && result.generatedData.nomorChecklist) {
-                setFormData(prev => ({ ...prev, nomorRegistrasi: result.generatedData.nomorChecklist }));
+                setFormData(prev => ({ 
+                    ...prev, 
+                    // Kita update key 'nomorChecklist' agar terbaca oleh komponen PDF
+                    nomorChecklist: result.generatedData.nomorChecklist 
+                }));
             }
 
-            alert(`✅ BERHASIL DISIMPAN!\n\nNomor Checklist: ${result.generatedData.nomorChecklist}\nNo Urut: ${result.generatedData.noUrut}`);
+            // 5. Beri Notifikasi Sukses
+            alert(`✅ BERHASIL DISIMPAN!\n\nNomor Registrasi: ${result.generatedData.nomorChecklist}\nNo Urut: ${result.generatedData.noUrut}`);
             
-            // Redirect jika diperlukan
+            // Opsi: Redirect dashboard (jika mau)
             // router.push('/dashboard'); 
 
         } catch (error: any) {
