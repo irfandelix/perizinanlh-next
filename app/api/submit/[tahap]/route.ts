@@ -23,13 +23,21 @@ const getKodeJenisDokumen = (inputJenis: string) => {
     if (!inputJenis) return 'DOK';
     const normalized = inputJenis.trim().toUpperCase();
 
+    // Mapping sesuai opsi di Frontend
     const map: Record<string, string> = {
-        'SPPL': 'SPPL', 'UKLUPL': 'UKLUPL', 'UKL-UPL': 'UKLUPL',
-        'RINTEK LB3': 'RINTEK.LB3', 'PERTEK AIR LIMBAH': 'PERTEK.AL',
-        'PERTEK EMISI': 'PERTEK.EM', 'SLO': 'SLO', 'DPLH': 'DPLH',
-        'DELH': 'DELH', 'AMDAL': 'AMDAL'
+        'SPPL': 'SPPL', 
+        'UKLUPL': 'UKLUPL', 
+        'UKL-UPL': 'UKLUPL',
+        'RINTEK LB3': 'RINTEK.LB3', 
+        'PERTEK AIR LIMBAH': 'PERTEK.AL',
+        'PERTEK EMISI': 'PERTEK.EM', 
+        'SLO': 'SLO', 
+        'DPLH': 'DPLH',
+        'DELH': 'DELH', 
+        'AMDAL': 'AMDAL'
     };
 
+    // Jika tidak ada di map, gunakan string aslinya
     return map[normalized] || normalized;
 };
 

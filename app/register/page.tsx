@@ -189,10 +189,16 @@ export default function RegisterDokumenPage() {
                         </div>
                         <div>
                             <label className={labelClass}>Jenis Dokumen</label>
-                            <select name="jenisDokumen" className={inputClass} onChange={handleInputChange} defaultValue="UKLUPL">
-                                <option value="UKLUPL">UKL-UPL</option>
+                            <select name="jenisDokumen" className={inputClass} onChange={handleInputChange} value={formData.jenisDokumen}>
+                                <option value="UKL-UPL">UKL-UPL</option>
                                 <option value="AMDAL">AMDAL</option>
                                 <option value="SPPL">SPPL</option>
+                                <option value="RINTEK LB3">Rincian Teknis Limbah B3</option>
+                                <option value="PERTEK AIR LIMBAH">Persetujuan Teknis Air Limbah</option>
+                                <option value="PERTEK EMISI">Persetujuan Teknis Emisi</option>
+                                <option value="SLO">SLO</option>
+                                <option value="DPLH">DPLH</option>
+                                <option value="DELH">DELH</option>
                             </select>
                         </div>
                         <div>
