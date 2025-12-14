@@ -106,7 +106,7 @@ export const TandaTerimaPDF = ({ data }: any) => (
         <View style={styles.logoContainer}>
             {/* Ganti src dengan path logo Sragen Anda */}
             {/* Jika error di Vercel, gunakan URL absolut atau import gambar */}
-            <Image src='/logo-sragen.svg' style={styles.logo} /> 
+            <Image src='/logo-sragen.png' style={styles.logo} /> 
         </View>
         
         {/* Kolom Teks Kop */}
