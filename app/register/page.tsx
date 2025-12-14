@@ -29,8 +29,14 @@ export default function RegisterDokumenPage() {
         namaPengirim: '',
         pengirimSebagai: 'Pemrakarsa',
         namaPetugas: '',
-        keterangan: ''
+        keterangan: '',
+
+        // TAMBAHAN PENTING (Agar tidak error TypeScript)
+        // Ini untuk menampung data balikan dari database
+        nomorChecklist: '', 
+        noUrut: ''
     });
+    
 
     // --- STATE 2: CHECKLIST ---
     const [checklistStatus, setChecklistStatus] = useState<Record<number, boolean>>({});
@@ -394,7 +400,7 @@ export default function RegisterDokumenPage() {
                                         statusVerifikasi={statusVerifikasi}
                                     />
                                 } 
-                                fileName={`Checklist_${formData.nomorSuratPermohonan || 'Draft'}.pdf`}
+                                fileName={`Checklist_${formData.nomorChecklist || formData.nomorSuratPermohonan || 'Draft'}.pdf`}
                                 className="w-full"
                             >
                                 {({ blob, url, loading, error }) => (
