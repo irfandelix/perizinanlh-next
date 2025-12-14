@@ -1,27 +1,26 @@
 import React from 'react';
-import { Page, Text, View, Document, StyleSheet, Image } from '@react-pdf/renderer';
+import { Page, Text, View, Document, StyleSheet } from '@react-pdf/renderer';
 
 // --- HELPER FUNCTION ---
 const formatDate = (dateString: string) => {
     if (!dateString) return '-';
     const date = new Date(dateString);
-    const months = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+    const months = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agt", "Sep", "Okt", "Nov", "Des"];
     if (isNaN(date.getTime())) return '-';
     return `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
 };
 
-// --- DATA STATIC CHECKLIST ---
 const allChecklistItems = [
     "Surat Permohonan Pemeriksaan Dokumen UKL-UPL / SPPL", 
     "Pernyataan Pengelolaan dan Pemantauan Lingkungan (Bermaterai)",
     "Dokumen Lingkungan", 
-    "Peta (Peta Tapak, Peta Pengelolaan, Peta Pemantauan, dll) - Siteplan di Kertas A3", 
+    "Peta (Peta Tapak, Peta Pengelolaan, Peta Pemantauan, dll) - Siteplan A3", 
     "PKKPR",
     "NIB (Untuk Swasta atau Perorangan)", 
     "Fotocopy Status Lahan (Sertifikat)", 
     "Fotocopy KTP Penanggungjawab Kegiatan",
-    "Foto Eksisting Lokasi Rencana Kegiatan Disertai dengan Titik Koordinat", 
-    "Lembar Penapisan dari AMDALNET / Arahan dari Instansi Lingkungan Hidup",
+    "Foto Eksisting Lokasi Rencana Kegiatan + Titik Koordinat", 
+    "Lembar Penapisan AMDALNET / Arahan Instansi Lingkungan Hidup",
     "Surat Kuasa Pekerjaan dari Pemrakarsa ke Konsultan (Bermaterai)", 
     "Perizinan yang Sudah Dimiliki atau Izin yang Lama (Jika Ada)",
     "Pemenuhan Persetujuan Teknis Air Limbah*", 
@@ -32,338 +31,118 @@ const allChecklistItems = [
     "Bukti Upload Permohonan pada AMDALNET dan/atau SIDARLING"
 ];
 
-// --- STYLING ---
 const BORDER_COLOR = '#000000';
 const BORDER_WIDTH = 1;
 
 const styles = StyleSheet.create({
     page: { 
-        padding: 40, 
+        padding: 20, // Padding diperkecil agar muat 1 halaman
         fontFamily: 'Helvetica', 
-        fontSize: 10,
+        fontSize: 9, // Ukuran font dasar diperkecil
         color: '#000',
-        lineHeight: 1.3
+        lineHeight: 1.2
     },
     
     // --- JUDUL ---
-    judulContainer: { textAlign: 'center', marginBottom: 20 },
-    judulH2: { fontSize: 12, fontWeight: 'bold', fontFamily: 'Helvetica-Bold', textTransform: 'uppercase' },
-    judulH3: { fontSize: 12, fontWeight: 'bold', fontFamily: 'Helvetica-Bold', textTransform: 'uppercase' },
+    judulContainer: { textAlign: 'center', marginBottom: 10 },
+    judulH2: { fontSize: 11, fontWeight: 'bold', fontFamily: 'Helvetica-Bold', textTransform: 'uppercase' },
+    judulH3: { fontSize: 11, fontWeight: 'bold', fontFamily: 'Helvetica-Bold', textTransform: 'uppercase' },
 
-    // --- INFO BOX (METADATA TABLE) ---
+    // --- INFO BOX ---
     metaTable: {
         width: '100%',
         borderTopWidth: BORDER_WIDTH,
         borderLeftWidth: BORDER_WIDTH,
         borderColor: BORDER_COLOR,
-        marginBottom: 15
+        marginBottom: 8
     },
-    metaRow: { flexDirection: 'row' },
-    metaLabelCol: {
-        width: '35%',
-        padding: 5,
-        borderRightWidth: BORDER_WIDTH,
-        borderBottomWidth: BORDER_WIDTH,
-        borderColor: BORDER_COLOR,
-        backgroundColor: '#f9fafb', 
-        fontFamily: 'Helvetica',
-        fontSize: 9
-    },
-    metaSepCol: {
-        width: '3%',
-        padding: 5,
-        borderRightWidth: BORDER_WIDTH,
-        borderBottomWidth: BORDER_WIDTH,
-        borderColor: BORDER_COLOR,
-        textAlign: 'center',
-        fontSize: 9
-    },
-    metaValueCol: {
-        width: '62%',
-        padding: 5,
-        borderRightWidth: BORDER_WIDTH,
-        borderBottomWidth: BORDER_WIDTH,
-        borderColor: BORDER_COLOR,
-        fontFamily: 'Helvetica-Bold',
-        fontWeight: 'bold',
-        fontSize: 9
-    },
+    metaRow: { flexDirection: 'row', minHeight: 14 },
+    metaLabelCol: { width: '35%', padding: 3, borderRightWidth: BORDER_WIDTH, borderBottomWidth: BORDER_WIDTH, borderColor: BORDER_COLOR, backgroundColor: '#f0f0f0', fontSize: 8 },
+    metaSepCol: { width: '3%', padding: 3, borderRightWidth: BORDER_WIDTH, borderBottomWidth: BORDER_WIDTH, borderColor: BORDER_COLOR, textAlign: 'center', fontSize: 8 },
+    metaValueCol: { width: '62%', padding: 3, borderRightWidth: BORDER_WIDTH, borderBottomWidth: BORDER_WIDTH, borderColor: BORDER_COLOR, fontFamily: 'Helvetica-Bold', fontWeight: 'bold', fontSize: 8 },
 
-    // --- TABEL UTAMA CHECKLIST ---
-    tableContainer: {
-        marginTop: 5,
-        borderTopWidth: BORDER_WIDTH,
-        borderLeftWidth: BORDER_WIDTH,
-        borderColor: BORDER_COLOR
-    },
-    tableRow: { flexDirection: 'row' },
-    tableCell: {
-        borderRightWidth: BORDER_WIDTH,
-        borderBottomWidth: BORDER_WIDTH,
-        borderColor: BORDER_COLOR,
-        padding: 4,
-        fontSize: 9
-    },
-    headerCell: {
-        backgroundColor: '#e5e7eb',
-        fontWeight: 'bold',
-        fontFamily: 'Helvetica-Bold',
-        textAlign: 'center'
-    },
+    // --- TABEL CHECKLIST ---
+    tableContainer: { marginTop: 2, borderTopWidth: BORDER_WIDTH, borderLeftWidth: BORDER_WIDTH, borderColor: BORDER_COLOR },
+    tableRow: { flexDirection: 'row', minHeight: 12 },
+    tableCell: { borderRightWidth: BORDER_WIDTH, borderBottomWidth: BORDER_WIDTH, borderColor: BORDER_COLOR, padding: 3, fontSize: 8 },
+    headerCell: { backgroundColor: '#e5e7eb', fontWeight: 'bold', fontFamily: 'Helvetica-Bold', textAlign: 'center', padding: 4 },
     colNo: { width: '6%', textAlign: 'center' },
-    colItem: { width: '59%' },
-    colStatus: { width: '15%', textAlign: 'center' },
+    colItem: { width: '64%' }, // Lebar diperbesar sedikit
+    colStatus: { width: '10%', textAlign: 'center' },
     colNote: { width: '20%' },
 
-    // --- FOOTER BARU (SESUAI GAMBAR) ---
-    footerTable: {
-        marginTop: 15,
-        borderTopWidth: BORDER_WIDTH,
-        borderLeftWidth: BORDER_WIDTH,
-        borderColor: BORDER_COLOR
-    },
-    // Baris Header Contact
-    footerHeaderRow: {
-        backgroundColor: '#fff',
-        padding: 5,
-        borderRightWidth: BORDER_WIDTH,
-        borderBottomWidth: BORDER_WIDTH,
-        borderColor: BORDER_COLOR
-    },
-    footerHeaderText: {
-        fontFamily: 'Helvetica-Bold',
-        fontWeight: 'bold',
-        fontSize: 9
-    },
-    // Baris Isi Contact
-    contactRow: { flexDirection: 'row' },
-    contactLabel: { 
-        width: '40%', 
-        padding: 5, 
-        fontSize: 9, 
-        borderRightWidth: BORDER_WIDTH, // Pembatas Vertikal 1
-        borderBottomWidth: BORDER_WIDTH,
-        borderColor: BORDER_COLOR
-    },
-    contactSeparator: {
-        width: '2%',
-        padding: 5,
-        fontSize: 9,
-        borderBottomWidth: BORDER_WIDTH,
-        borderColor: BORDER_COLOR,
-        textAlign: 'center'
-    },
-    contactValue: { 
-        width: '58%', 
-        padding: 5, 
-        fontSize: 9, 
-        borderRightWidth: BORDER_WIDTH, // Penutup kanan tabel
-        borderBottomWidth: BORDER_WIDTH,
-        borderColor: BORDER_COLOR,
-        flexDirection: 'row',
-        justifyContent: 'space-between'
-    },
+    // --- FOOTER ---
+    footerWrapper: { marginTop: 10, borderTopWidth: BORDER_WIDTH, borderLeftWidth: BORDER_WIDTH, borderColor: BORDER_COLOR },
+    footerHeader: { padding: 4, borderRightWidth: BORDER_WIDTH, borderBottomWidth: BORDER_WIDTH, borderColor: BORDER_COLOR, fontFamily: 'Helvetica-Bold', fontWeight: 'bold', fontSize: 8 },
+    contactRow: { flexDirection: 'row', minHeight: 14 },
+    contactLabel: { width: '40%', padding: 3, borderRightWidth: BORDER_WIDTH, borderBottomWidth: BORDER_WIDTH, borderColor: BORDER_COLOR, fontSize: 8 },
+    contactValue: { width: '60%', padding: 3, borderRightWidth: BORDER_WIDTH, borderBottomWidth: BORDER_WIDTH, borderColor: BORDER_COLOR, fontSize: 8 },
 
-    // Area Tanda Tangan (Grid Layout)
+    // Signature Area
     signatureArea: { flexDirection: 'row' },
-    
-    // Kolom Kiri: Cap Dinas
-    capDinasCol: {
-        width: '40%',
-        height: 100, // Tinggi fix agar kotak cap luas
-        padding: 5,
-        borderRightWidth: BORDER_WIDTH,
-        borderBottomWidth: BORDER_WIDTH,
-        borderColor: BORDER_COLOR,
-    },
-    capDinasTitle: {
-        fontFamily: 'Helvetica-Bold',
-        fontWeight: 'bold',
-        fontSize: 9,
-        marginBottom: 5
-    },
-
-    // Kolom Kanan: Status & TTD
+    capDinasCol: { width: '40%', height: 70, padding: 4, borderRightWidth: BORDER_WIDTH, borderBottomWidth: BORDER_WIDTH, borderColor: BORDER_COLOR },
     rightCol: { width: '60%' },
-    
-    // Status Box (Atas Kanan)
-    statusBox: {
-        height: 40,
-        padding: 5,
-        borderRightWidth: BORDER_WIDTH,
-        borderBottomWidth: BORDER_WIDTH,
-        borderColor: BORDER_COLOR,
-        alignItems: 'center',
-        justifyContent: 'center'
-    },
-    
-    // Tanda Tangan Box (Bawah Kanan)
-    signContainer: { flexDirection: 'row', height: 60 },
-    
-    signBoxLeft: {
-        width: '50%',
-        padding: 5,
-        borderRightWidth: BORDER_WIDTH,
-        borderBottomWidth: BORDER_WIDTH,
-        borderColor: BORDER_COLOR,
-        alignItems: 'center',
-        justifyContent: 'space-between'
-    },
-    signBoxRight: {
-        width: '50%',
-        padding: 5,
-        borderRightWidth: BORDER_WIDTH,
-        borderBottomWidth: BORDER_WIDTH,
-        borderColor: BORDER_COLOR,
-        alignItems: 'center',
-        justifyContent: 'space-between'
-    },
-    signLabel: {
-        fontSize: 8,
-        textAlign: 'center',
-        fontFamily: 'Helvetica-Bold',
-        fontWeight: 'bold'
-    },
-    signName: {
-        fontSize: 9,
-        fontFamily: 'Helvetica',
-        marginTop: 20
-    }
+    statusBox: { height: 25, padding: 3, borderRightWidth: BORDER_WIDTH, borderBottomWidth: BORDER_WIDTH, borderColor: BORDER_COLOR, alignItems: 'center', justifyContent: 'center' },
+    signRow: { flexDirection: 'row', height: 45 },
+    signBox: { width: '50%', padding: 3, borderRightWidth: BORDER_WIDTH, borderBottomWidth: BORDER_WIDTH, borderColor: BORDER_COLOR, alignItems: 'center', justifyContent: 'space-between' },
+    signLabel: { fontSize: 7, fontFamily: 'Helvetica-Bold', fontWeight: 'bold', textAlign: 'center' },
+    signName: { fontSize: 8, fontFamily: 'Helvetica', marginTop: 15 }
 });
 
 export const ChecklistPrintTemplate = ({ data, checklistStatus, statusVerifikasi }: any) => {
     return (
         <Document>
             <Page size="A4" style={styles.page}>
-                
-                {/* 1. JUDUL (TANPA KOP) */}
                 <View style={styles.judulContainer}>
                     <Text style={styles.judulH2}>CHECKLIST KELENGKAPAN BERKAS</Text>
                     <Text style={styles.judulH3}>PERMOHONAN PERSETUJUAN LINGKUNGAN</Text>
                 </View>
 
-                {/* 2. INFO BOX (METADATA TABLE) */}
                 <View style={styles.metaTable}>
-                    <View style={styles.metaRow}>
-                        <Text style={styles.metaLabelCol}>Nama Kegiatan</Text>
-                        <Text style={styles.metaSepCol}>:</Text>
-                        <Text style={styles.metaValueCol}>{data.namaKegiatan}</Text>
-                    </View>
-                    <View style={styles.metaRow}>
-                        <Text style={styles.metaLabelCol}>Jenis Permohonan*</Text>
-                        <Text style={styles.metaSepCol}>:</Text>
-                        <Text style={styles.metaValueCol}>{data.jenisDokumen}</Text>
-                    </View>
-                    <View style={styles.metaRow}>
-                        <Text style={styles.metaLabelCol}>Nomor Checklist Kelengkapan Berkas</Text>
-                        <Text style={styles.metaSepCol}>:</Text>
-                        <Text style={styles.metaValueCol}>{data.nomorChecklist || "________"}</Text>
-                    </View>
-                    <View style={styles.metaRow}>
-                        <Text style={styles.metaLabelCol}>Tanggal Masuk Berkas</Text>
-                        <Text style={styles.metaSepCol}>:</Text>
-                        <Text style={styles.metaValueCol}>{formatDate(data.tanggalMasukDokumen)}</Text>
-                    </View>
+                    <View style={styles.metaRow}><Text style={styles.metaLabelCol}>Nama Kegiatan</Text><Text style={styles.metaSepCol}>:</Text><Text style={styles.metaValueCol}>{data.namaKegiatan}</Text></View>
+                    <View style={styles.metaRow}><Text style={styles.metaLabelCol}>Jenis Permohonan*</Text><Text style={styles.metaSepCol}>:</Text><Text style={styles.metaValueCol}>{data.jenisDokumen}</Text></View>
+                    <View style={styles.metaRow}><Text style={styles.metaLabelCol}>Nomor Checklist</Text><Text style={styles.metaSepCol}>:</Text><Text style={styles.metaValueCol}>{data.nomorChecklist || "-"}</Text></View>
+                    <View style={styles.metaRow}><Text style={styles.metaLabelCol}>Tanggal Masuk</Text><Text style={styles.metaSepCol}>:</Text><Text style={styles.metaValueCol}>{formatDate(data.tanggalMasukDokumen)}</Text></View>
                 </View>
 
-                {/* 3. TABEL CHECKLIST ITEMS */}
                 <View style={styles.tableContainer}>
                     <View style={styles.tableRow} fixed>
                         <Text style={[styles.tableCell, styles.headerCell, styles.colNo]}>No</Text>
-                        <Text style={[styles.tableCell, styles.headerCell, styles.colItem]}>Persyaratan Dokumen</Text>
-                        <Text style={[styles.tableCell, styles.headerCell, styles.colStatus]}>Ada / Tidak</Text>
-                        <Text style={[styles.tableCell, styles.headerCell, styles.colNote]}>Keterangan</Text>
+                        <Text style={[styles.tableCell, styles.headerCell, styles.colItem]}>Dokumen</Text>
+                        <Text style={[styles.tableCell, styles.headerCell, styles.colStatus]}>Ada</Text>
+                        <Text style={[styles.tableCell, styles.headerCell, styles.colNote]}>Ket</Text>
                     </View>
-
                     {allChecklistItems.map((item, index) => {
                         const isChecked = checklistStatus[index] === true;
                         return (
                             <View style={styles.tableRow} key={index}>
                                 <Text style={[styles.tableCell, styles.colNo]}>{index + 1}</Text>
                                 <Text style={[styles.tableCell, styles.colItem]}>{item}</Text>
-                                <Text style={[styles.tableCell, styles.colStatus, { fontFamily: 'Helvetica-Bold', textAlign: 'center', color: isChecked ? 'black' : 'transparent' }]}>
-                                    {isChecked ? 'V' : ''}
-                                </Text>
+                                <Text style={[styles.tableCell, styles.colStatus, { fontFamily: 'Helvetica-Bold', textAlign: 'center', color: isChecked ? 'black' : 'transparent' }]}>{isChecked ? 'V' : ''}</Text>
                                 <Text style={[styles.tableCell, styles.colNote]}></Text>
                             </View>
                         );
                     })}
                 </View>
 
-                {/* 4. FOOTER BARU (GRID STYLE) */}
-                <View style={styles.footerTable}>
-                    
-                    {/* Header: Contact Person */}
-                    <View style={styles.footerHeaderRow}>
-                        <Text style={styles.footerHeaderText}>Contact Person (Nomor Telepon)</Text>
-                    </View>
-                    
-                    {/* Row: Pemohon */}
-                    <View style={styles.contactRow}>
-                        <Text style={styles.contactLabel}>Pemohon / Pemrakarsa / Pemberi Kuasa</Text>
-                        <Text style={styles.contactSeparator}>:</Text>
-                        <View style={styles.contactValue}>
-                            <Text>{data.namaPemrakarsa}</Text>
-                            <Text>({data.teleponPemrakarsa || '-'})</Text>
-                        </View>
-                    </View>
+                <View style={styles.footerWrapper}>
+                    <Text style={styles.footerHeader}>Contact Person (Nomor Telepon)</Text>
+                    <View style={styles.contactRow}><Text style={styles.contactLabel}>Pemohon / Pemrakarsa</Text><Text style={styles.contactValue}>: {data.namaPemrakarsa} ({data.teleponPemrakarsa || '-'})</Text></View>
+                    <View style={styles.contactRow}><Text style={styles.contactLabel}>Penerima Kuasa</Text><Text style={styles.contactValue}>: {data.namaKonsultan || '-'} ({data.teleponKonsultan || '-'})</Text></View>
 
-                    {/* Row: Penerima Kuasa */}
-                    <View style={styles.contactRow}>
-                        <Text style={styles.contactLabel}>Penerima Kuasa</Text>
-                        <Text style={styles.contactSeparator}>:</Text>
-                        <View style={styles.contactValue}>
-                            <Text>{data.namaKonsultan || '-'}</Text>
-                            <Text>({data.teleponKonsultan || '-'})</Text>
-                        </View>
-                    </View>
-
-                    {/* Signature Grid */}
                     <View style={styles.signatureArea}>
-                        {/* Kolom Kiri: Cap Dinas */}
-                        <View style={styles.capDinasCol}>
-                            <Text style={styles.capDinasTitle}>Kolom Cap Dinas</Text>
-                        </View>
-
-                        {/* Kolom Kanan: Status & TTD */}
+                        <View style={styles.capDinasCol}><Text style={{fontSize: 8, fontWeight: 'bold'}}>(Cap Dinas)</Text></View>
                         <View style={styles.rightCol}>
-                            {/* Kotak Status */}
-                            <View style={styles.statusBox}>
-                                <Text style={{fontSize: 9}}>Status Kelengkapan Berkas*:</Text>
-                                <Text style={{fontFamily: 'Helvetica-Bold', fontWeight: 'bold', marginTop: 3}}>
-                                    {statusVerifikasi || '...................'}
-                                </Text>
-                            </View>
-
-                            {/* Kotak Tanda Tangan */}
-                            <View style={styles.signContainer}>
-                                {/* TTD Kiri: Pemohon */}
-                                <View style={styles.signBoxLeft}>
-                                    <View>
-                                        <Text style={styles.signLabel}>Pemohon / Yang</Text>
-                                        <Text style={styles.signLabel}>Menyerahkan Dokumen</Text>
-                                    </View>
-                                    <Text style={styles.signName}>({data.namaPengirim || 'AAA'})</Text>
-                                </View>
-
-                                {/* TTD Kanan: Petugas */}
-                                <View style={styles.signBoxRight}>
-                                    <View>
-                                        <Text style={styles.signLabel}>Petugas Gerai Mal</Text>
-                                        <Text style={styles.signLabel}>Pelayanan Publik</Text>
-                                    </View>
-                                    <Text style={styles.signName}>({data.namaPetugas || 'Ima'})</Text>
-                                </View>
+                            <View style={styles.statusBox}><Text style={{fontSize: 8}}>Status Kelengkapan Berkas*:</Text><Text style={{fontWeight: 'bold', fontSize: 9}}>{statusVerifikasi}</Text></View>
+                            <View style={styles.signRow}>
+                                <View style={styles.signBox}><View><Text style={styles.signLabel}>Penyerah</Text><Text style={styles.signLabel}>Dokumen</Text></View><Text style={styles.signName}>({data.namaPengirim || '.....'})</Text></View>
+                                <View style={styles.signBox}><View><Text style={styles.signLabel}>Petugas</Text><Text style={styles.signLabel}>Pelayanan</Text></View><Text style={styles.signName}>({data.namaPetugas || '.....'})</Text></View>
                             </View>
                         </View>
                     </View>
-
                 </View>
 
-                <Text style={{ fontSize: 8, fontStyle: 'italic', marginTop: 10, color: '#444' }}>
-                    *) Dokumen yang wajib dilampirkan
-                </Text>
-
+                <Text style={{ fontSize: 7, fontStyle: 'italic', marginTop: 5, color: '#444' }}>*) Dokumen wajib dilampirkan</Text>
             </Page>
         </Document>
     );
