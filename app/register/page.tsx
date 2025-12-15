@@ -113,21 +113,13 @@ export default function RegisterDokumenPage() {
 
     // --- HELPER NAMA FILE ---
     const getFileName = (prefix: string) => {
-        // Jika belum ada nomor checklist (belum disimpan), pakai nama default
         if (!formData.nomorChecklist) return `${prefix}_draft.pdf`;
 
         try {
             // Format DB: 600.4/001.8/17/REG.UKLUPL/2025
-            // Kita pecah berdasarkan garis miring '/'
             const parts = formData.nomorChecklist.split('/');
-            
-            // Ambil Nomor Urut (001) dari bagian kedua (001.8)
             const noUrut = parts[1] ? parts[1].split('.')[0] : '000';
-            
-            // Ambil Jenis Dokumen (REG.UKLUPL)
             const jenisDok = parts[3] || 'DOK';
-            
-            // Ambil Tahun (2025)
             const tahun = parts[4] || new Date().getFullYear();
 
             // Format Akhir: checklist_001_REG.UKLUPL_2025.pdf
@@ -153,8 +145,6 @@ export default function RegisterDokumenPage() {
                         <span className="bg-orange-500 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs mr-2">1</span> Data Registrasi
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {/* ... (INPUT FIELD SAMA SEPERTI SEBELUMNYA) ... */}
-                        {/* Saya ringkas agar fokus ke logic download */}
                         <div className="space-y-4">
                             <div><label className={labelClass}>Nomor Surat</label><input name="nomorSuratPermohonan" className={inputClass} onChange={handleInputChange} /></div>
                             <div><label className={labelClass}>Tanggal Surat</label><input type="date" name="tanggalSuratPermohonan" className={inputClass} onChange={handleInputChange} /></div>
@@ -190,7 +180,6 @@ export default function RegisterDokumenPage() {
                             <div><label className={labelClass}>Tanggal Masuk</label><input type="date" name="tanggalMasukDokumen" className={inputClass} onChange={handleInputChange} value={formData.tanggalMasukDokumen} /></div>
                         </div>
                         
-                        {/* Kontak & Pengirim */}
                         <div className="md:col-span-2 border-t pt-4 mt-2"><p className="text-sm font-semibold text-slate-500">Kontak</p></div>
                         <div><label className={labelClass}>Pemrakarsa</label><input name="namaPemrakarsa" className={inputClass} onChange={handleInputChange} /></div>
                         <div><label className={labelClass}>Telp Pemrakarsa</label><input name="teleponPemrakarsa" className={inputClass} onChange={handleInputChange} /></div>
@@ -266,21 +255,29 @@ export default function RegisterDokumenPage() {
 
                 {/* ACTION BUTTONS */}
                 <div className="mb-12 flex flex-col md:flex-row gap-4">
+                    
+                    {/* 1. TOMBOL SIMPAN */}
                     <button onClick={handleSimpan} className="bg-blue-600 flex-1 text-white py-4 rounded-xl font-bold hover:bg-blue-700 shadow-lg flex justify-center items-center gap-2">
                         <Save className="w-5 h-5" /> Simpan Data
                     </button>
 
+                    {/* 2. TOMBOL CETAK TANDA TERIMA (LOCKED SEBELUM SIMPAN) */}
                     {isClient && (
                         <div className="flex-1">
                             <PDFDownloadLink 
                                 document={<TandaTerimaPDF data={formData} />} 
-                                // Gunakan helper getFileName dengan prefix "tanda_terima"
                                 fileName={getFileName('tanda_terima')}
                                 className="w-full"
                             >
                                 {({ loading }) => (
-                                    <button disabled={loading || !formData.nomorChecklist} className={`w-full py-4 rounded-xl font-bold shadow-lg flex justify-center items-center gap-2 text-white transition ${loading || !formData.nomorChecklist ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'}`}>
-                                        <Printer className="w-5 h-5" /> {loading ? 'Loading...' : 'Unduh Tanda Terima'}
+                                    <button 
+                                        disabled={loading || !formData.nomorChecklist}
+                                        className={`w-full py-4 rounded-xl font-bold shadow-lg flex justify-center items-center gap-2 text-white transition ${
+                                            loading || !formData.nomorChecklist ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'
+                                        }`}
+                                    >
+                                        <Printer className="w-5 h-5" />
+                                        {loading ? 'Loading...' : 'Unduh Tanda Terima'}
                                     </button>
                                 )}
                             </PDFDownloadLink>
@@ -288,21 +285,33 @@ export default function RegisterDokumenPage() {
                         </div>
                     )}
 
+                    {/* 3. TOMBOL CETAK CHECKLIST (LOCKED SEBELUM SIMPAN) */}
                     {isClient && (
                         <div className="flex-1">
                             <PDFDownloadLink 
-                                document={<ChecklistPrintTemplate data={formData} checklistStatus={checklistStatus} statusVerifikasi={statusVerifikasi} />} 
-                                // Gunakan helper getFileName dengan prefix "checklist"
-                                // Hasil: checklist_001_REG.UKLUPL_2025.pdf
+                                document={
+                                    <ChecklistPrintTemplate 
+                                        data={formData} 
+                                        checklistStatus={checklistStatus} 
+                                        statusVerifikasi={statusVerifikasi} 
+                                    />
+                                } 
                                 fileName={getFileName('checklist')}
                                 className="w-full"
                             >
                                 {({ loading }) => (
-                                    <button disabled={loading} className="w-full py-4 rounded-xl font-bold shadow-lg flex justify-center items-center gap-2 text-white bg-yellow-600 hover:bg-yellow-700">
-                                        <Download className="w-5 h-5" /> Unduh Checklist
+                                    <button 
+                                        disabled={loading || !formData.nomorChecklist}
+                                        className={`w-full py-4 rounded-xl font-bold shadow-lg flex justify-center items-center gap-2 text-white transition ${
+                                            loading || !formData.nomorChecklist ? 'bg-gray-400 cursor-not-allowed' : 'bg-yellow-600 hover:bg-yellow-700'
+                                        }`}
+                                    >
+                                        <Download className="w-5 h-5" />
+                                        {loading ? 'Loading...' : 'Unduh Checklist'}
                                     </button>
                                 )}
                             </PDFDownloadLink>
+                            {!formData.nomorChecklist && <p className="text-xs text-center text-red-500 mt-1">*Simpan data dulu</p>}
                         </div>
                     )}
                 </div>
