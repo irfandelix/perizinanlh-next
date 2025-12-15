@@ -1,7 +1,7 @@
 import React from 'react';
 import { Page, Text, View, Document, StyleSheet, Image } from '@react-pdf/renderer';
 
-// --- STYLES ---
+// --- STYLING ---
 const styles = StyleSheet.create({
     page: { 
         paddingTop: 30,
@@ -9,46 +9,59 @@ const styles = StyleSheet.create({
         paddingHorizontal: 40,
         fontFamily: 'Helvetica', 
         fontSize: 10, 
-        lineHeight: 1.5 
+        lineHeight: 1.3 
     },
     
-    // --- KOP SURAT ---
+    // --- KOP SURAT (SESUAI GAMBAR) ---
     kopContainer: {
         flexDirection: 'row',
-        alignItems: 'center',
+        alignItems: 'flex-start', // Logo sejajar atas atau tengah
         marginBottom: 2
+        // justifyContent: 'center' // Opsional: jika ingin konten di tengah page
     },
+    // Logo di Kiri
     logo: {
-        width: 55,
-        height: 70, 
-        marginRight: 15
+        width: 65,  // Ukuran logo disesuaikan
+        height: 75, 
+        marginRight: 10,
+        marginTop: 5
     },
-    kopTextCenter: {
-        flex: 1, // Agar teks mengambil sisa ruang dan bisa di-center
+    // Teks di Kanan/Tengah
+    kopTextContainer: {
+        flex: 1, 
         textAlign: 'center',
-        justifyContent: 'center'
+        marginTop: 5,
+        marginLeft: -10 // Kompensasi visual agar teks benar-benar terlihat center di halaman
     },
     textPemkab: {
-        fontSize: 12,
+        fontSize: 14,
         fontFamily: 'Helvetica',
-        textTransform: 'uppercase',
         marginBottom: 2
     },
     textDinas: {
-        fontSize: 16,
-        fontFamily: 'Helvetica-Bold',
+        fontSize: 18,
+        fontFamily: 'Helvetica-Bold', // Font Tebal
         fontWeight: 'bold',
-        textTransform: 'uppercase',
         marginBottom: 2
     },
     textAlamat: {
         fontSize: 9,
         fontFamily: 'Helvetica',
-        fontStyle: 'italic'
     },
-    // Garis Kop
-    garisTebal: { borderBottomWidth: 3, borderColor: '#000', marginBottom: 2, marginTop: 5 },
-    garisTipis: { borderBottomWidth: 1, borderColor: '#000', marginBottom: 20 },
+
+    // --- GARIS GANDA ---
+    // Trik membuat garis ganda (Tebal atas, Tipis bawah)
+    garisTebal: { 
+        borderBottomWidth: 3, 
+        borderColor: '#000', 
+        marginTop: 5 
+    },
+    garisTipis: { 
+        borderBottomWidth: 1, 
+        borderColor: '#000', 
+        marginTop: 2,
+        marginBottom: 20 
+    },
 
     // --- JUDUL DOKUMEN ---
     judulDokumen: { 
@@ -72,15 +85,14 @@ const styles = StyleSheet.create({
     signatureBox: { width: '45%', textAlign: 'center' },
     signSpace: { height: 65 },
     namaTerang: { fontFamily: 'Helvetica-Bold', fontWeight: 'bold', textDecoration: 'underline' },
-    nip: { fontSize: 9, marginTop: 2 }
 });
 
-// GANTI DENGAN NAMA FILE LOGO ANDA DI FOLDER PUBLIC
-// Pastikan file "logo-sragen.png" ada di folder public
+// Pastikan file "logo-sragen.png" ada di folder public project Anda
 const LOGO_SRC = '/logo-sragen.png'; 
 
 export const TandaTerimaPDF_PHP = ({ data }: { data: any }) => {
-    // Helper Format Tanggal
+    
+    // Format Tanggal Indonesia
     const formatDate = (dateString: string) => {
         if (!dateString) return '-';
         const date = new Date(dateString);
@@ -91,20 +103,20 @@ export const TandaTerimaPDF_PHP = ({ data }: { data: any }) => {
         <Document>
             <Page size="A4" style={styles.page}>
                 
-                {/* 1. KOP SURAT RESMI */}
+                {/* 1. KOP SURAT (LAYOUT PERSIS GAMBAR) */}
                 <View style={styles.kopContainer}>
-                    {/* Logo (Pastikan file ada di folder public) */}
-                    {/* Jika error gambar tidak muncul, cek nama file di folder public */}
                     <Image src={LOGO_SRC} style={styles.logo} />
                     
-                    <View style={styles.kopTextCenter}>
+                    <View style={styles.kopTextContainer}>
                         <Text style={styles.textPemkab}>PEMERINTAH KABUPATEN SRAGEN</Text>
                         <Text style={styles.textDinas}>DINAS LINGKUNGAN HIDUP</Text>
-                        <Text style={styles.textAlamat}>Jl. Dr. Sutomo No. 5 Sragen, Telp. (0271) 891008</Text>
-                        <Text style={styles.textAlamat}>Kode Pos 57212</Text>
+                        <Text style={styles.textAlamat}>Jalan Ronggowarsito Nomor 18B, Sragen Wetan, Sragen, Jawa Tengah 57214</Text>
+                        <Text style={styles.textAlamat}>Telepon (0271) 891136, Faksimile (0271) 891136, Laman www.dlh.sragenkab.go.id</Text>
+                        <Text style={styles.textAlamat}>Pos-el dlh.sragenkab.go.id</Text>
                     </View>
                 </View>
-                {/* Garis Ganda di bawah Kop */}
+
+                {/* Garis Ganda */}
                 <View style={styles.garisTebal} />
                 <View style={styles.garisTipis} />
 
@@ -126,7 +138,7 @@ export const TandaTerimaPDF_PHP = ({ data }: { data: any }) => {
                     <View style={styles.row}>
                         <Text style={styles.label}>Tanggal Penyerahan</Text>
                         <Text style={styles.separator}>:</Text>
-                        <Text style={styles.value}>{formatDate(data.tanggalPHP || data.tanggalPHP1)}</Text>
+                        <Text style={styles.value}>{formatDate(data.tanggalPHP || data.tanggalPHP1 || data.tanggalPengembalian)}</Text>
                     </View>
                     <View style={styles.row}>
                         <Text style={styles.label}>Nama Kegiatan</Text>
@@ -138,11 +150,6 @@ export const TandaTerimaPDF_PHP = ({ data }: { data: any }) => {
                         <Text style={styles.separator}>:</Text>
                         <Text style={styles.value}>{data.namaPemrakarsa}</Text>
                     </View>
-                    <View style={styles.row}>
-                        <Text style={styles.label}>Jenis Dokumen</Text>
-                        <Text style={styles.separator}>:</Text>
-                        <Text style={styles.value}>{data.jenisDokumen || 'UKL-UPL / AMDAL'}</Text>
-                    </View>
                 </View>
 
                 {/* 4. KALIMAT PERNYATAAN */}
@@ -152,7 +159,7 @@ export const TandaTerimaPDF_PHP = ({ data }: { data: any }) => {
 
                 {/* 5. FOOTER TANDA TANGAN */}
                 <View style={styles.footer}>
-                    {/* KIRI: PENYERAH */}
+                    {/* KIRI */}
                     <View style={styles.signatureBox}>
                         <Text>Yang Menyerahkan</Text>
                         <Text>(Pemrakarsa / Konsultan)</Text>
@@ -160,13 +167,12 @@ export const TandaTerimaPDF_PHP = ({ data }: { data: any }) => {
                         <Text style={styles.namaTerang}>({data.namaKonsultan || data.namaPemrakarsa || '....................'})</Text>
                     </View>
                     
-                    {/* KANAN: PENERIMA */}
+                    {/* KANAN */}
                     <View style={styles.signatureBox}>
                         <Text>Petugas Penerima</Text>
                         <Text>Dinas Lingkungan Hidup</Text>
                         <View style={styles.signSpace}></View>
                         <Text style={styles.namaTerang}>({data.petugasPenerimaPerbaikan || data.petugasPHP || 'Petugas Pelayanan'})</Text>
-                        {/* <Text style={styles.nip}>NIP. ...........................</Text> */}
                     </View>
                 </View>
 
