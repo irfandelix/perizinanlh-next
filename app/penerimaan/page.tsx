@@ -83,7 +83,7 @@ export default function FormPenerimaan() {
         try {
             // PENTING: Kita kirim ke '/submit/f' 
             // 'f' ini akan ditangkap oleh [tahap] di backend
-            const response = await api.post(`/submit/f`, { 
+            const response = await api.post(`/api/submit/f`, { 
                 noUrut: recordData.noUrut,
                 ...formData 
             });
