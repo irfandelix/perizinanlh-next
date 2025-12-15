@@ -35,16 +35,30 @@ export default function FormPenerimaan() {
         setLoading(true);
         setError('');
         try {
-            const response = await api.post(`/record/find`, { nomorChecklist: checklist });
+            // --- BAGIAN INI YANG DIGANTI/DIPASTIKAN ---
+            
+            // KODE LAMA ANDA:
+            // const response = await api.post(`/record/find`, { nomorChecklist: checklist });
+
+            // KODE BARU (Sesuaikan key dengan backend 'keyword'):
+            const response = await api.post(`/record/find`, { keyword: checklist });
+
+            // ------------------------------------------
+
             setRecordData(response.data.data);
+            
+            // Debugging (Opsional): Cek di Console browser apakah data masuk
+            console.log("Data Ditemukan:", response.data.data);
+
         } catch (err: any) {
+            console.error("Error Fetching:", err); // Tambah log error
             setRecordData(null);
             setError(err.response?.data?.message || 'Gagal mengambil data.');
         } finally {
             setLoading(false);
         }
     }, []);
-
+    
     // Efek mengetik (debounce)
     useEffect(() => {
         const handler = setTimeout(() => {
