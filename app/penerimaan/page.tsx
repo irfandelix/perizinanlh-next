@@ -41,7 +41,7 @@ export default function FormPenerimaan() {
             // const response = await api.post(`/record/find`, { nomorChecklist: checklist });
 
             // KODE BARU (Sesuaikan key dengan backend 'keyword'):
-            const response = await api.post(`/record/find`, { keyword: checklist });
+            const response = await api.post(`/api/record/find`, { keyword: checklist });
 
             // ------------------------------------------
 
@@ -58,7 +58,7 @@ export default function FormPenerimaan() {
             setLoading(false);
         }
     }, []);
-    
+
     // Efek mengetik (debounce)
     useEffect(() => {
         const handler = setTimeout(() => {
