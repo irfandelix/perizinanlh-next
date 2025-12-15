@@ -2,12 +2,34 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 
+// Import PDF Generator components (needed for client-side generation)
+import { PDFDownloadLink } from '@react-pdf/renderer';
+import { ChecklistPrintTemplate } from '@/components/pdf/ChecklistPrintTemplate';
+import { TandaTerimaPDF } from '@/components/pdf/TandaTerimaPDF';
+
+// Helper to format filename
+const getFileName = (prefix: string, recordData: any) => {
+    if (!recordData || !recordData.nomorChecklist) return `${prefix}_draft.pdf`;
+    try {
+        const parts = recordData.nomorChecklist.split('/');
+        const noUrut = parts[1] ? parts[1].split('.')[0] : '000';
+        const jenisDok = parts[3] || 'DOK';
+        const tahun = parts[4] || new Date().getFullYear();
+        return `${prefix}_${noUrut}_${jenisDok}_${tahun}.pdf`;
+    } catch (error) {
+        return `${prefix}_${recordData.noUrut}.pdf`;
+    }
+};
+
 export default function HalamanCetakUlang() {
     // --- STATE ---
     const [nomorChecklist, setNomorChecklist] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [recordData, setRecordData] = useState<any>(null);
+    const [isClient, setIsClient] = useState(false);
+
+    useEffect(() => { setIsClient(true); }, []);
 
     // --- FETCH DATA (DEBOUNCE) ---
     const fetchRecord = useCallback(async (checklist: string) => {
@@ -20,20 +42,21 @@ export default function HalamanCetakUlang() {
         setError('');
         
         try {
-            // Menggunakan API Route yang sudah kita buat sebelumnya
+            // FIXED: Changed key from 'nomorChecklist' to 'keyword'
             const res = await fetch('/api/record/find', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ nomorChecklist: checklist })
+                body: JSON.stringify({ keyword: checklist }) 
             });
 
             const response = await res.json();
 
             if (response.success) {
-                setRecordData(response.data);
+                // Handle array response if backend returns list
+                const data = Array.isArray(response.data) ? response.data[0] : response.data;
+                setRecordData(data);
             } else {
                 setRecordData(null);
-                // Hanya tampilkan error jika input sudah cukup panjang (UX)
                 if (checklist.length > 5) setError(response.message || 'Dokumen tidak ditemukan.');
             }
         } catch (err) {
@@ -44,7 +67,7 @@ export default function HalamanCetakUlang() {
         }
     }, []);
 
-    // Efek Debounce (Menunggu user selesai mengetik 500ms)
+    // Debounce Effect
     useEffect(() => {
         const handler = setTimeout(() => {
             fetchRecord(nomorChecklist);
@@ -53,33 +76,24 @@ export default function HalamanCetakUlang() {
         return () => clearTimeout(handler);
     }, [nomorChecklist, fetchRecord]);
 
-    // --- HANDLER PRINT ---
-    // Mengarahkan ke halaman PDF yang sudah kita buat di tahap sebelumnya
-    const handlePrint = (type: 'checklist' | 'tandaTerimaA' | 'tandaTerimaF') => {
-        if (!recordData || !recordData.noUrut) {
-            alert("Data belum valid.");
-            return;
+    // Parse checklist data from JSON string if needed
+    const getChecklistData = () => {
+        if (!recordData) return { status: {}, notes: {} };
+        try {
+            // If stored as string in DB, parse it
+            if (typeof recordData.checklistData === 'string') {
+                return JSON.parse(recordData.checklistData);
+            }
+            return recordData.checklistData || { status: {}, notes: {} };
+        } catch (e) {
+            return { status: {}, notes: {} };
         }
-
-        let url = '';
-        if (type === 'checklist') {
-            // Ke halaman /checklist/[id]
-            url = `/checklist/${recordData.noUrut}`; 
-        } else if (type === 'tandaTerimaA') {
-            // Ke halaman /tanda-terima/registrasi/[id]
-            url = `/tanda-terima/registrasi/${recordData.noUrut}`;
-        } else if (type === 'tandaTerimaF') {
-            // Ke halaman /tanda-terima/php/[id]
-            url = `/tanda-terima/php/${recordData.noUrut}`;
-        }
-
-        // Buka di tab baru
-        if (url) window.open(url, '_blank');
     };
+    
+    const checklistData = getChecklistData();
 
-    // Cek ketersediaan Tahap F (PHP)
-    // Syarat: Harus ada nomorPHP di database
-    const isTahapFAvailable = recordData && recordData.nomorPHP;
+    // Check availability for Stage F (PHP)
+    const isTahapFAvailable = recordData && (recordData.nomorPHP || recordData.nomorPHP1);
 
     return (
         <div className="min-h-screen bg-gray-50 p-8 flex justify-center items-start">
@@ -97,7 +111,7 @@ export default function HalamanCetakUlang() {
                 <div className="p-8">
                     <div className="mb-6">
                         <label htmlFor="nomorChecklist" className="block text-sm font-bold text-gray-700 mb-2">
-                            Masukkan Nomor Registrasi / Checklist
+                            Masukkan Nomor Registrasi / Checklist / Nama Pemrakarsa
                         </label>
                         <div className="relative">
                             <input
@@ -106,7 +120,7 @@ export default function HalamanCetakUlang() {
                                 className="w-full border-2 border-gray-300 rounded-lg pl-4 pr-10 py-3 focus:border-blue-500 focus:ring-blue-500 focus:outline-none transition-colors text-lg"
                                 value={nomorChecklist}
                                 onChange={(e) => setNomorChecklist(e.target.value)}
-                                placeholder="Contoh: 660/012/REG..."
+                                placeholder="Contoh: 660/012/REG... atau Nama PT"
                                 autoComplete="off"
                             />
                             {loading && (
@@ -127,7 +141,7 @@ export default function HalamanCetakUlang() {
                                 <div className="bg-green-50 border border-green-200 rounded p-3 text-green-800 text-sm animate-in fade-in">
                                     <p className="font-bold">✓ Dokumen Ditemukan:</p>
                                     <p>{recordData.namaKegiatan}</p>
-                                    <p className="text-xs text-gray-500 mt-1">Pemrakarsa: {recordData.namaPemrakarsa}</p>
+                                    <p className="text-xs text-gray-500 mt-1">Pemrakarsa: {recordData.namaPemrakarsa} | No: {recordData.nomorChecklist}</p>
                                 </div>
                             )}
                         </div>
@@ -141,49 +155,66 @@ export default function HalamanCetakUlang() {
                         
                         <div className="grid gap-3">
                             {/* TOMBOL 1: CHECKLIST */}
-                            <button
-                                onClick={() => handlePrint('checklist')}
-                                disabled={!recordData}
-                                className={`w-full flex items-center justify-between p-4 rounded-lg border transition-all ${
-                                    recordData 
-                                    ? 'border-gray-300 hover:border-blue-500 hover:bg-blue-50 cursor-pointer group' 
-                                    : 'border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed'
-                                }`}
-                            >
-                                <div className="flex items-center gap-3">
-                                    <span className="text-2xl">📋</span>
-                                    <div className="text-left">
-                                        <p className={`font-bold ${recordData ? 'text-gray-800 group-hover:text-blue-700' : ''}`}>Checklist Kelengkapan</p>
-                                        <p className="text-xs">Daftar periksa dokumen tahap awal</p>
-                                    </div>
-                                </div>
-                                {recordData && <span className="text-blue-600 font-semibold text-sm">Download →</span>}
-                            </button>
+                            {isClient && (
+                                <PDFDownloadLink
+                                    document={
+                                        <ChecklistPrintTemplate 
+                                            data={recordData || {}} 
+                                            checklistStatus={checklistData.status || {}}
+                                            statusVerifikasi={recordData?.statusVerifikasi || "Diterima"}
+                                        />
+                                    }
+                                    fileName={getFileName('checklist', recordData)}
+                                    className={`w-full no-underline ${!recordData ? 'pointer-events-none' : ''}`}
+                                >
+                                    {({ loading: pdfLoading }) => (
+                                        <div className={`w-full flex items-center justify-between p-4 rounded-lg border transition-all ${
+                                            recordData 
+                                            ? 'border-gray-300 hover:border-blue-500 hover:bg-blue-50 cursor-pointer group' 
+                                            : 'border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed'
+                                        }`}>
+                                            <div className="flex items-center gap-3">
+                                                <span className="text-2xl">📋</span>
+                                                <div className="text-left">
+                                                    <p className={`font-bold ${recordData ? 'text-gray-800 group-hover:text-blue-700' : ''}`}>Checklist Kelengkapan</p>
+                                                    <p className="text-xs">Daftar periksa dokumen tahap awal</p>
+                                                </div>
+                                            </div>
+                                            {recordData && <span className="text-blue-600 font-semibold text-sm">{pdfLoading ? 'Loading...' : 'Download →'}</span>}
+                                        </div>
+                                    )}
+                                </PDFDownloadLink>
+                            )}
 
                             {/* TOMBOL 2: TANDA TERIMA A */}
-                            <button
-                                onClick={() => handlePrint('tandaTerimaA')}
-                                disabled={!recordData}
-                                className={`w-full flex items-center justify-between p-4 rounded-lg border transition-all ${
-                                    recordData 
-                                    ? 'border-gray-300 hover:border-green-500 hover:bg-green-50 cursor-pointer group' 
-                                    : 'border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed'
-                                }`}
-                            >
-                                <div className="flex items-center gap-3">
-                                    <span className="text-2xl">🧾</span>
-                                    <div className="text-left">
-                                        <p className={`font-bold ${recordData ? 'text-gray-800 group-hover:text-green-700' : ''}`}>Tanda Terima Registrasi (A)</p>
-                                        <p className="text-xs">Bukti serah terima berkas awal</p>
-                                    </div>
-                                </div>
-                                {recordData && <span className="text-green-600 font-semibold text-sm">Download →</span>}
-                            </button>
+                            {isClient && (
+                                <PDFDownloadLink
+                                    document={<TandaTerimaPDF data={recordData || {}} />}
+                                    fileName={getFileName('tanda_terima', recordData)}
+                                    className={`w-full no-underline ${!recordData ? 'pointer-events-none' : ''}`}
+                                >
+                                    {({ loading: pdfLoading }) => (
+                                        <div className={`w-full flex items-center justify-between p-4 rounded-lg border transition-all ${
+                                            recordData 
+                                            ? 'border-gray-300 hover:border-green-500 hover:bg-green-50 cursor-pointer group' 
+                                            : 'border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed'
+                                        }`}>
+                                            <div className="flex items-center gap-3">
+                                                <span className="text-2xl">🧾</span>
+                                                <div className="text-left">
+                                                    <p className={`font-bold ${recordData ? 'text-gray-800 group-hover:text-green-700' : ''}`}>Tanda Terima Registrasi (A)</p>
+                                                    <p className="text-xs">Bukti serah terima berkas awal</p>
+                                                </div>
+                                            </div>
+                                            {recordData && <span className="text-green-600 font-semibold text-sm">{pdfLoading ? 'Loading...' : 'Download →'}</span>}
+                                        </div>
+                                    )}
+                                </PDFDownloadLink>
+                            )}
 
-                            {/* TOMBOL 3: TANDA TERIMA F (PHP) */}
+                            {/* TOMBOL 3: TANDA TERIMA F (PHP) - Placeholder jika belum ada template khusus PHP */}
                             <button
-                                onClick={() => handlePrint('tandaTerimaF')}
-                                disabled={!isTahapFAvailable}
+                                disabled={true} // Sementara disable atau buat template khusus PHP
                                 className={`w-full flex items-center justify-between p-4 rounded-lg border transition-all ${
                                     isTahapFAvailable 
                                     ? 'border-orange-300 bg-orange-50 hover:bg-orange-100 cursor-pointer group' 
@@ -195,11 +226,11 @@ export default function HalamanCetakUlang() {
                                     <div className="text-left">
                                         <p className={`font-bold ${isTahapFAvailable ? 'text-orange-900' : ''}`}>Tanda Terima Perbaikan (F)</p>
                                         <p className="text-xs">
-                                            {isTahapFAvailable ? 'Bukti penyerahan revisi dokumen (PHP)' : 'Belum tersedia (Dokumen belum masuk tahap revisi/perbaikan)'}
+                                            {isTahapFAvailable ? 'Fitur cetak PHP sedang dalam pengembangan' : 'Belum tersedia (Dokumen belum masuk tahap revisi/perbaikan)'}
                                         </p>
                                     </div>
                                 </div>
-                                {isTahapFAvailable && <span className="text-orange-700 font-semibold text-sm">Download →</span>}
+                                {isTahapFAvailable && <span className="text-orange-700 font-semibold text-sm">Segera →</span>}
                             </button>
                         </div>
                     </div>
