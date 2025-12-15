@@ -62,8 +62,15 @@ export default function FormPengembalian() {
         setLoading(true);
         setError('');
         try {
-            const response = await api.post(`/record/find`, { nomorChecklist: checklist });
-            const data = response.data.data;
+            // --- PERBAIKAN 1: Tambah '/api' dan ubah key jadi 'keyword' ---
+            const response = await api.post(`/api/record/find`, { keyword: checklist });
+            
+            // Ambil data pertama dari array jika backend mengembalikan list
+            const resultData = response.data.data;
+            const data = Array.isArray(resultData) ? resultData[0] : resultData;
+
+            if (!data) throw new Error("Data tidak ditemukan");
+
             setRecordData(data);
             
             // Ambil tanggal yang sudah ada di DB (jika ada)
@@ -93,9 +100,8 @@ export default function FormPengembalian() {
             return;
         }
         try {
-            // PENTING: URL ini sudah benar!
-            // 'pengembalian' akan ditangkap sebagai [tahap] di backend.
-            await api.post(`/submit/pengembalian`, { 
+            // --- PERBAIKAN 2: Tambah '/api' di depan URL ---
+            await api.post(`/api/submit/pengembalian`, { 
                 noUrut: recordData.noUrut,
                 tanggalPengembalian: tanggalPengembalian
             });
