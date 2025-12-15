@@ -29,31 +29,41 @@ export default function FormPenerimaan() {
     const closeModal = () => setModalInfo({ ...modalInfo, show: false });
     const showModal = (title: string, message: string) => setModalInfo({ show: true, title, message });
 
-    // Fungsi Cari Dokumen
+// Fungsi Cari Dokumen (Versi Debugging)
     const fetchRecord = useCallback(async (checklist: string) => {
         if (!checklist) { setRecordData(null); setError(''); return; }
+        
+        console.log("🔍 Mencari dokumen:", checklist); // Log 1: Mulai pencarian
         setLoading(true);
         setError('');
+        
         try {
-            // --- BAGIAN INI YANG DIGANTI/DIPASTIKAN ---
-            
-            // KODE LAMA ANDA:
-            // const response = await api.post(`/record/find`, { nomorChecklist: checklist });
-
-            // KODE BARU (Sesuaikan key dengan backend 'keyword'):
+            // Request ke Backend
             const response = await api.post(`/api/record/find`, { keyword: checklist });
-
-            // ------------------------------------------
-
-            setRecordData(response.data.data);
             
-            // Debugging (Opsional): Cek di Console browser apakah data masuk
-            console.log("Data Ditemukan:", response.data.data);
+            console.log("✅ Data Ditemukan:", response.data); // Log 2: Sukses
+            
+            // Cek struktur data sebelum di-set
+            if(response.data && response.data.data && Array.isArray(response.data.data) && response.data.data.length > 0) {
+                 // Ambil item pertama dari array hasil pencarian
+                 setRecordData(response.data.data[0]); 
+            } else {
+                 setRecordData(null);
+                 setError("Data ditemukan tapi formatnya kosong.");
+            }
 
         } catch (err: any) {
-            console.error("Error Fetching:", err); // Tambah log error
+            console.error("❌ Error Fetching:", err); // Log 3: Error
+            
+            // Cek detail error dari response backend
+            if (err.response) {
+                console.log("Status:", err.response.status);
+                console.log("Message:", err.response.data);
+                setError(`Gagal: ${err.response.status} - ${err.response.data.message || 'Error Server'}`);
+            } else {
+                setError('Gagal menghubungi server (Network Error).');
+            }
             setRecordData(null);
-            setError(err.response?.data?.message || 'Gagal mengambil data.');
         } finally {
             setLoading(false);
         }
