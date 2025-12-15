@@ -6,6 +6,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { PDFDownloadLink } from '@react-pdf/renderer';
 import { ChecklistPrintTemplate } from '@/components/pdf/ChecklistPrintTemplate';
 import { TandaTerimaPDF } from '@/components/pdf/TandaTerimaPDF';
+import { TandaTerimaPDF_PHP } from '@/components/pdf/TandaTerimaPDF_PHP';
 
 // Helper to format filename
 const getFileName = (prefix: string, recordData: any) => {
@@ -212,26 +213,41 @@ export default function HalamanCetakUlang() {
                                 </PDFDownloadLink>
                             )}
 
-                            {/* TOMBOL 3: TANDA TERIMA F (PHP) - Placeholder jika belum ada template khusus PHP */}
-                            <button
-                                disabled={true} // Sementara disable atau buat template khusus PHP
-                                className={`w-full flex items-center justify-between p-4 rounded-lg border transition-all ${
-                                    isTahapFAvailable 
-                                    ? 'border-orange-300 bg-orange-50 hover:bg-orange-100 cursor-pointer group' 
-                                    : 'border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed opacity-60'
-                                }`}
-                            >
-                                <div className="flex items-center gap-3">
-                                    <span className="text-2xl">🔄</span>
-                                    <div className="text-left">
-                                        <p className={`font-bold ${isTahapFAvailable ? 'text-orange-900' : ''}`}>Tanda Terima Perbaikan (F)</p>
-                                        <p className="text-xs">
-                                            {isTahapFAvailable ? 'Fitur cetak PHP sedang dalam pengembangan' : 'Belum tersedia (Dokumen belum masuk tahap revisi/perbaikan)'}
-                                        </p>
-                                    </div>
-                                </div>
-                                {isTahapFAvailable && <span className="text-orange-700 font-semibold text-sm">Segera →</span>}
-                            </button>
+                            {/* TOMBOL 3: TANDA TERIMA F (PHP) - SEKARANG SUDAH AKTIF */}
+                            {isClient && (
+                                <PDFDownloadLink
+                                    document={
+                                        <TandaTerimaPDF_PHP 
+                                            data={recordData || {}} 
+                                        />
+                                    }
+                                    fileName={getFileName('tanda_terima_php', recordData)}
+                                    className={`w-full no-underline ${!isTahapFAvailable ? 'pointer-events-none' : ''}`}
+                                >
+                                    {({ loading: pdfLoading }) => (
+                                        <div className={`w-full flex items-center justify-between p-4 rounded-lg border transition-all ${
+                                            isTahapFAvailable 
+                                            ? 'border-orange-300 bg-orange-50 hover:bg-orange-100 cursor-pointer group' 
+                                            : 'border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed opacity-60'
+                                        }`}>
+                                            <div className="flex items-center gap-3">
+                                                <span className="text-2xl">🔄</span>
+                                                <div className="text-left">
+                                                    <p className={`font-bold ${isTahapFAvailable ? 'text-orange-900' : ''}`}>Tanda Terima Perbaikan (F)</p>
+                                                    <p className="text-xs">
+                                                        {isTahapFAvailable ? 'Bukti penyerahan revisi dokumen (PHP)' : 'Belum tersedia (Belum ada revisi)'}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            {isTahapFAvailable && (
+                                                <span className="text-orange-700 font-semibold text-sm">
+                                                    {pdfLoading ? 'Loading...' : 'Download →'}
+                                                </span>
+                                            )}
+                                        </div>
+                                    )}
+                                </PDFDownloadLink>
+                            )}
                         </div>
                     </div>
 
