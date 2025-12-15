@@ -1,25 +1,44 @@
-import { NextResponse } from 'next/server';
-import clientPromise from '@/lib/db'; // Cukup import clientPromise saja
+import { NextResponse, NextRequest } from 'next/server';
+import clientPromise from '@/lib/db'; 
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
     try {
-        const { nomorChecklist } = await request.json();
-        
-        if (!nomorChecklist) {
-            return NextResponse.json({ success: false, message: 'Nomor Checklist wajib diisi.' }, { status: 400 });
+        // 1. Baca keyword pencarian dari Frontend
+        const { keyword } = await request.json();
+
+        if (!keyword) {
+            return NextResponse.json({ success: false, message: 'Keyword tidak boleh kosong' }, { status: 400 });
         }
 
         const client = await clientPromise;
         const db = client.db();
-        
-        const record = await db.collection('dokumen').findOne({ nomorChecklist });
+        const collection = db.collection('dokumen');
 
-        if (record) {
-            return NextResponse.json({ success: true, data: record });
-        } else {
-            return NextResponse.json({ success: false, message: 'Data tidak ditemukan.' });
+        // 2. Buat Query Pencarian (Regex = Like %keyword%)
+        // Mencari di Nomor Checklist, Nama Kegiatan, atau Nama Pemrakarsa (Case Insensitive 'i')
+        const query = {
+            $or: [
+                { nomorChecklist: { $regex: keyword, $options: 'i' } },
+                { namaKegiatan: { $regex: keyword, $options: 'i' } },
+                { namaPemrakarsa: { $regex: keyword, $options: 'i' } },
+                { nomorSuratPermohonan: { $regex: keyword, $options: 'i' } }
+            ]
+        };
+
+        // 3. Eksekusi Pencarian
+        const results = await collection.find(query).sort({ createdAt: -1 }).limit(10).toArray();
+
+        if (results.length === 0) {
+            return NextResponse.json({ success: false, message: 'Data tidak ditemukan' }, { status: 404 });
         }
-    } catch (error) {
-        return NextResponse.json({ success: false, message: 'Server Error' }, { status: 500 });
+
+        return NextResponse.json({ 
+            success: true, 
+            data: results 
+        });
+
+    } catch (error: any) {
+        console.error("Search Error:", error);
+        return NextResponse.json({ success: false, message: error.message }, { status: 500 });
     }
 }
