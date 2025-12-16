@@ -31,7 +31,7 @@ export default function Sidebar() {
         // 3. MENU KHUSUS DLH
         { name: 'Uji Administrasi', href: '/uji-administrasi', icon: CheckSquare, roles: ['dlh'] },
         { name: 'Verifikasi Lapangan', href: '/verifikasi-lapangan', icon: Microscope, roles: ['dlh'] },
-        { name: 'Pemeriksaan Substansi', href: '/pemeriksaan', icon: FileSearch, roles: ['dlh'] },
+        { name: 'Pemeriksaan Substansi', href: '/pemeriksaan-substansi', icon: FileSearch, roles: ['dlh'] },
         { name: 'Risalah Pengolah', href: '/risalah', icon: FileText, roles: ['dlh'] },
 
         // 4. REKAP DATA
