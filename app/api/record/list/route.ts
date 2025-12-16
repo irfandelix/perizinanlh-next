@@ -22,6 +22,7 @@ export async function GET() {
                 statusVerifikasi: 1, 
                 statusTerakhir: 1,   
                 jenisDokumen: 1,
+                nomorUjiBerkas: 1, // <--- TAMBAHKAN INI
                 createdAt: 1
             })
             .sort({ createdAt: -1 }) 
