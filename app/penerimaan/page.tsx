@@ -3,6 +3,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import api from '@/lib/api'; 
 import Modal from '@/components/Modal'; 
+import { Download } from 'lucide-react'; 
+
+// 1. IMPORT PDF DOWNLOAD LINK & KOMPONEN PDF
+import { PDFDownloadLink } from '@react-pdf/renderer';
+import { TandaTerimaPDF_PHP } from '@/components/pdf/TandaTerimaPDF_PHP';
 
 const tableStyles = `
     .record-table { width: 100%; border-collapse: collapse; margin-top: 1.5rem; font-size: 0.9rem; }
@@ -13,111 +18,71 @@ const tableStyles = `
 
 export default function FormPenerimaan() {
     const [nomorChecklist, setNomorChecklist] = useState('');
-    const [recordData, setRecordData] = useState<any>(null); // Pakai any biar simpel dulu
+    const [recordData, setRecordData] = useState<any>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     
-    // State untuk form input
+    // State untuk memastikan render hanya terjadi di Client (Wajib untuk PDFDownloadLink)
+    const [isClient, setIsClient] = useState(false);
+
+    useEffect(() => {
+        setIsClient(true);
+    }, []);
+
     const [formData, setFormData] = useState({ 
         tanggalPenyerahanPerbaikan: '',
         petugasPenerimaPerbaikan: '',
-        nomorRevisi: '1' // Default ke PHP Ke-1
+        nomorRevisi: '1' 
     });
 
-    // State untuk Modal Popup
     const [modalInfo, setModalInfo] = useState({ show: false, title: '', message: '' });
     const closeModal = () => setModalInfo({ ...modalInfo, show: false });
     const showModal = (title: string, message: string) => setModalInfo({ show: true, title, message });
 
-// Fungsi Cari Dokumen (Versi Debugging)
+    // --- FETCH DATA ---
     const fetchRecord = useCallback(async (checklist: string) => {
         if (!checklist) { setRecordData(null); setError(''); return; }
-        
-        console.log("🔍 Mencari dokumen:", checklist); // Log 1: Mulai pencarian
         setLoading(true);
-        setError('');
-        
         try {
-            // Request ke Backend
             const response = await api.post(`/api/record/find`, { keyword: checklist });
-            
-            console.log("✅ Data Ditemukan:", response.data); // Log 2: Sukses
-            
-            // Cek struktur data sebelum di-set
-            if(response.data && response.data.data && Array.isArray(response.data.data) && response.data.data.length > 0) {
-                 // Ambil item pertama dari array hasil pencarian
+            if(response.data?.data?.length > 0) {
                  setRecordData(response.data.data[0]); 
             } else {
                  setRecordData(null);
-                 setError("Data ditemukan tapi formatnya kosong.");
+                 setError("Data tidak ditemukan.");
             }
-
         } catch (err: any) {
-            console.error("❌ Error Fetching:", err); // Log 3: Error
-            
-            // Cek detail error dari response backend
-            if (err.response) {
-                console.log("Status:", err.response.status);
-                console.log("Message:", err.response.data);
-                setError(`Gagal: ${err.response.status} - ${err.response.data.message || 'Error Server'}`);
-            } else {
-                setError('Gagal menghubungi server (Network Error).');
-            }
-            setRecordData(null);
+            setError(err.response?.data?.message || 'Gagal mengambil data.');
         } finally {
             setLoading(false);
         }
     }, []);
 
-    // Efek mengetik (debounce)
     useEffect(() => {
-        const handler = setTimeout(() => {
-            if(nomorChecklist) fetchRecord(nomorChecklist);
-        }, 800);
+        const handler = setTimeout(() => { if(nomorChecklist) fetchRecord(nomorChecklist); }, 800);
         return () => clearTimeout(handler);
     }, [nomorChecklist, fetchRecord]);
 
-    // Handle Perubahan Input
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-        const { name, value } = e.target;
-        setFormData(prev => ({ ...prev, [name]: value }));
+        setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
     };
 
-    // --- FUNGSI SUBMIT UTAMA ---
+    // --- SUBMIT DATA ---
     const handleApiSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!recordData) {
-            showModal("Error", "Pilih dokumen yang valid terlebih dahulu.");
-            return;
-        }
+        if (!recordData) return;
         try {
-            // PENTING: Kita kirim ke '/submit/f' 
-            // 'f' ini akan ditangkap oleh [tahap] di backend
             const response = await api.post(`/api/submit/f`, { 
                 noUrut: recordData.noUrut,
                 ...formData 
             });
-            
             if (response.data.success) {
-                // Refresh data agar tabel update
                 fetchRecord(nomorChecklist);
-                
-                // Reset form input
-                setFormData(prev => ({ 
-                    ...prev,
-                    tanggalPenyerahanPerbaikan: '', 
-                    petugasPenerimaPerbaikan: ''
-                }));
-
-                // Tampilkan pesan sukses
+                setFormData(prev => ({ ...prev, tanggalPenyerahanPerbaikan: '', petugasPenerimaPerbaikan: '' }));
                 showModal("Sukses", response.data.message);
-
-                // Opsional: Buka tab baru untuk cetak tanda terima (jika fitur cetak sudah ada)
-                // window.open(`/penerimaan/${recordData.noUrut}?revisi=${formData.nomorRevisi}`, '_blank');
             }
         } catch (err: any) {
-            const errorMessage = err.response?.data?.message || "Terjadi kesalahan saat menyimpan.";
-            showModal("Gagal", errorMessage);
+            showModal("Gagal", err.response?.data?.message || "Terjadi kesalahan.");
         }
     };
 
@@ -129,7 +94,6 @@ export default function FormPenerimaan() {
                 Penerimaan Hasil Perbaikan Dokumen (Tahap F)
             </h1>
 
-            {/* --- FORM PENCARIAN --- */}
             <fieldset className="border p-4 rounded-md mb-6 bg-gray-50">
                 <legend className="font-semibold px-2 text-blue-700">Cari Dokumen</legend>
                 <input
@@ -138,7 +102,6 @@ export default function FormPenerimaan() {
                     value={nomorChecklist}
                     onChange={(e) => setNomorChecklist(e.target.value)}
                     placeholder="Masukkan Nomor Checklist..."
-                    required
                 />
                 {loading && <p className="text-blue-500 mt-2 text-sm">Sedang mencari...</p>}
                 {error && <p className="text-red-500 mt-2 text-sm">{error}</p>}
@@ -146,61 +109,33 @@ export default function FormPenerimaan() {
             
             {recordData && (
                 <>
-                {/* --- FORM INPUT DATA BARU --- */}
                 <form onSubmit={handleApiSubmit} className="mb-8 border p-5 rounded-lg bg-blue-50 border-blue-100">
                     <fieldset>
                         <legend className="font-bold text-lg text-blue-800 mb-4">Input Data PHP</legend>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div>
                                 <label className="block text-sm font-semibold mb-1">PHP Ke-Berapa?</label>
-                                <select 
-                                    name="nomorRevisi" 
-                                    className="border p-2 rounded w-full"
-                                    value={formData.nomorRevisi} 
-                                    onChange={handleChange}
-                                >
+                                <select name="nomorRevisi" className="border p-2 rounded w-full" value={formData.nomorRevisi} onChange={handleChange}>
                                     <option value="1">PHP Ke-1 (Awal)</option>
                                     <option value="2">PHP Ke-2</option>
                                     <option value="3">PHP Ke-3</option>
-                                    <option value="4">PHP Ke-4</option>
-                                    <option value="5">PHP Ke-5</option>
                                 </select>
                             </div>
                             <div>
                                 <label className="block text-sm font-semibold mb-1">Tanggal Terima</label>
-                                <input 
-                                    name="tanggalPenyerahanPerbaikan"
-                                    type="date" 
-                                    className="border p-2 rounded w-full"
-                                    value={formData.tanggalPenyerahanPerbaikan}
-                                    onChange={handleChange}
-                                    required 
-                                />
+                                <input name="tanggalPenyerahanPerbaikan" type="date" className="border p-2 rounded w-full" value={formData.tanggalPenyerahanPerbaikan} onChange={handleChange} required />
                             </div>
                             <div>
                                 <label className="block text-sm font-semibold mb-1">Nama Petugas</label>
-                                <input 
-                                    name="petugasPenerimaPerbaikan"
-                                    type="text"
-                                    className="border p-2 rounded w-full"
-                                    value={formData.petugasPenerimaPerbaikan}
-                                    onChange={handleChange}
-                                    placeholder="Nama petugas di MPP"
-                                    required 
-                                />
+                                <input name="petugasPenerimaPerbaikan" type="text" className="border p-2 rounded w-full" value={formData.petugasPenerimaPerbaikan} onChange={handleChange} required />
                             </div>
                         </div>
                     </fieldset>
-                    <button 
-                        type="submit" 
-                        className="mt-4 bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 font-semibold"
-                        disabled={loading}
-                    >
+                    <button type="submit" className="mt-4 bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 font-semibold" disabled={loading}>
                         Simpan Data
                     </button>
                 </form>
 
-                {/* --- TABEL HISTORY --- */}
                 <div className="animate-fade-in">
                     <h4 className="font-bold text-lg mb-2">History Dokumen</h4>
                     <table className="record-table">
@@ -208,29 +143,112 @@ export default function FormPenerimaan() {
                             <tr><th>Pemrakarsa</th><td>{recordData.namaPemrakarsa}</td></tr>
                             <tr><th>Kegiatan</th><td>{recordData.namaKegiatan}</td></tr>
                             
-                            {/* Menampilkan PHP Awal (Revisi 1) */}
+                            {/* --- PHP KE-1 --- */}
                             {recordData.nomorPHP && (
                                 <tr>
                                     <th>PHP Ke-1</th>
                                     <td>
-                                        No: <span>{recordData.nomorPHP}</span><br/>
-                                        Tgl: {recordData.tanggalPHP} (Penerima: {recordData.petugasPenerimaPerbaikan})
+                                        <div className="flex justify-between items-start">
+                                            <div>
+                                                No: <span>{recordData.nomorPHP}</span><br/>
+                                                <div className="text-gray-600 text-sm mt-1">
+                                                    Tgl: {recordData.tanggalPHP}<br/>
+                                                    Penerima: {recordData.petugasPenerimaPerbaikan}
+                                                </div>
+                                            </div>
+                                            
+                                            {/* IMPLEMENTASI SESUAI PERMINTAAN ANDA */}
+                                            {isClient && (
+                                                <PDFDownloadLink
+                                                    document={
+                                                        <TandaTerimaPDF_PHP 
+                                                            data={{
+                                                                ...recordData, // Bawa semua data record
+                                                                // Override field spesifik untuk PHP ini agar PDF-nya benar
+                                                                phpKe: 'PHP Ke-1',
+                                                                nomorSurat: recordData.nomorPHP,
+                                                                tanggalTerima: recordData.tanggalPHP,
+                                                                petugas: recordData.petugasPenerimaPerbaikan
+                                                            }} 
+                                                        />
+                                                    }
+                                                    fileName={`TandaTerima_PHP1_${recordData.noUrut}.pdf`}
+                                                    className="no-underline"
+                                                >
+                                                    {({ loading: pdfLoading }) => (
+                                                        <button 
+                                                            disabled={pdfLoading}
+                                                            className={`flex items-center gap-1 border px-3 py-1.5 rounded text-xs font-bold shadow-sm transition-all ${
+                                                                pdfLoading 
+                                                                ? 'bg-gray-100 text-gray-400 cursor-wait' 
+                                                                : 'bg-white border-orange-300 text-orange-700 hover:bg-orange-50'
+                                                            }`}
+                                                        >
+                                                            {pdfLoading ? (
+                                                                <span>Loading...</span>
+                                                            ) : (
+                                                                <>
+                                                                    <Download size={14} /> Download
+                                                                </>
+                                                            )}
+                                                        </button>
+                                                    )}
+                                                </PDFDownloadLink>
+                                            )}
+                                        </div>
                                     </td>
                                 </tr>
                             )}
 
-                            {/* Menampilkan PHP 2 (Revisi 2) */}
+                            {/* --- PHP KE-2 --- */}
                             {recordData.nomorPHP1 && (
                                 <tr>
                                     <th>PHP Ke-2</th>
                                     <td>
-                                        No: <span>{recordData.nomorPHP1}</span><br/>
-                                        Tgl: {recordData.tanggalPHP1} (Penerima: {recordData.petugasPHP1})
+                                        <div className="flex justify-between items-start">
+                                            <div>
+                                                No: <span>{recordData.nomorPHP1}</span><br/>
+                                                <div className="text-gray-600 text-sm mt-1">
+                                                    Tgl: {recordData.tanggalPHP1}<br/>
+                                                    Penerima: {recordData.petugasPHP1}
+                                                </div>
+                                            </div>
+
+                                            {/* TOMBOL PHP 2 */}
+                                            {isClient && (
+                                                <PDFDownloadLink
+                                                    document={
+                                                        <TandaTerimaPDF_PHP 
+                                                            data={{
+                                                                ...recordData,
+                                                                phpKe: 'PHP Ke-2',
+                                                                nomorSurat: recordData.nomorPHP1,
+                                                                tanggalTerima: recordData.tanggalPHP1,
+                                                                petugas: recordData.petugasPHP1
+                                                            }} 
+                                                        />
+                                                    }
+                                                    fileName={`TandaTerima_PHP2_${recordData.noUrut}.pdf`}
+                                                    className="no-underline"
+                                                >
+                                                    {({ loading: pdfLoading }) => (
+                                                        <button 
+                                                            disabled={pdfLoading}
+                                                            className={`flex items-center gap-1 border px-3 py-1.5 rounded text-xs font-bold shadow-sm transition-all ${
+                                                                pdfLoading 
+                                                                ? 'bg-gray-100 text-gray-400 cursor-wait' 
+                                                                : 'bg-white border-orange-300 text-orange-700 hover:bg-orange-50'
+                                                            }`}
+                                                        >
+                                                            {pdfLoading ? 'Loading...' : <><Download size={14} /> Download</>}
+                                                        </button>
+                                                    )}
+                                                </PDFDownloadLink>
+                                            )}
+                                        </div>
                                     </td>
                                 </tr>
                             )}
-                            
-                            {/* Lanjutkan logika tabel untuk PHP 3, 4, 5 jika perlu */}
                         </tbody>
                     </table>
                 </div>
