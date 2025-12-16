@@ -22,7 +22,8 @@ export async function GET() {
                 statusVerifikasi: 1, 
                 statusTerakhir: 1,   
                 jenisDokumen: 1,
-                nomorUjiBerkas: 1, // <--- TAMBAHKAN INI
+                nomorUjiBerkas: 1, // <--- (Hasil Tahap B)
+                nomorBAVerlap: 1,  // <--- (Hasil Tahap C)
                 createdAt: 1
             })
             .sort({ createdAt: -1 }) 
