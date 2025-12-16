@@ -17,7 +17,7 @@ export default function Sidebar() {
     // --- DEFINISI MENU (SUDAH DIURUTKAN ULANG) ---
     const allNavItems = [
         // 1. MENU UMUM (Semua Bisa Akses)
-        { name: 'Dashboard', href: '/', icon: LayoutDashboard, roles: ['mpp', 'dlh'] },
+        { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, roles: ['mpp', 'dlh'] },
 
         // 2. MENU KHUSUS MPP
         { name: 'Registrasi Dokumen', href: '/register', icon: FileText, roles: ['mpp'] },

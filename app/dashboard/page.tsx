@@ -208,7 +208,7 @@ export default function DashboardUIPreview() {
                 </div>
 
                 {/* Banner Bantuan */}
-                <div className="mt-10 p-6 bg-gradient-to-br from-green-700 to-emerald-900 rounded-2xl relative overflow-hidden text-white shadow-lg">
+                <div className="mt-10 p-6 bg-linear-to-br from-green-700 to-emerald-900 rounded-2xl relative overflow-hidden text-white shadow-lg">
                     <Leaf className="absolute -bottom-4 -right-4 text-green-500/30 w-32 h-32" />
                     <h4 className="text-lg font-bold mb-2 relative z-10">Butuh Bantuan?</h4>
                     <p className="text-xs text-green-100 mb-4 relative z-10">
