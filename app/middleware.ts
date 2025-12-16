@@ -57,7 +57,7 @@ export const config = {
         '/uji-administrasi/:path*',
         '/verifikasi-lapangan/:path*',
         '/pemeriksaan-substansi/:path*',
-        '/risalah/:path*',
+        '/verifikasi/:path*',
         '/rekap/:path*',
     ]
 };

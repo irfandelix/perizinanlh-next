@@ -32,7 +32,7 @@ export default function Sidebar() {
         { name: 'Uji Administrasi', href: '/uji-administrasi', icon: CheckSquare, roles: ['dlh'] },
         { name: 'Verifikasi Lapangan', href: '/verifikasi-lapangan', icon: Microscope, roles: ['dlh'] },
         { name: 'Pemeriksaan Substansi', href: '/pemeriksaan-substansi', icon: FileSearch, roles: ['dlh'] },
-        { name: 'Risalah Pengolah', href: '/risalah', icon: FileText, roles: ['dlh'] },
+        { name: 'Risalah Pengolah', href: '/verifikasi', icon: FileText, roles: ['dlh'] },
 
         // 4. REKAP DATA
         { name: 'Rekapitulasi Data', href: '/rekap', icon: Archive, roles: ['mpp', 'dlh'] },
