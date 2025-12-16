@@ -11,6 +11,7 @@ interface Dokumen {
     namaKegiatan: string;
     tanggalMasukDokumen: string;
     statusTerakhir: string;
+    statusVerifikasi?: string; // Tambahkan ini
     jenisDokumen: string;
 }
 
@@ -25,17 +26,30 @@ export default function UjiAdministrasiPage() {
     const fetchData = async () => {
         setLoading(true);
         try {
-            // Mengambil daftar dokumen dari API list
             const res = await fetch('/api/record/list'); 
             const result = await res.json();
             
+            // --- DEBUGGING: LIHAT DATA DI CONSOLE BROWSER (F12) ---
+            console.log("🔥 DATA MENTAH DARI API:", result.data);
+
             if (result.success) {
-                // Filter: Hanya tampilkan dokumen yang statusnya masih 'PROSES' (Baru masuk dari Tahap A)
-                // Dokumen ini yang butuh Uji Administrasi (Tahap B)
-                const filtered = result.data.filter((doc: any) => 
-                    !doc.statusTerakhir || 
-                    doc.statusTerakhir === 'PROSES' 
-                );
+                // FILTER DIPERLUAS:
+                // Masukkan jika statusnya: Kosong, PROSES, BARU, atau Diterima
+                const filtered = result.data.filter((doc: any) => {
+                    const st = doc.statusTerakhir;
+                    const sv = doc.statusVerifikasi;
+                    
+                    // Cek berbagai kemungkinan status awal
+                    return !st || 
+                           st === 'PROSES' || 
+                           st === 'BARU' || 
+                           st === 'DITERIMA' ||
+                           st === 'Diterima' || 
+                           // Cek juga statusVerifikasi dari form registrasi
+                           (sv === 'Diterima' && (!st || st === 'PROSES')); 
+                });
+
+                console.log("✅ DATA SETELAH FILTER:", filtered);
                 setDataDokumen(filtered);
             }
         } catch (error) {
@@ -48,14 +62,11 @@ export default function UjiAdministrasiPage() {
     return (
         <div className="bg-gray-50 min-h-screen p-8">
             <div className="max-w-7xl mx-auto">
-                
-                {/* Header */}
                 <div className="mb-8">
                     <h1 className="text-2xl font-bold text-gray-800">Uji Administrasi</h1>
                     <p className="text-gray-500 text-sm">Daftar dokumen yang menunggu verifikasi kelengkapan berkas (Tahap B).</p>
                 </div>
 
-                {/* Tabel Antrian */}
                 <div className="bg-white rounded-xl shadow border border-gray-200 overflow-hidden">
                     <div className="p-4 border-b border-gray-100 bg-orange-50 flex justify-between items-center">
                         <h3 className="font-bold text-orange-800 flex items-center gap-2">
@@ -73,15 +84,20 @@ export default function UjiAdministrasiPage() {
                                     <th className="px-6 py-3">Tanggal Masuk</th>
                                     <th className="px-6 py-3">No. Registrasi</th>
                                     <th className="px-6 py-3">Pemrakarsa / Kegiatan</th>
-                                    <th className="px-6 py-3">Jenis</th>
+                                    <th className="px-6 py-3">Status</th>
                                     <th className="px-6 py-3 text-center">Aksi</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100">
                                 {loading ? (
-                                    <tr><td colSpan={5} className="px-6 py-10 text-center">Memuat antrian...</td></tr>
+                                    <tr><td colSpan={5} className="px-6 py-10 text-center">Memuat data...</td></tr>
                                 ) : dataDokumen.length === 0 ? (
-                                    <tr><td colSpan={5} className="px-6 py-10 text-center">Tidak ada dokumen antrian.</td></tr>
+                                    <tr>
+                                        <td colSpan={5} className="px-6 py-10 text-center text-gray-500">
+                                            Tidak ada dokumen antrian.<br/>
+                                            <span className="text-xs italic">(Cek Console F12 jika yakin data ada)</span>
+                                        </td>
+                                    </tr>
                                 ) : (
                                     dataDokumen.map((doc, index) => (
                                         <tr key={index} className="hover:bg-gray-50 transition-colors">
@@ -92,12 +108,13 @@ export default function UjiAdministrasiPage() {
                                                 <div className="text-xs text-gray-500 truncate max-w-xs">{doc.namaKegiatan}</div>
                                             </td>
                                             <td className="px-6 py-4">
-                                                <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-bold">{doc.jenisDokumen}</span>
+                                                <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs font-bold border border-gray-200">
+                                                    {doc.statusTerakhir || doc.statusVerifikasi || 'BARU'}
+                                                </span>
                                             </td>
                                             <td className="px-6 py-4 text-center">
-                                                {/* Tombol ini nanti akan memanggil API 'tahap-b' saat diklik di halaman detail */}
                                                 <Link 
-                                                    href={`/uji-administrasi/${doc.nomorChecklist.replace(/\//g, '-')}`}
+                                                    href={`/uji-administrasi/${doc.nomorChecklist?.replace(/\//g, '-')}`}
                                                     className="inline-flex items-center gap-1 bg-orange-500 hover:bg-orange-600 text-white px-3 py-1.5 rounded text-xs font-bold shadow-sm transition-all"
                                                 >
                                                     <Eye className="w-3 h-3" /> Proses
