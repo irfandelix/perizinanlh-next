@@ -14,6 +14,7 @@ export async function GET() {
         const documents = await db.collection('dokumen')
             .find({})
             .project({
+                noUrut: 1, // <--- TAMBAHKAN INI (PENTING!)
                 nomorChecklist: 1, 
                 namaPemrakarsa: 1, 
                 namaKegiatan: 1, 

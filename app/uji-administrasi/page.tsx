@@ -6,6 +6,7 @@ import { Eye } from 'lucide-react';
 
 interface Dokumen {
     _id: string;
+    noUrut: number;        // <--- TAMBAHKAN BARIS INI
     nomorChecklist: string;
     namaPemrakarsa: string;
     namaKegiatan: string;
@@ -114,7 +115,8 @@ export default function UjiAdministrasiPage() {
                                             </td>
                                             <td className="px-6 py-4 text-center">
                                                 <Link 
-                                                    href={`/uji-administrasi/${doc.nomorChecklist?.replace(/\//g, '-')}`}
+                                                    // GANTI BARIS INI: Gunakan doc.noUrut langsung
+                                                    href={`/uji-administrasi/${doc.noUrut}`} 
                                                     className="inline-flex items-center gap-1 bg-orange-500 hover:bg-orange-600 text-white px-3 py-1.5 rounded text-xs font-bold shadow-sm transition-all"
                                                 >
                                                     <Eye className="w-3 h-3" /> Proses
