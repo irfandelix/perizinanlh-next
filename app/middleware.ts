@@ -55,7 +55,7 @@ export const config = {
         '/pengembalian/:path*',
         '/cetak-ulang/:path*',
         '/uji-administrasi/:path*',
-        '/verlap/:path*',
+        '/verifikasi-lapangan/:path*',
         '/pemeriksaan/:path*',
         '/risalah/:path*',
         '/rekap/:path*',
