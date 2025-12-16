@@ -1,46 +1,142 @@
-import React from 'react';
-import RisalahFinalPage, { HistoryItem, CurrentDocData } from '@/components/RisalahFinalPage';
+import Link from 'next/link';
+import { getDb } from '@/lib/db';
+import { ObjectId } from 'mongodb';
+import { BookOpen, CheckCircle, Clock } from 'lucide-react';
 
-// --- SERVER SIDE FUNCTIONS ---
-
-async function getRiwayatDokumen(): Promise<HistoryItem[]> {
-  // TODO: Ganti dengan Fetch DB sungguhan (Prisma/Drizzle/API)
-  return [
-    { no_sk: '660/015/PKPLH/2025', tgl: '2025-02-10', pemrakarsa: 'PT. SUMBER ABADI' },
-    { no_sk: '660/014/PKPLH/2025', tgl: '2025-02-08', pemrakarsa: 'CV. JAYA KARYA' },
-    { no_sk: '660/013/PKPLH/2025', tgl: '2025-02-05', pemrakarsa: 'PT. BANGUN NEGERI' },
-  ];
+// Interface sesuai struktur DB
+interface DokumenPermohonan {
+  _id: ObjectId;
+  no_registrasi: string;
+  pemrakarsa: string;
+  kegiatan: string;
+  status: string;
+  nomor_sk?: string; // Output dari tahap ini
 }
 
-async function getCurrentDokumen(): Promise<CurrentDocData> {
-  // TODO: Ambil data berdasarkan params ID
-  return {
-    pemrakarsa: 'PT. CAHAYA MAKMUR SEKALI',
-    no_registrasi: 'REG.UKLUPL/2025/0012'
-  };
-}
+export default async function VerifikasiFinalPage() {
+  const db = await getDb();
 
-// Server Action untuk Handle Submit
-async function saveRisalahAction(tanggal: string) {
-  "use server";
-  
-  console.log("Menyimpan ke Database dengan tanggal:", tanggal);
-  // Tambahkan logic insert DB di sini
-  // revalidatePath('/verifikasi');
-}
-
-// --- MAIN PAGE COMPONENT ---
-
-export default async function Page() {
-  // Fetch data secara parallel
-  const historyData = await getRiwayatDokumen();
-  const docData = await getCurrentDokumen();
+  // 1. Ambil Data (Server Side Fetching)
+  const dataDokumen = await db.collection<DokumenPermohonan>('permohonan')
+    .find({ 
+        // Tampilkan yang 'MENUNGGU_PENOMORAN' atau sudah 'SELESAI'
+        status: { $in: ['MENUNGGU_PENOMORAN', 'SELESAI'] } 
+    })
+    .sort({ _id: -1 })
+    .limit(50)
+    .toArray();
 
   return (
-    <RisalahFinalPage 
-      riwayatDokumen={historyData}
-      dataDokumen={docData}
-      onSaveAction={saveRisalahAction}
-    />
+    <div className="bg-gray-50 min-h-screen p-8">
+      <div className="max-w-7xl mx-auto">
+        
+        {/* Page Header */}
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold text-gray-800">Verifikasi & Penomoran Akhir</h1>
+          <p className="text-gray-500 text-sm">Validasi akhir dan penerbitan Nomor SK/PKPLH (Tahap Final).</p>
+        </div>
+
+        {/* Card Container */}
+        <div className="bg-white rounded-xl shadow border border-gray-200 overflow-hidden">
+          
+          {/* Card Header (Ganti Warna di Sini: Indigo -> Blue) */}
+          <div className="p-4 border-b border-gray-100 bg-blue-50 flex justify-between items-center">
+            <h3 className="font-bold text-blue-800 flex items-center gap-2">
+               📚 Daftar Antrian SK
+            </h3>
+            <span className="bg-blue-200 text-blue-800 text-xs px-2 py-1 rounded-full font-bold">
+               {dataDokumen.length} Dokumen
+            </span>
+          </div>
+
+          {/* Table Content */}
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm text-gray-600">
+              <thead className="bg-gray-50 text-gray-700 uppercase text-xs font-bold">
+                <tr>
+                  <th className="px-6 py-3">No. Registrasi</th>
+                  <th className="px-6 py-3">Pemrakarsa / Kegiatan</th>
+                  <th className="px-6 py-3">Nomor SK</th>
+                  <th className="px-6 py-3">Status</th>
+                  <th className="px-6 py-3 text-center">Aksi</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                
+                {dataDokumen.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-10 text-center text-gray-400">
+                      Belum ada dokumen siap diproses.
+                    </td>
+                  </tr>
+                ) : (
+                  dataDokumen.map((doc) => (
+                    <tr key={doc._id.toString()} className="hover:bg-gray-50 transition-colors">
+                      
+                      {/* Kolom 1: No Registrasi */}
+                      <td className="px-6 py-4 font-mono font-medium text-blue-600 align-top">
+                        {doc.no_registrasi}
+                        <div className="text-xs text-gray-400 mt-1">Jenis: UKL-UPL</div>
+                      </td>
+
+                      {/* Kolom 2: Pemrakarsa */}
+                      <td className="px-6 py-4 align-top">
+                        <div className="font-bold text-gray-800">{doc.pemrakarsa}</div>
+                        <div className="text-xs text-gray-500 truncate max-w-xs mt-1">
+                          {doc.kegiatan}
+                        </div>
+                      </td>
+
+                      {/* Kolom 3: Output (Nomor SK) */}
+                      <td className="px-6 py-4 align-top">
+                        {doc.nomor_sk ? (
+                          <div className="flex items-center gap-2 text-blue-700 bg-blue-50 px-2 py-1 rounded border border-blue-200 w-fit">
+                            <CheckCircle className="w-3 h-3" />
+                            <span className="font-mono text-xs font-bold">{doc.nomor_sk}</span>
+                          </div>
+                        ) : (
+                          <span className="flex items-center gap-1 text-orange-500 text-xs font-bold animate-pulse">
+                            <Clock className="w-3 h-3" /> Belum Terbit
+                          </span>
+                        )}
+                      </td>
+
+                      {/* Kolom 4: Status */}
+                      <td className="px-6 py-4 align-top">
+                        {doc.nomor_sk ? (
+                          <span className="flex items-center gap-1 text-green-600 text-xs font-bold">
+                            <CheckCircle className="w-3 h-3" /> Selesai
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-1 text-blue-500 text-xs font-bold animate-pulse">
+                            <Clock className="w-3 h-3" /> Menunggu Input
+                          </span>
+                        )}
+                      </td>
+
+                      {/* Kolom 5: Aksi (Tombol Biru) */}
+                      <td className="px-6 py-4 text-center align-top">
+                        <Link 
+                          href={`/verifikasi/final/${doc._id.toString()}`}
+                          className={`inline-flex items-center gap-1 px-3 py-1.5 rounded text-xs font-bold shadow-sm transition-all ${
+                             doc.nomor_sk
+                             ? 'bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-300' 
+                             : 'bg-blue-600 hover:bg-blue-700 text-white'
+                          }`}
+                        >
+                          <BookOpen className="w-3 h-3" /> 
+                          {doc.nomor_sk ? 'Detail' : 'Proses SK'}
+                        </Link>
+                      </td>
+
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }

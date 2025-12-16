@@ -30,4 +30,15 @@ if (process.env.NODE_ENV === 'development') {
 
 // Cukup export clientPromise saja.
 // Tidak perlu export DB_NAME lagi.
+
+// --- TAMBAHKAN FUNGSI INI AGAR ERROR HILANG ---
+export async function getDb() {
+  const client = await clientPromise;
+  
+  // Ganti 'sipewas_db' dengan nama database kamu yang sebenarnya
+  // Atau lebih baik simpan di .env sebagai DB_NAME
+  return client.db(process.env.DB_NAME);
+}
+// ----------------------------------------------
+
 export default clientPromise;
