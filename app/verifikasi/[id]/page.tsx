@@ -21,7 +21,7 @@ async function submitVerifikasi(formData: FormData) {
   try {
     // Update Status menjadi SIAP_PENOMORAN / MENUNGGU_ARSIP
     // Tidak menginput Nomor SK di sini
-    await db.collection('permohonan').updateOne(
+    await db.collection('dokumen').updateOne(
         { _id: objectId },
         { 
             $set: { 
@@ -48,7 +48,7 @@ async function getDocById(id: string) {
   const db = await getDb();
   try {
     if (!ObjectId.isValid(id)) return null;
-    const doc = await db.collection('permohonan').findOne({ _id: new ObjectId(id) });
+    const doc = await db.collection('dokumen').findOne({ _id: new ObjectId(id) });
     return doc;
   } catch (e) {
     return null;

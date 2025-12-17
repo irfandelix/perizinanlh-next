@@ -9,7 +9,7 @@ export default async function VerifikasiPage() {
   // --- DEBUGGING MODE: ON ---
   // Kita ambil SEMUA data tanpa filter status dulu
   // Biar ketahuan sebenarnya status dokumen kamu itu tulisannya apa.
-  const dataDokumen = await db.collection('permohonan')
+  const dataDokumen = await db.collection('dokumen')
     .find({}) // <--- KOSONGKAN FILTERNYA
     .sort({ _id: -1 })
     .limit(50)
