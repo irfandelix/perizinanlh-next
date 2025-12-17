@@ -10,17 +10,20 @@ interface DokumenPermohonan {
   pemrakarsa: string;
   kegiatan: string;
   status: string;
-  nomor_sk?: string; // Output dari tahap ini
+  nomor_sk?: string; // Output bisa ada bisa tidak (tergantung status)
 }
 
-export default async function VerifikasiFinalPage() {
+export default async function VerifikasiPage() {
   const db = await getDb();
 
   // 1. Ambil Data (Server Side Fetching)
+  // Menampilkan dokumen yang statusnya relevan untuk verifikasi akhir / penomoran
   const dataDokumen = await db.collection<DokumenPermohonan>('permohonan')
     .find({ 
-        // Tampilkan yang 'MENUNGGU_PENOMORAN' atau sudah 'SELESAI'
-        status: { $in: ['MENUNGGU_PENOMORAN', 'SELESAI'] } 
+        // Sesuaikan status ini dengan workflow Anda. 
+        // Jika tahap ini adalah "Risalah" sebelum arsip, mungkin statusnya 'MENUNGGU_VERIFIKASI_AKHIR'
+        // Jika ini tahap penomoran, gunakan 'MENUNGGU_PENOMORAN'
+        status: { $in: ['MENUNGGU_PENOMORAN', 'SIAP_PENOMORAN', 'SELESAI'] } 
     })
     .sort({ _id: -1 })
     .limit(50)
@@ -33,16 +36,16 @@ export default async function VerifikasiFinalPage() {
         {/* Page Header */}
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-gray-800">Verifikasi & Penomoran Akhir</h1>
-          <p className="text-gray-500 text-sm">Validasi akhir dan penerbitan Nomor SK/PKPLH (Tahap Final).</p>
+          <p className="text-gray-500 text-sm">Validasi akhir dokumen sebelum diterbitkan SK/PKPLH.</p>
         </div>
 
         {/* Card Container */}
         <div className="bg-white rounded-xl shadow border border-gray-200 overflow-hidden">
           
-          {/* Card Header (Ganti Warna di Sini: Indigo -> Blue) */}
+          {/* Card Header (Warna Biru) */}
           <div className="p-4 border-b border-gray-100 bg-blue-50 flex justify-between items-center">
             <h3 className="font-bold text-blue-800 flex items-center gap-2">
-               📚 Daftar Antrian SK
+               📚 Daftar Antrian
             </h3>
             <span className="bg-blue-200 text-blue-800 text-xs px-2 py-1 rounded-full font-bold">
                {dataDokumen.length} Dokumen
@@ -108,8 +111,8 @@ export default async function VerifikasiFinalPage() {
                             <CheckCircle className="w-3 h-3" /> Selesai
                           </span>
                         ) : (
-                          <span className="flex items-center gap-1 text-blue-500 text-xs font-bold animate-pulse">
-                            <Clock className="w-3 h-3" /> Menunggu Input
+                          <span className="flex items-center gap-1 text-blue-500 text-xs font-bold">
+                            <Clock className="w-3 h-3" /> Proses Risalah
                           </span>
                         )}
                       </td>
@@ -117,7 +120,8 @@ export default async function VerifikasiFinalPage() {
                       {/* Kolom 5: Aksi (Tombol Biru) */}
                       <td className="px-6 py-4 text-center align-top">
                         <Link 
-                          href={`/verifikasi/final/${doc._id.toString()}`}
+                          // Perubahan di sini: Link ke /verifikasi/[id]
+                          href={`/verifikasi/${doc._id.toString()}`}
                           className={`inline-flex items-center gap-1 px-3 py-1.5 rounded text-xs font-bold shadow-sm transition-all ${
                              doc.nomor_sk
                              ? 'bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-300' 
@@ -125,7 +129,7 @@ export default async function VerifikasiFinalPage() {
                           }`}
                         >
                           <BookOpen className="w-3 h-3" /> 
-                          {doc.nomor_sk ? 'Detail' : 'Proses SK'}
+                          {doc.nomor_sk ? 'Detail' : 'Proses'}
                         </Link>
                       </td>
 
