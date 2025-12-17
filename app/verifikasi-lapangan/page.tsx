@@ -5,8 +5,7 @@ import { MapPin, BookOpen, CheckCircle, Clock, FileQuestion } from 'lucide-react
 export default async function VerifikasiLapanganPage() {
   const db = await getDb();
 
-  // --- 1. PENGAMBILAN DATA (FETCHING) ---
-  // Ambil semua dokumen, urutkan dari yang terbaru
+  // 1. AMBIL SEMUA DATA (TANPA FILTER)
   const dataDokumen = await db.collection('dokumen')
     .find({}) 
     .sort({ _id: -1 })
@@ -16,19 +15,18 @@ export default async function VerifikasiLapanganPage() {
     <div className="bg-gray-50 min-h-screen p-8">
       <div className="max-w-7xl mx-auto">
         
-        {/* HEADER HALAMAN */}
+        {/* HEADER */}
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-gray-800">Verifikasi Lapangan</h1>
-          <p className="text-gray-500 text-sm">Jadwal dan hasil peninjauan lokasi usaha/kegiatan (Tahap C).</p>
+          <p className="text-gray-500 text-sm">Monitoring seluruh data verifikasi lapangan.</p>
         </div>
 
         {/* CONTAINER TABEL */}
         <div className="bg-white rounded-xl shadow border border-gray-200 overflow-hidden">
           
-          {/* HEADER TABEL (Warna Hijau untuk Verifikasi Lapangan) */}
           <div className="p-4 border-b border-gray-100 bg-green-50 flex justify-between items-center">
             <h3 className="font-bold text-green-800 flex items-center gap-2">
-               <MapPin size={18} /> Daftar Verifikasi Lapangan
+               <MapPin size={18} /> Daftar Dokumen
             </h3>
             <span className="bg-green-200 text-green-800 text-xs px-2 py-1 rounded-full font-bold">
                {dataDokumen.length} Dokumen
@@ -37,7 +35,6 @@ export default async function VerifikasiLapanganPage() {
 
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm text-gray-600">
-              {/* HEAD TABEL - STYLE MENYESUAIKAN REFERENSI ANDA */}
               <thead className="bg-gray-50 text-gray-700 uppercase text-xs font-bold">
                 <tr>
                   <th className="px-6 py-3">No. Registrasi</th>
@@ -52,33 +49,45 @@ export default async function VerifikasiLapanganPage() {
                 {dataDokumen.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="px-6 py-10 text-center text-gray-400">
-                      Belum ada dokumen masuk.
+                      Database Kosong.
                     </td>
                   </tr>
                 ) : (
                   dataDokumen.map((doc: any) => {
                     
-                    // --- 2. PERBAIKAN DATA & STATUS ---
+                    // --- 1. LOGIKA "CARI SEMUA KEMUNGKINAN NAMA" (Agar Data Pasti Muncul) ---
                     
-                    // Ambil No Registrasi (Prioritas field: no_registrasi -> no_urut -> strip)
-                    const noRegistrasi = doc.no_registrasi || doc.no_urut || "-";
+                    // Cek No Registrasi (Coba semua variasi nama field)
+                    const noRegistrasi = 
+                        doc.no_registrasi || 
+                        doc.nomor_registrasi || 
+                        doc.nomorChecklist || // <-- Ini yang kemungkinan besar dipakai
+                        doc.no_reg || 
+                        doc.noUrut || 
+                        "-";
 
-                    // Ambil No BA Lapangan (Prioritas field: nomor_ba_lapangan -> nomor_berita_acara -> strip)
-                    const noBALapangan = doc.nomor_ba_lapangan || doc.nomor_berita_acara || null;
+                    // Cek No BA (Coba variasi snake_case dan camelCase)
+                    const noBALapangan = 
+                        doc.nomor_ba_lapangan || 
+                        doc.nomorBAVerlap || // <-- Ini variasi camelCase
+                        doc.nomor_berita_acara || 
+                        doc.no_ba_lapangan ||
+                        null;
 
-                    // Logika Status
+                    // Cek Nama Pemrakarsa & Kegiatan
+                    const pemrakarsa = doc.pemrakarsa || doc.namaPemrakarsa || doc.nama_pemrakarsa || "-";
+                    const kegiatan = doc.kegiatan || doc.namaKegiatan || doc.judul_kegiatan || "-";
+                    const lokasi = doc.lokasi_usaha || doc.lokasi || doc.alamat || "-";
+
+                    // --- 2. LOGIKA STATUS ---
                     const status = doc.status || "";
                     
-                    // Cek apakah sedang/selesai di tahap lapangan
+                    // Cek Tahapan
                     const isTahapLapangan = ['MENUNGGU_VERIFIKASI_LAPANGAN', 'SEDANG_VERIFIKASI_LAPANGAN', 'SELESAI_VERIFIKASI_LAPANGAN'].includes(status);
-                    
-                    // Cek apakah sudah lewat (sudah di substansi/risalah/selesai)
-                    const isSudahLewat = ['MENUNGGU_PEMERIKSAAN_SUBSTANSI', 'MENUNGGU_VERIFIKASI_PERBAIKAN', 'MENUNGGU_VERIFIKASI_AKHIR', 'SIAP_PENOMORAN', 'SELESAI'].includes(status);
-                    
-                    // Cek apakah belum sampai (masih registrasi/uji admin)
+                    const isSudahLewat = ['MENUNGGU_PEMERIKSAAN_SUBSTANSI', 'SEDANG_PEMERIKSAAN_SUBSTANSI', 'MENUNGGU_VERIFIKASI_PERBAIKAN', 'MENUNGGU_VERIFIKASI_AKHIR', 'SIAP_PENOMORAN', 'SELESAI'].includes(status);
                     const isBelumSampai = !isTahapLapangan && !isSudahLewat;
 
-                    // Tentukan Label Status Visual
+                    // Label Status Visual
                     let statusLabel;
                     if (isBelumSampai) {
                         statusLabel = (
@@ -103,16 +112,23 @@ export default async function VerifikasiLapanganPage() {
                     return (
                       <tr key={doc._id.toString()} className="hover:bg-gray-50 transition-colors">
                         
-                        {/* 1. NO REGISTRASI (Style: Mono, Biru/Hijau) */}
-                        <td className="px-6 py-4 font-mono font-medium text-green-700 align-top">
-                          {noRegistrasi}
-                          <div className="text-xs text-gray-400 mt-1">Jenis: UKL-UPL</div>
+                        {/* 1. NO REGISTRASI (Warna Biru seperti referensi) */}
+                        <td className="px-6 py-4 align-top">
+                           <div className="font-mono text-sm font-bold text-blue-600 break-all">
+                              {noRegistrasi}
+                           </div>
+                           <div className="text-xs text-gray-400 mt-1">Jenis: UKL-UPL</div>
                         </td>
 
                         {/* 2. PEMRAKARSA / KEGIATAN */}
                         <td className="px-6 py-4 align-top">
-                          <div className="font-bold text-gray-800">{doc.pemrakarsa || doc.namaPemrakarsa}</div>
-                          <div className="text-xs text-gray-500 truncate max-w-xs mt-1">{doc.kegiatan || doc.namaKegiatan}</div>
+                          <div className="font-bold text-gray-800">{pemrakarsa}</div>
+                          <div className="text-xs text-gray-500 mt-1 mb-1">{kegiatan}</div>
+                          {lokasi !== "-" && (
+                             <div className="text-[10px] text-gray-400 flex items-center gap-1">
+                                <MapPin size={10} /> {lokasi}
+                             </div>
+                          )}
                         </td>
 
                         {/* 3. NO BA VERIFIKASI LAPANGAN */}
@@ -132,7 +148,6 @@ export default async function VerifikasiLapanganPage() {
                         {/* 4. STATUS */}
                         <td className="px-6 py-4 align-top">
                           {statusLabel}
-                          {/* Tampilkan status asli database kecil di bawahnya */}
                           <div className="text-[10px] text-gray-400 mt-1 uppercase">
                              {status.replace(/_/g, ' ')}
                           </div>
