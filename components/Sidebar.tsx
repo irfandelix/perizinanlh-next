@@ -42,13 +42,20 @@ export default function Sidebar() {
         item.roles.includes(userRole)
     );
 
+    // --- PERBAIKAN LOGIKA DI SINI ---
     const isActive = (href: string) => {
-        if (href === '/') return pathname === '/';
-        return pathname.startsWith(href);
+        // Jika path sama persis (Contoh: /verifikasi === /verifikasi)
+        if (pathname === href) return true;
+        
+        // Jika path adalah sub-halaman (Contoh: /verifikasi/123)
+        // Kita tambahkan '/' agar /verifikasi-lapangan TIDAK terhitung
+        if (pathname.startsWith(`${href}/`)) return true;
+
+        return false;
     };
 
     if (!session) return null;
-
+    
     return (
         <>
             {/* Tombol Mobile */}
