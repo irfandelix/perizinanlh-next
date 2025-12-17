@@ -37,9 +37,10 @@ export default async function VerifikasiLapanganPage() {
             <table className="w-full text-left text-sm text-gray-600">
               <thead className="bg-gray-50 text-gray-700 uppercase text-xs font-bold">
                 <tr>
-                  <th className="px-6 py-3">No. Registrasi</th>
-                  <th className="px-6 py-3">Pemrakarsa / Kegiatan</th>
-                  <th className="px-6 py-3">No. BA Verifikasi Lapangan</th>
+                  {/* Tambahkan min-w agar kolom tidak menyempit */}
+                  <th className="px-6 py-3 min-w-[250px]">No. Registrasi</th>
+                  <th className="px-6 py-3 min-w-[200px]">Pemrakarsa / Kegiatan</th>
+                  <th className="px-6 py-3 min-w-[180px]">No. BA Verifikasi Lapangan</th>
                   <th className="px-6 py-3">Status</th>
                   <th className="px-6 py-3 text-center">Aksi</th>
                 </tr>
@@ -55,28 +56,29 @@ export default async function VerifikasiLapanganPage() {
                 ) : (
                   dataDokumen.map((doc: any) => {
                     
-                    // --- 1. LOGIKA "CARI SEMUA KEMUNGKINAN NAMA" (Agar Data Pasti Muncul) ---
+                    // --- 1. LOGIKA DATA "ANTI-GAGAL" ---
+                    // Menggabungkan variabel dari contoh Anda (nomorChecklist) dengan variabel umum
                     
-                    // Cek No Registrasi (Coba semua variasi nama field)
+                    // Cek No Registrasi (Prioritas: nomorChecklist -> no_registrasi -> dll)
                     const noRegistrasi = 
+                        doc.nomorChecklist || // Sesuai contoh Anda
                         doc.no_registrasi || 
                         doc.nomor_registrasi || 
-                        doc.nomorChecklist || // <-- Ini yang kemungkinan besar dipakai
                         doc.no_reg || 
                         doc.noUrut || 
                         "-";
 
-                    // Cek No BA (Coba variasi snake_case dan camelCase)
+                    // Cek No BA (Prioritas: nomorBAVerlap -> nomor_ba_lapangan)
                     const noBALapangan = 
+                        doc.nomorBAVerlap || // Sesuai contoh Anda
                         doc.nomor_ba_lapangan || 
-                        doc.nomorBAVerlap || // <-- Ini variasi camelCase
                         doc.nomor_berita_acara || 
                         doc.no_ba_lapangan ||
                         null;
 
                     // Cek Nama Pemrakarsa & Kegiatan
-                    const pemrakarsa = doc.pemrakarsa || doc.namaPemrakarsa || doc.nama_pemrakarsa || "-";
-                    const kegiatan = doc.kegiatan || doc.namaKegiatan || doc.judul_kegiatan || "-";
+                    const pemrakarsa = doc.namaPemrakarsa || doc.pemrakarsa || doc.nama_pemrakarsa || "-";
+                    const kegiatan = doc.namaKegiatan || doc.kegiatan || doc.judul_kegiatan || "-";
                     const lokasi = doc.lokasi_usaha || doc.lokasi || doc.alamat || "-";
 
                     // --- 2. LOGIKA STATUS ---
@@ -112,9 +114,10 @@ export default async function VerifikasiLapanganPage() {
                     return (
                       <tr key={doc._id.toString()} className="hover:bg-gray-50 transition-colors">
                         
-                        {/* 1. NO REGISTRASI (Warna Biru seperti referensi) */}
+                        {/* 1. NO REGISTRASI */}
                         <td className="px-6 py-4 align-top">
-                           <div className="font-mono text-sm font-bold text-blue-600 break-all">
+                           {/* Saya hapus break-all, ganti whitespace-nowrap agar tidak terpotong */}
+                           <div className="font-mono text-sm font-bold text-blue-600 whitespace-nowrap">
                               {noRegistrasi}
                            </div>
                            <div className="text-xs text-gray-400 mt-1">Jenis: UKL-UPL</div>
@@ -134,7 +137,7 @@ export default async function VerifikasiLapanganPage() {
                         {/* 3. NO BA VERIFIKASI LAPANGAN */}
                         <td className="px-6 py-4 align-top">
                           {noBALapangan ? (
-                            <div className="flex items-center gap-2 text-green-700 bg-green-50 px-2 py-1 rounded border border-green-200 w-fit">
+                            <div className="flex items-center gap-2 text-green-700 bg-green-50 px-2 py-1 rounded border border-green-200 w-fit whitespace-nowrap">
                                 <CheckCircle className="w-3 h-3" />
                                 <span className="font-mono text-xs font-bold">{noBALapangan}</span>
                             </div>
@@ -157,7 +160,7 @@ export default async function VerifikasiLapanganPage() {
                         <td className="px-6 py-4 text-center align-top">
                           <Link 
                             href={`/verifikasi-lapangan/${doc._id.toString()}`}
-                            className={`inline-flex items-center gap-1 px-3 py-1.5 rounded text-xs font-bold shadow-sm transition-all ${
+                            className={`inline-flex items-center gap-1 px-3 py-1.5 rounded text-xs font-bold shadow-sm transition-all whitespace-nowrap ${
                                 isBelumSampai
                                 ? 'bg-gray-100 text-gray-400 cursor-not-allowed pointer-events-none border border-gray-200' 
                                 : (noBALapangan ? 'bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-300' : 'bg-green-600 hover:bg-green-700 text-white')
