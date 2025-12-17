@@ -5,7 +5,7 @@ import { MapPin, Calendar, CheckCircle, Clock, FileText, ArrowRight, FileQuestio
 export default async function VerifikasiLapanganPage() {
   const db = await getDb();
 
-  // Ambil SEMUA data (tanpa filter status)
+  // Ambil semua data
   const dataDokumen = await db.collection('dokumen')
     .find({}) 
     .sort({ _id: -1 })
@@ -17,10 +17,10 @@ export default async function VerifikasiLapanganPage() {
         
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-gray-800">Verifikasi Lapangan</h1>
-          <p className="text-gray-500 text-sm">Daftar antrian dan riwayat verifikasi lapangan.</p>
+          <p className="text-gray-500 text-sm">Monitoring Data (Total: {dataDokumen.length} Item)</p>
         </div>
 
-        <div className="bg-white rounded-xl shadow border border-gray-200 overflow-hidden">
+        <div className="bg-white rounded-xl shadow border border-gray-200 overflow-hidden mb-8">
           <div className="p-4 border-b border-gray-100 bg-green-50 flex justify-between items-center">
             <h3 className="font-bold text-green-800 flex items-center gap-2">
                <MapPin size={18} /> Data Verifikasi Lapangan
@@ -36,7 +36,6 @@ export default async function VerifikasiLapanganPage() {
                 <tr>
                   <th className="px-6 py-3 border-b">No. Registrasi</th>
                   <th className="px-6 py-3 border-b">Pemrakarsa / Kegiatan</th>
-                  {/* --- UBAH JUDUL KOLOM DI SINI --- */}
                   <th className="px-6 py-3 border-b">No. BA Verifikasi Lapangan</th>
                   <th className="px-6 py-3 border-b">Status</th>
                   <th className="px-6 py-3 border-b text-center">Aksi</th>
@@ -52,13 +51,19 @@ export default async function VerifikasiLapanganPage() {
                 ) : (
                   dataDokumen.map((doc: any) => {
                     
-                    // --- LOGIKA STATUS ---
-                    const status = doc.status || "TANPA_STATUS";
-                    const isTahapLapangan = ['MENUNGGU_VERIFIKASI_LAPANGAN', 'SEDANG_VERIFIKASI_LAPANGAN', 'SELESAI_VERIFIKASI_LAPANGAN'].includes(status);
-                    const isSudahLewat = ['MENUNGGU_PEMERIKSAAN_SUBSTANSI', 'MENUNGGU_VERIFIKASI_PERBAIKAN', 'MENUNGGU_VERIFIKASI_AKHIR', 'SIAP_PENOMORAN', 'SELESAI'].includes(status);
+                    // --- TEBAK NAMA KOLOM (FALLBACK) ---
+                    // Kita coba semua kemungkinan nama field biar pasti muncul
+                    const realPemrakarsa = doc.pemrakarsa || doc.namaPemrakarsa || doc.nama_pemrakarsa || doc.prakarsa || "-";
+                    const realKegiatan = doc.kegiatan || doc.namaKegiatan || doc.judul_kegiatan || doc.nama_kegiatan || "-";
+                    const realNoReg = doc.no_registrasi || doc.no_urut || doc.noUrut || doc.nomor_registrasi || "-";
+                    const realLokasi = doc.lokasi_usaha || doc.lokasi || doc.alamat || "-";
+                    const realStatus = doc.status || "TANPA_STATUS";
+
+                    // Logic Status
+                    const isTahapLapangan = ['MENUNGGU_VERIFIKASI_LAPANGAN', 'SEDANG_VERIFIKASI_LAPANGAN', 'SELESAI_VERIFIKASI_LAPANGAN'].includes(realStatus);
+                    const isSudahLewat = ['MENUNGGU_PEMERIKSAAN_SUBSTANSI', 'MENUNGGU_VERIFIKASI_PERBAIKAN', 'MENUNGGU_VERIFIKASI_AKHIR', 'SIAP_PENOMORAN', 'SELESAI'].includes(realStatus);
                     const isBelumSampai = !isTahapLapangan && !isSudahLewat;
 
-                    // Cek Nomor BA (Prioritaskan field khusus lapangan)
                     const nomorBA = doc.nomor_ba_lapangan || doc.nomor_berita_acara || "-";
 
                     return (
@@ -66,15 +71,15 @@ export default async function VerifikasiLapanganPage() {
                         
                         {/* 1. NO. REGISTRASI */}
                         <td className="px-6 py-4 align-top font-mono font-bold text-green-700">
-                          {doc.no_registrasi || "-"}
+                          {realNoReg}
                         </td>
 
                         {/* 2. PEMRAKARSA / KEGIATAN */}
                         <td className="px-6 py-4 align-top">
-                          <div className="font-bold text-gray-900">{doc.pemrakarsa}</div>
-                          <div className="text-gray-600 text-xs mt-1 mb-1">{doc.kegiatan}</div>
+                          <div className="font-bold text-gray-900">{realPemrakarsa}</div>
+                          <div className="text-gray-600 text-xs mt-1 mb-1">{realKegiatan}</div>
                           <div className="text-[10px] text-gray-400 flex items-center gap-1">
-                              <MapPin size={10} /> {doc.lokasi_usaha || "Lokasi -"}
+                              <MapPin size={10} /> {realLokasi}
                           </div>
                         </td>
 
@@ -91,34 +96,18 @@ export default async function VerifikasiLapanganPage() {
 
                         {/* 4. STATUS */}
                         <td className="px-6 py-4 align-top">
-                           {isTahapLapangan && (
-                              <span className="inline-flex items-center gap-1 text-green-700 bg-green-100 px-2 py-1 rounded text-xs font-bold border border-green-200">
-                                 <Clock size={12} /> Proses Lapangan
-                              </span>
-                           )}
-                           {isSudahLewat && (
-                              <span className="inline-flex items-center gap-1 text-blue-600 bg-blue-50 px-2 py-1 rounded text-xs font-bold border border-blue-200">
-                                 <CheckCircle size={12} /> Selesai
-                              </span>
-                           )}
-                           {isBelumSampai && (
-                              <span className="inline-flex items-center gap-1 text-gray-500 bg-gray-100 px-2 py-1 rounded text-xs font-bold border border-gray-200">
-                                 <FileQuestion size={12} /> Belum Masuk
-                              </span>
-                           )}
+                           <div className="text-xs font-bold text-gray-500 uppercase">
+                              {realStatus.replace(/_/g, ' ')}
+                           </div>
                         </td>
 
                         {/* 5. AKSI */}
                         <td className="px-6 py-4 text-center align-top">
                           <Link 
                             href={`/verifikasi-lapangan/${doc._id.toString()}`}
-                            className={`inline-flex items-center gap-1 px-3 py-1.5 rounded text-xs font-bold shadow-sm transition-all ${
-                                isBelumSampai
-                                ? 'bg-gray-200 text-gray-400 cursor-not-allowed pointer-events-none'
-                                : 'bg-green-600 text-white hover:bg-green-700'
-                            }`}
+                            className="inline-flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white rounded text-xs font-bold hover:bg-green-700 transition"
                           >
-                             {isSudahLewat ? 'Lihat Detail' : 'Proses'} <ArrowRight size={12} />
+                             Proses <ArrowRight size={12} />
                           </Link>
                         </td>
 
@@ -130,6 +119,17 @@ export default async function VerifikasiLapanganPage() {
             </table>
           </div>
         </div>
+
+        {/* --- AREA DEBUG (KOTAK HITAM DI BAWAH) --- */}
+        {/* Ini untuk mengintip nama kolom asli di database Anda */}
+        {dataDokumen.length > 0 && (
+            <div className="mt-10 p-4 bg-gray-900 text-green-400 rounded-lg font-mono text-xs overflow-auto">
+                <h3 className="font-bold text-white mb-2 text-lg">🔍 KOTAK INTIP DATA (DEBUG)</h3>
+                <p className="text-gray-400 mb-2">Lihat di bawah ini, apa nama variabel untuk Pemrakarsa? Apakah 'pemrakarsa' atau 'namaPemrakarsa'?</p>
+                <pre>{JSON.stringify(dataDokumen[0], null, 2)}</pre>
+            </div>
+        )}
+
       </div>
     </div>
   );
