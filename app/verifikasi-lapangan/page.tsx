@@ -5,27 +5,9 @@ import { MapPin, CheckCircle, Clock, ArrowRight, FileQuestion } from 'lucide-rea
 export default async function VerifikasiLapanganPage() {
   const db = await getDb();
 
-  // --- FILTER QUERY ---
-  // Hanya ambil dokumen yang sudah masuk tahap Lapangan atau tahap setelahnya
+  // --- QUERY: AMBIL SEMUA DATA (TANPA FILTER) ---
   const dataDokumen = await db.collection('dokumen')
-    .find({ 
-        status: { 
-          $in: [
-            // Tahap Lapangan
-            'MENUNGGU_VERIFIKASI_LAPANGAN', 
-            'SEDANG_VERIFIKASI_LAPANGAN',
-            'SELESAI_VERIFIKASI_LAPANGAN',
-            
-            // Tahap Selanjutnya (History)
-            'MENUNGGU_PEMERIKSAAN_SUBSTANSI',
-            'SEDANG_PEMERIKSAAN_SUBSTANSI',
-            'MENUNGGU_VERIFIKASI_PERBAIKAN',
-            'MENUNGGU_VERIFIKASI_AKHIR',
-            'SIAP_PENOMORAN',
-            'SELESAI'
-          ] 
-        } 
-    })
+    .find({}) // Kosong artinya ambil semua
     .sort({ _id: -1 })
     .toArray();
 
@@ -34,14 +16,14 @@ export default async function VerifikasiLapanganPage() {
       <div className="max-w-7xl mx-auto">
         
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-800">Verifikasi Lapangan</h1>
-          <p className="text-gray-500 text-sm">Daftar dokumen yang telah lolos Uji Administrasi dan masuk tahap Lapangan.</p>
+          <h1 className="text-2xl font-bold text-gray-800">Verifikasi Lapangan (Semua Data)</h1>
+          <p className="text-gray-500 text-sm">Menampilkan seluruh dokumen dalam database.</p>
         </div>
 
         <div className="bg-white rounded-xl shadow border border-gray-200 overflow-hidden">
           <div className="p-4 border-b border-gray-100 bg-green-50 flex justify-between items-center">
             <h3 className="font-bold text-green-800 flex items-center gap-2">
-               <MapPin size={18} /> Antrian Verifikasi Lapangan
+               <MapPin size={18} /> Total Data Database
             </h3>
             <span className="bg-green-200 text-green-800 text-xs px-2 py-1 rounded-full font-bold">
                {dataDokumen.length} Dokumen
@@ -63,19 +45,20 @@ export default async function VerifikasiLapanganPage() {
                 {dataDokumen.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="px-6 py-10 text-center text-gray-400">
-                      Belum ada dokumen yang masuk tahap ini.
+                      Database Kosong.
                     </td>
                   </tr>
                 ) : (
                   dataDokumen.map((doc: any) => {
                     
-                    const status = doc.status || "";
+                    const status = doc.status || "TANPA_STATUS";
                     const isTahapLapangan = ['MENUNGGU_VERIFIKASI_LAPANGAN', 'SEDANG_VERIFIKASI_LAPANGAN', 'SELESAI_VERIFIKASI_LAPANGAN'].includes(status);
                     const isSudahLewat = ['MENUNGGU_PEMERIKSAAN_SUBSTANSI', 'MENUNGGU_VERIFIKASI_PERBAIKAN', 'MENUNGGU_VERIFIKASI_AKHIR', 'SIAP_PENOMORAN', 'SELESAI'].includes(status);
                     
+                    // Logic agar tombol mati jika belum sampai tahap lapangan
+                    const isBelumSampai = !isTahapLapangan && !isSudahLewat;
+
                     const nomorBA = doc.nomor_ba_lapangan || doc.nomor_berita_acara || "-";
-                    
-                    // Menampilkan No Registrasi Lengkap
                     const noRegistrasiLengkap = doc.no_registrasi || doc.no_urut || "-";
 
                     return (
@@ -96,7 +79,7 @@ export default async function VerifikasiLapanganPage() {
                           <div className="font-bold text-gray-900">{doc.pemrakarsa || doc.namaPemrakarsa}</div>
                           <div className="text-gray-600 text-xs mt-1 mb-1">{doc.kegiatan || doc.namaKegiatan}</div>
                           <div className="text-[10px] text-gray-400 flex items-center gap-1">
-                              <MapPin size={10} /> {doc.lokasi_usaha || "Lokasi belum diinput"}
+                              <MapPin size={10} /> {doc.lokasi_usaha || "-"}
                           </div>
                         </td>
 
@@ -116,13 +99,18 @@ export default async function VerifikasiLapanganPage() {
                         {/* 4. STATUS */}
                         <td className="px-6 py-4 align-top">
                            {isTahapLapangan && (
-                              <span className="inline-flex items-center gap-1 text-green-700 bg-green-100 px-2 py-1 rounded text-xs font-bold border border-green-200 animate-pulse">
+                              <span className="inline-flex items-center gap-1 text-green-700 bg-green-100 px-2 py-1 rounded text-xs font-bold border border-green-200">
                                  <Clock size={12} /> Proses Lapangan
                               </span>
                            )}
                            {isSudahLewat && (
                               <span className="inline-flex items-center gap-1 text-blue-600 bg-blue-50 px-2 py-1 rounded text-xs font-bold border border-blue-200">
                                  <CheckCircle size={12} /> Selesai
+                              </span>
+                           )}
+                           {isBelumSampai && (
+                              <span className="inline-flex items-center gap-1 text-gray-500 bg-gray-100 px-2 py-1 rounded text-xs font-bold border border-gray-200">
+                                 Belum Masuk
                               </span>
                            )}
                            
@@ -136,8 +124,8 @@ export default async function VerifikasiLapanganPage() {
                           <Link 
                             href={`/verifikasi-lapangan/${doc._id.toString()}`}
                             className={`inline-flex items-center gap-1 px-3 py-1.5 rounded text-xs font-bold shadow-sm transition-all ${
-                                isSudahLewat
-                                ? 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'
+                                isBelumSampai
+                                ? 'bg-gray-100 text-gray-400 cursor-not-allowed pointer-events-none'
                                 : 'bg-green-600 text-white hover:bg-green-700'
                             }`}
                           >
