@@ -37,7 +37,7 @@ export async function getDb() {
   
   // Ganti 'sipewas_db' dengan nama database kamu yang sebenarnya
   // Atau lebih baik simpan di .env sebagai DB_NAME
-  return client.db(process.env.DB_NAME);
+  return client.db();
 }
 // ----------------------------------------------
 
