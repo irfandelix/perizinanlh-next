@@ -1,41 +1,36 @@
 import Link from 'next/link';
 import { getDb } from '@/lib/db';
-import { ObjectId } from 'mongodb';
-import { BookOpen, CheckCircle, Clock } from 'lucide-react';
+import { MapPin, Calendar, CheckSquare, Clock } from 'lucide-react';
 
-interface DokumenPermohonan {
-  _id: ObjectId;
-  no_registrasi: string;
-  pemrakarsa: string;
-  kegiatan: string;
-  status: string;
-  nomor_sk?: string;
-}
-
-export default async function HalamanTabelVerifikasi() {
+export default async function VerifikasiLapanganPage() {
   const db = await getDb();
 
-  // Ambil data (Menunggu Penomoran atau Selesai)
-  const dataDokumen = await db.collection<DokumenPermohonan>('permohonan')
-    .find({ status: { $in: ['MENUNGGU_PENOMORAN', 'SELESAI'] } })
-    .sort({ _id: -1 }) // Terbaru di atas
-    .limit(50)
+  // Ambil dokumen yang statusnya relevan dengan LAPANGAN
+  // Contoh status: 'MENUNGGU_JADWAL_LAPANGAN' atau 'SEDANG_VERIFIKASI_LAPANGAN'
+  const dataDokumen = await db.collection('dokumen')
+    .find({ 
+        status: { 
+          $in: ['MENUNGGU_VERIFIKASI_LAPANGAN', 'SEDANG_VERIFIKASI_LAPANGAN'] 
+        } 
+    })
+    .sort({ _id: -1 })
     .toArray();
 
   return (
     <div className="bg-gray-50 min-h-screen p-8">
       <div className="max-w-7xl mx-auto">
+        
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-800">Verifikasi & Penomoran</h1>
-          <p className="text-gray-500 text-sm">Daftar antrian penerbitan SK Lingkungan.</p>
+          <h1 className="text-2xl font-bold text-gray-800">Verifikasi Lapangan</h1>
+          <p className="text-gray-500 text-sm">Jadwal dan hasil peninjauan lokasi usaha/kegiatan.</p>
         </div>
 
         <div className="bg-white rounded-xl shadow border border-gray-200 overflow-hidden">
-          <div className="p-4 border-b border-gray-100 bg-blue-50 flex justify-between items-center">
-            <h3 className="font-bold text-blue-800 flex items-center gap-2">
-               📚 Daftar Antrian
+          <div className="p-4 border-b border-gray-100 bg-green-50 flex justify-between items-center">
+            <h3 className="font-bold text-green-800 flex items-center gap-2">
+               <MapPin size={18} /> Daftar Kunjungan Lapangan
             </h3>
-            <span className="bg-blue-200 text-blue-800 text-xs px-2 py-1 rounded-full font-bold">
+            <span className="bg-green-200 text-green-800 text-xs px-2 py-1 rounded-full font-bold">
                {dataDokumen.length} Dokumen
             </span>
           </div>
@@ -44,45 +39,51 @@ export default async function HalamanTabelVerifikasi() {
             <table className="w-full text-left text-sm text-gray-600">
               <thead className="bg-gray-50 text-gray-700 uppercase text-xs font-bold">
                 <tr>
-                  <th className="px-6 py-3">No. Registrasi</th>
-                  <th className="px-6 py-3">Pemrakarsa / Kegiatan</th>
-                  <th className="px-6 py-3">Status SK</th>
+                  <th className="px-6 py-3">Pemrakarsa</th>
+                  <th className="px-6 py-3">Lokasi Kegiatan</th>
+                  <th className="px-6 py-3">Status Lapangan</th>
                   <th className="px-6 py-3 text-center">Aksi</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {dataDokumen.length === 0 ? (
-                  <tr><td colSpan={4} className="p-8 text-center text-gray-400">Belum ada antrian.</td></tr>
+                  <tr>
+                    <td colSpan={4} className="px-6 py-10 text-center text-gray-400">
+                      Tidak ada antrian verifikasi lapangan.
+                    </td>
+                  </tr>
                 ) : (
-                  dataDokumen.map((doc) => (
-                    <tr key={doc._id.toString()} className="hover:bg-blue-50/30 transition-colors">
-                      <td className="px-6 py-4 align-top font-mono text-blue-600">
-                        {doc.no_registrasi}
-                      </td>
+                  dataDokumen.map((doc: any) => (
+                    <tr key={doc._id.toString()} className="hover:bg-green-50/30 transition-colors">
+                      
                       <td className="px-6 py-4 align-top">
-                        <div className="font-bold text-gray-900">{doc.pemrakarsa}</div>
-                        <div className="text-xs text-gray-500 mt-1 truncate max-w-xs">{doc.kegiatan}</div>
+                        <div className="font-bold text-gray-800">{doc.pemrakarsa}</div>
+                        <div className="text-xs text-gray-500 mt-1 font-mono">{doc.no_registrasi}</div>
                       </td>
+
                       <td className="px-6 py-4 align-top">
-                        {doc.nomor_sk ? (
-                          <span className="flex items-center gap-1 text-green-600 text-xs font-bold">
-                            <CheckCircle size={14} /> Terbit: {doc.nomor_sk}
-                          </span>
-                        ) : (
-                          <span className="flex items-center gap-1 text-orange-500 text-xs font-bold animate-pulse">
-                            <Clock size={14} /> Menunggu
-                          </span>
-                        )}
+                        <div className="text-gray-700">{doc.kegiatan}</div>
+                        {/* Jika ada field alamat, tampilkan disini */}
+                        <div className="text-xs text-gray-400 mt-1 flex items-center gap-1">
+                            <MapPin size={10} /> {doc.lokasi_usaha || "Lokasi sesuai dokumen"}
+                        </div>
                       </td>
+
+                      <td className="px-6 py-4 align-top">
+                         <span className="inline-flex items-center gap-1 text-orange-600 bg-orange-50 px-2 py-1 rounded text-xs font-bold border border-orange-200">
+                            <Clock size={12} /> Belum Dikunjungi
+                         </span>
+                      </td>
+
                       <td className="px-6 py-4 text-center align-top">
-                        {/* LINK INI SEKARANG MENGARAH KE /verifikasi/[ID] */}
                         <Link 
-                          href={`/verifikasi/${doc._id.toString()}`}
-                          className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white rounded text-xs font-bold hover:bg-blue-700 transition"
+                          href={`/verifikasi-lapangan/${doc._id.toString()}`}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white rounded text-xs font-bold hover:bg-green-700 transition shadow-sm"
                         >
-                          <BookOpen size={14} /> Proses
+                          <Calendar size={14} /> Atur Jadwal
                         </Link>
                       </td>
+
                     </tr>
                   ))
                 )}
