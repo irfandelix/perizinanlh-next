@@ -192,16 +192,22 @@ export async function POST(
             };
         }
         
-        // ---------------------------------------------------------
+// ---------------------------------------------------------
         // TAHAP D (PEMERIKSAAN) -> GENAP (2, 4, 6...)
         // ---------------------------------------------------------
         else if (tahap === 'd') {
             const { tanggalPemeriksaan } = body;
             
+            if (!tanggalPemeriksaan) {
+                 return NextResponse.json({ success: false, message: 'Tanggal Pemeriksaan wajib diisi.' }, { status: 400 });
+            }
+
+            // 1. Cek apakah dokumen ini SUDAH punya seqPemeriksaan?
             let currentSeq = existingData.seqPemeriksaan;
 
             if (!currentSeq) {
-                // Logic SAMA PERSIS dengan Tahap C, tapi untuk field Pemeriksaan
+                // 2. Jika belum, kita cari angka TERBESAR dari seluruh database (Scan Manual)
+                // Ambil semua dokumen yang sudah punya Nomor BA Pemeriksaan
                 const allDocs = await collection.find({ 
                     nomorBAPemeriksaan: { $exists: true, $ne: "" } 
                 }).project({ nomorBAPemeriksaan: 1, seqPemeriksaan: 1 }).toArray();
@@ -209,11 +215,15 @@ export async function POST(
                 let maxNumber = 0;
 
                 allDocs.forEach(doc => {
+                    // Prioritas 1: Gunakan seqPemeriksaan jika ada (Data Baru)
                     if (doc.seqPemeriksaan) {
                         if (doc.seqPemeriksaan > maxNumber) maxNumber = doc.seqPemeriksaan;
                     } 
+                    // Prioritas 2: Parsing String Manual (Untuk data lama seperti 162)
                     else if (doc.nomorBAPemeriksaan) {
-                        const match = doc.nomorBAPemeriksaan.match(/\/(\d{3})\./);
+                        // Regex: Cari tanda '/' diikuti angka, diikuti tanda '.'
+                        // Contoh: .../162.10... akan mengambil angka 162
+                        const match = doc.nomorBAPemeriksaan.match(/\/(\d+)\./);
                         if (match && match[1]) {
                             const num = parseInt(match[1], 10);
                             if (num > maxNumber) maxNumber = num;
@@ -221,16 +231,18 @@ export async function POST(
                     }
                 });
 
-                // Genap berikutnya
+                // Kalkulasi: Ambil yang terbesar (162), tambah 2 -> Jadi 164
+                // Jika database kosong, mulai dari 2.
                 currentSeq = maxNumber === 0 ? 2 : maxNumber + 2;
             }
 
+            // Generate Nomor Baru
             generatedNomorStr = existingData.nomorBAPemeriksaan || generateNomor(currentSeq, tanggalPemeriksaan, 'BA.P', existingData.jenisDokumen);
             
             updateQuery = { 
                 nomorBAPemeriksaan: generatedNomorStr, 
                 tanggalPemeriksaan: tanggalPemeriksaan,
-                seqPemeriksaan: currentSeq 
+                seqPemeriksaan: currentSeq // Simpan urutannya
             };
         }
         
