@@ -130,7 +130,7 @@ export default async function VerifikasiLapanganPage() {
                         {/* AKSI */}
                         <td className="px-6 py-4 text-center align-top">
                           <Link 
-                            href={`/verifikasi-lapangan/${doc._id.toString()}`}
+                            href={`/verifikasi-lapangan/${doc.noUrut}`}
                             className={`inline-flex items-center gap-1 px-3 py-2 rounded text-xs font-bold shadow-sm transition-all whitespace-nowrap ${
                                 isSudahAdaBA
                                 ? 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300' 
