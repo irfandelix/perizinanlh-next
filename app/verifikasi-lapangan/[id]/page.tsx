@@ -69,6 +69,7 @@ export default function VerifikasiLapanganDetail({ params }: { params: Promise<{
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     id: data._id, // Saat simpan, kita ambil ID asli dari data yang sudah di-fetch
+                    noUrut: data.noUrut, // <--- TAMBAHKAN INI (Supaya error hilang)
                     tanggalVerlap: tanggalVerlap,
                     catatanVerlap: catatanVerlap
                 })
