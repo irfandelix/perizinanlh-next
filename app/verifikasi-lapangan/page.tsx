@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { getDb } from '@/lib/db';
-import { MapPin, BookOpen, CheckCircle, Clock, AlertCircle } from 'lucide-react';
+import { MapPin, BookOpen, CheckCircle, AlertCircle } from 'lucide-react';
 
 // Agar halaman selalu refresh data terbaru
 export const dynamic = 'force-dynamic';
@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 export default async function VerifikasiLapanganPage() {
   const db = await getDb();
 
-  // Ambil data (Optimized Projection)
+  // Ambil data
   const dataDokumen = await db.collection('dokumen')
     .find({}) 
     .project({
@@ -67,17 +67,14 @@ export default async function VerifikasiLapanganPage() {
                 ) : (
                   dataDokumen.map((doc: any) => {
                     
-                    // --- 1. DATA ---
+                    // --- 1. NORMALISASI DATA ---
                     const noRegistrasi = doc.nomorChecklist || doc.no_registrasi || doc.nomor_registrasi || doc.no_reg || doc.noUrut || "-";
                     const noBALapangan = doc.nomorBAVerlap || doc.nomor_ba_lapangan || doc.nomor_berita_acara || doc.no_ba_lapangan || null;
                     const pemrakarsa = doc.namaPemrakarsa || doc.pemrakarsa || doc.nama_pemrakarsa || "-";
                     const kegiatan = doc.namaKegiatan || doc.kegiatan || doc.judul_kegiatan || "-";
                     const lokasi = doc.lokasi_usaha || doc.lokasi || doc.alamat || "-";
-                    const status = doc.status || "";
+                    const statusRaw = doc.status || "";
 
-                    // --- 2. LOGIKA TOMBOL (SIMPEL) ---
-                    // Tidak ada logika disable. Semua tombol aktif.
-                    // Hanya membedakan warna: Hijau (Input Baru) vs Putih (Edit/Lihat)
                     const isSudahAdaBA = !!noBALapangan;
 
                     return (
@@ -103,7 +100,7 @@ export default async function VerifikasiLapanganPage() {
 
                         {/* NO BA */}
                         <td className="px-6 py-4 align-top">
-                          {noBALapangan ? (
+                          {isSudahAdaBA ? (
                             <div className="flex items-center gap-2 text-green-700 bg-green-50 px-2 py-1 rounded border border-green-200 w-fit whitespace-nowrap">
                                 <CheckCircle className="w-3 h-3" />
                                 <span className="font-mono text-xs font-bold">{noBALapangan}</span>
@@ -115,21 +112,29 @@ export default async function VerifikasiLapanganPage() {
                           )}
                         </td>
 
-                        {/* STATUS LABEL (Hanya Info Visual) */}
+                        {/* STATUS (Logika Diperbaiki) */}
                         <td className="px-6 py-4 align-top">
-                          <span className="bg-gray-100 text-gray-500 px-2 py-1 rounded text-xs border border-gray-200 inline-block">
-                             {status.replace(/_/g, ' ') || 'DRAFT'}
-                          </span>
+                          {isSudahAdaBA ? (
+                            // JIKA SUDAH ADA NO BA => TAMPILKAN "Selesai" (HIJAU)
+                            <span className="bg-green-100 text-green-700 px-2 py-1 rounded text-xs border border-green-200 inline-flex items-center gap-1 font-bold">
+                               <CheckCircle className="w-3 h-3" /> Selesai
+                            </span>
+                          ) : (
+                            // JIKA BELUM => TAMPILKAN STATUS ASLI (ABU-ABU)
+                            <span className="bg-gray-100 text-gray-500 px-2 py-1 rounded text-xs border border-gray-200 inline-block">
+                               {statusRaw.replace(/_/g, ' ') || 'DRAFT'}
+                            </span>
+                          )}
                         </td>
 
-                        {/* AKSI - SELALU AKTIF */}
+                        {/* AKSI */}
                         <td className="px-6 py-4 text-center align-top">
                           <Link 
                             href={`/verifikasi-lapangan/${doc._id.toString()}`}
                             className={`inline-flex items-center gap-1 px-3 py-2 rounded text-xs font-bold shadow-sm transition-all whitespace-nowrap ${
                                 isSudahAdaBA
-                                ? 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300' // Style Netral (Edit/Lihat)
-                                : 'bg-green-600 hover:bg-green-700 text-white border border-green-600' // Style Primary (Input)
+                                ? 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300' 
+                                : 'bg-green-600 hover:bg-green-700 text-white border border-green-600'
                             }`}
                           >
                             <BookOpen className="w-3 h-3" /> 
