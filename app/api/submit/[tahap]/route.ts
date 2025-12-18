@@ -138,7 +138,7 @@ export async function POST(
         } 
         
         // --- TAHAP C ---
-        else if (tahap === 'c') {
+        else if (tahap === 'c' || tahap === 'verlap') {
             const { tanggalVerifikasi } = body;
             generatedNomorStr = existingData.nomorBAVerlap || generateNomor(queryNoUrut, tanggalVerifikasi, 'BA.V', existingData.jenisDokumen);
             updateQuery = { nomorBAVerlap: generatedNomorStr, tanggalVerlap: tanggalVerifikasi };

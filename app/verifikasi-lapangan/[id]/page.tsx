@@ -14,7 +14,6 @@ export default function VerifikasiLapanganDetail({ params }: { params: Promise<{
     
     // State Form
     const [tanggalVerlap, setTanggalVerlap] = useState('');
-    const [catatanVerlap, setCatatanVerlap] = useState('');
     const [submitting, setSubmitting] = useState(false);
 
     useEffect(() => {
@@ -44,7 +43,6 @@ export default function VerifikasiLapanganDetail({ params }: { params: Promise<{
                 
                 // Isi form jika sudah ada data sebelumnya
                 if(doc.tanggalVerlap) setTanggalVerlap(doc.tanggalVerlap);
-                if(doc.catatanVerlap) setCatatanVerlap(doc.catatanVerlap);
             } else {
                 alert("Data dengan No Urut tersebut tidak ditemukan!");
                 router.push('/verifikasi-lapangan');
@@ -71,7 +69,6 @@ export default function VerifikasiLapanganDetail({ params }: { params: Promise<{
                     id: data._id, // Saat simpan, kita ambil ID asli dari data yang sudah di-fetch
                     noUrut: data.noUrut, // <--- TAMBAHKAN INI (Supaya error hilang)
                     tanggalVerlap: tanggalVerlap,
-                    catatanVerlap: catatanVerlap
                 })
             });
 
@@ -121,15 +118,6 @@ export default function VerifikasiLapanganDetail({ params }: { params: Promise<{
                             className="border p-2 rounded w-full md:w-1/2"
                             value={tanggalVerlap}
                             onChange={(e) => setTanggalVerlap(e.target.value)}
-                        />
-                    </div>
-                    <div className="mb-4">
-                        <label className="block text-sm font-medium mb-1">Catatan</label>
-                        <textarea 
-                            rows={3}
-                            className="border p-2 rounded w-full"
-                            value={catatanVerlap}
-                            onChange={(e) => setCatatanVerlap(e.target.value)}
                         />
                     </div>
                     <button disabled={submitting} className="bg-blue-600 text-white px-6 py-2 rounded font-bold hover:bg-blue-700">
