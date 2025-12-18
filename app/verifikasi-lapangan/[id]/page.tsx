@@ -25,32 +25,45 @@ export default function VerifikasiLapanganDetail({ params }: { params: Promise<{
     }, [id]);
 
     const fetchData = async () => {
-        try {
-            // Gunakan endpoint yang sama atau sesuaikan jika ada endpoint khusus getById
-            const res = await fetch('/api/record/find', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id: id }) // Mengirim ID dokumen
-            });
-            const result = await res.json();
-            
-            if (result.success && result.data) {
-                const doc = Array.isArray(result.data) ? result.data[0] : result.data;
-                setData(doc);
+            // Cek dulu apakah ID benar-benar ada
+            if (!id) return;
+
+            console.log("Mengirim ID ke API:", id); // Debugging: Cek di Console Browser
+
+            try {
+                const res = await fetch('/api/record/find', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    // PERBAIKAN DI SINI:
+                    // Gunakan 'noUrut' jika itu yang diminta backendmu sebelumnya
+                    body: JSON.stringify({ noUrut: id }) 
+                });
                 
-                // Pre-fill jika data sudah pernah disimpan sebelumnya
-                if(doc.tanggalVerlap) setTanggalVerlap(doc.tanggalVerlap);
-                if(doc.catatanVerlap) setCatatanVerlap(doc.catatanVerlap);
-            } else {
-                alert("Data permohonan tidak ditemukan!");
-                router.push('/verifikasi-lapangan');
+                if (!res.ok) {
+                    // Tangkap jika status selain 200 (misal 400 atau 500)
+                    throw new Error(`HTTP error! status: ${res.status}`);
+                }
+
+                const result = await res.json();
+                
+                if (result.success && result.data) {
+                    const doc = Array.isArray(result.data) ? result.data[0] : result.data;
+                    setData(doc);
+                    
+                    // Pre-fill state
+                    if(doc.tanggalVerlap) setTanggalVerlap(doc.tanggalVerlap);
+                    if(doc.catatanVerlap) setCatatanVerlap(doc.catatanVerlap);
+                } else {
+                    alert("Data permohonan tidak ditemukan!");
+                    // router.push('/verifikasi-lapangan'); // Comment dulu biar bisa lihat error
+                }
+            } catch (error) {
+                console.error("Error fetching data:", error);
+                alert("Gagal memuat data. Cek Console.");
+            } finally {
+                setLoading(false);
             }
-        } catch (error) {
-            console.error("Error fetching data:", error);
-        } finally {
-            setLoading(false);
-        }
-    };
+        };
 
     // 2. Handle Submit Form
     const handleSubmit = async (e: React.FormEvent) => {
