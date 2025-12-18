@@ -8,11 +8,13 @@ export default async function VerifikasiPage() {
   const db = await getDb();
 
   // --- DEBUGGING MODE: ON ---
-  // Ambil SEMUA data, urutkan dari yang terbaru diinput
   const dataDokumen = await db.collection('dokumen')
-    .find({}) 
-    .sort({ _id: -1 }) // Paling baru di atas
-    .limit(50)         // Batasi 50 biar tidak berat
+    .find({}) // FILTER KOSONG = TAMPILKAN SEMUA (Belum & Sudah)
+    // SORTING SAKTI: 
+    // Prioritaskan yang baru saja di-update/diedit (updatedAt), 
+    // lalu urutkan sisanya berdasarkan yang terbaru dibuat (_id).
+    .sort({ updatedAt: -1, _id: -1 }) 
+    .limit(100) // Naikkan limit jadi 100 biar data lama yang baru diedit tetap kelihatan
     .toArray();
 
   return (
@@ -20,9 +22,9 @@ export default async function VerifikasiPage() {
       <div className="max-w-7xl mx-auto">
         
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-800">Verifikasi Akhir</h1>
+          <h1 className="text-2xl font-bold text-gray-800">Verifikasi Akhir (DEBUG LIST)</h1>
           <p className="text-blue-600 text-sm font-bold">
-            Verifikasi kelengkapan pasca perbaikan sebelum dokumen diteruskan ke bagian Arsip untuk penomoran SK.
+            ℹ️ Menampilkan 100 dokumen terakhir (Diurutkan berdasarkan yang baru diedit/dibuat).
           </p>
         </div>
 
@@ -46,24 +48,26 @@ export default async function VerifikasiPage() {
                   </tr>
                 ) : (
                   dataDokumen.map((doc: any) => {
-                    // --- LOGIKA PERBAIKAN TAMPILAN ---
+                    // --- LOGIKA TAMPILAN ---
                     
-                    // 1. Cek Nama Pemrakarsa (Bisa beda-beda nama fieldnya di DB lama vs baru)
+                    // 1. Cek Nama (Support berbagai format field)
                     const nama = doc.namaPemrakarsa || doc.pemrakarsa || doc.nama_pemrakarsa || "Tanpa Nama";
                     
-                    // 2. Ambil Info Kegiatan/Registrasi
+                    // 2. Info Tambahan
                     const kegiatan = doc.namaKegiatan || doc.judul_kegiatan || doc.kegiatan || "-";
                     const noReg = doc.nomorChecklist || doc.no_registrasi || doc.noUrut || "?";
 
-                    // 3. Cek apakah dokumen ini sudah punya Status Verifikasi?
-                    // (Logika: Jika status kosong, berarti belum pernah diproses)
+                    // 3. Status
+                    // Jika ada status (sudah diproses), warnanya HIJAU. Jika belum, KUNING.
                     const statusText = doc.status || "BELUM DIPROSES";
-                    const statusColor = doc.status 
-                        ? "bg-green-100 text-green-800 border-green-300" // Jika ada isinya (Hijau)
-                        : "bg-yellow-100 text-yellow-800 border-yellow-300"; // Jika kosong (Kuning)
+                    const isSelesai = !!doc.status; // Boolean check
+                    
+                    const statusClass = isSelesai
+                        ? "bg-green-100 text-green-800 border-green-300" // Hijau (Sudah)
+                        : "bg-yellow-100 text-yellow-800 border-yellow-300"; // Kuning (Belum)
 
                     return (
-                      <tr key={doc._id.toString()} className="hover:bg-gray-50">
+                      <tr key={doc._id.toString()} className={`hover:bg-gray-50 transition-colors ${isSelesai ? 'bg-green-50/30' : ''}`}>
                         
                         {/* KOLOM 1: IDENTITAS */}
                         <td className="px-6 py-4">
@@ -76,22 +80,22 @@ export default async function VerifikasiPage() {
                         
                         {/* KOLOM 2: STATUS */}
                         <td className="px-6 py-4">
-                          <span className={`px-2 py-1 rounded font-bold text-xs border ${statusColor}`}>
+                          <span className={`px-2 py-1 rounded font-bold text-xs border ${statusClass}`}>
                             {statusText}
                           </span>
                         </td>
 
-                        {/* KOLOM 3: AKSI (LINK YANG BENAR) */}
+                        {/* KOLOM 3: AKSI */}
                         <td className="px-6 py-4 text-center">
-                          {/* PENTING:
-                              Href mengarah ke doc.noUrut (Angka), BUKAN doc._id (String Aneh).
-                              Contoh: /verifikasi/101
-                          */}
                           <Link 
                             href={`/verifikasi-lapangan/${doc.noUrut}`} 
-                            className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-2 px-4 rounded transition-colors"
+                            className={`inline-block text-xs font-bold py-2 px-4 rounded transition-colors ${
+                                isSelesai 
+                                ? "bg-white text-green-600 border border-green-600 hover:bg-green-50" 
+                                : "bg-blue-600 text-white hover:bg-blue-700"
+                            }`}
                           >
-                            Pilih / Proses
+                            {isSelesai ? 'Edit / Lihat' : 'Proses'}
                           </Link>
                         </td>
                       </tr>
