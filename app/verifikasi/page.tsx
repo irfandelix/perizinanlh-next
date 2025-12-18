@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { getDb } from '@/lib/db';
+import { FileText } from 'lucide-react'; // Icon untuk mempercantik RPD
 
 // Agar halaman selalu refresh data terbaru
 export const dynamic = 'force-dynamic';
@@ -31,9 +32,12 @@ export default async function VerifikasiPage() {
             <table className="w-full text-left text-sm text-gray-600">
               <thead className="bg-gray-50 text-gray-700 uppercase text-xs font-bold">
                 <tr>
-                  {/* KOLOM BARU KHUSUS NO REGISTRASI */}
-                  <th className="px-6 py-3 min-w-[200px]">No. Registrasi</th>
+                  <th className="px-6 py-3 min-w-[180px]">No. Registrasi</th>
                   <th className="px-6 py-3 min-w-[250px]">Pemrakarsa / Kegiatan</th>
+                  
+                  {/* --- KOLOM BARU: RPD --- */}
+                  <th className="px-6 py-3 min-w-[200px]">No. Risalah (RPD)</th>
+
                   <th className="px-6 py-3">Status Saat Ini</th>
                   <th className="px-6 py-3 text-center">Aksi</th>
                 </tr>
@@ -42,7 +46,8 @@ export default async function VerifikasiPage() {
                 
                 {dataDokumen.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="px-6 py-10 text-center text-gray-400">
+                    {/* Jangan lupa update colSpan jadi 5 karena kolom nambah satu */}
+                    <td colSpan={5} className="px-6 py-10 text-center text-gray-400">
                       Database Kosong.
                     </td>
                   </tr>
@@ -51,9 +56,10 @@ export default async function VerifikasiPage() {
                     // --- NORMALISASI DATA ---
                     const nama = doc.namaPemrakarsa || doc.pemrakarsa || doc.nama_pemrakarsa || "Tanpa Nama";
                     const kegiatan = doc.namaKegiatan || doc.judul_kegiatan || doc.kegiatan || "-";
-                    
-                    // Prioritas No Registrasi: Nomor Panjang (Checklist) -> Nomor DB -> No Urut
                     const noReg = doc.nomorChecklist || doc.no_registrasi || doc.nomor_registrasi || ("Urut: " + doc.noUrut);
+                    
+                    // Ambil Data Risalah (RPD)
+                    const nomorRPD = doc.nomorRisalah || doc.no_risalah || doc.nomor_risalah || null;
 
                     const statusText = doc.status || "BELUM DIPROSES";
                     const isSelesai = !!doc.status;
@@ -65,7 +71,7 @@ export default async function VerifikasiPage() {
                     return (
                       <tr key={doc._id.toString()} className={`hover:bg-gray-50 transition-colors ${isSelesai ? 'bg-green-50/20' : ''}`}>
                         
-                        {/* KOLOM 1: NO REGISTRASI (DITAMPILKAN JELAS) */}
+                        {/* 1. NO REGISTRASI */}
                         <td className="px-6 py-4 align-top">
                             <div className="font-mono text-blue-700 font-bold text-xs">
                                 {noReg}
@@ -75,20 +81,34 @@ export default async function VerifikasiPage() {
                             </div>
                         </td>
 
-                        {/* KOLOM 2: PEMRAKARSA */}
+                        {/* 2. PEMRAKARSA */}
                         <td className="px-6 py-4 align-top">
                           <div className="font-bold text-gray-800 text-sm">{nama}</div>
                           <div className="text-xs text-gray-500 mt-1">{kegiatan}</div>
                         </td>
+
+                        {/* 3. KOLOM BARU: RPD (RISALAH) */}
+                        <td className="px-6 py-4 align-top">
+                          {nomorRPD ? (
+                            <div className="flex items-start gap-2 text-gray-700">
+                                <FileText className="w-4 h-4 text-purple-600 mt-0.5 flex-shrink-0" />
+                                <span className="font-mono text-xs font-medium break-all">
+                                    {nomorRPD}
+                                </span>
+                            </div>
+                          ) : (
+                            <span className="text-gray-400 text-xs italic">- Belum Terbit -</span>
+                          )}
+                        </td>
                         
-                        {/* KOLOM 3: STATUS */}
+                        {/* 4. STATUS */}
                         <td className="px-6 py-4 align-top">
                           <span className={`px-2 py-1 rounded font-bold text-[10px] border inline-block ${statusClass}`}>
                             {statusText}
                           </span>
                         </td>
 
-                        {/* KOLOM 4: AKSI */}
+                        {/* 5. AKSI */}
                         <td className="px-6 py-4 text-center align-top">
                           <Link 
                             href={`/verifikasi-lapangan/${doc.noUrut}`} 
