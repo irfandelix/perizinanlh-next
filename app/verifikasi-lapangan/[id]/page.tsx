@@ -30,7 +30,9 @@ export default function VerifikasiLapanganDetail({ params }: { params: Promise<{
                 // RAHASIANYA DI SINI:
                 // Kita kirim parameter 'id' dari URL sebagai 'noUrut' ke API.
                 // API lama kamu ada 'parseInt(noUrut)', jadi dia akan mengubah "101" jadi angka 101.
-                body: JSON.stringify({ id: id }) 
+                body: JSON.stringify({ 
+                  noUrut: Number(id)
+                 }) 
             });
             
             const result = await res.json();
