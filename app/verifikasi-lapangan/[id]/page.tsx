@@ -5,8 +5,8 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
 export default function VerifikasiLapanganDetail({ params }: { params: Promise<{ id: string }> }) {
-    // 1. Ambil ID dari params (Cara Next.js 15)
-    const { id } = use(params);
+    // Di sini 'id' adalah angka No Urut dari URL (misal: /verifikasi/101)
+    const { id } = use(params); 
     const router = useRouter();
 
     const [loading, setLoading] = useState(true);
@@ -17,54 +17,56 @@ export default function VerifikasiLapanganDetail({ params }: { params: Promise<{
     const [catatanVerlap, setCatatanVerlap] = useState('');
     const [submitting, setSubmitting] = useState(false);
 
-    // 2. useEffect persis seperti Pemeriksaan Page
     useEffect(() => {
         if (id) fetchData();
     }, [id]);
 
-    // 3. Fungsi Fetch Data (Disamakan TOTAL dengan Pemeriksaan)
     const fetchData = async () => {
         try {
-            // Logika ini yg membuat Pemeriksaan Page berhasil
+            // KITA PAKAI API LAMA (api/record/find)
             const res = await fetch('/api/record/find', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ noUrut: id }) // KUNCINYA DI SINI: kirim sebagai 'noUrut'
+                // RAHASIANYA DI SINI:
+                // Kita kirim parameter 'id' dari URL sebagai 'noUrut' ke API.
+                // API lama kamu ada 'parseInt(noUrut)', jadi dia akan mengubah "101" jadi angka 101.
+                body: JSON.stringify({ noUrut: id }) 
             });
+            
             const result = await res.json();
             
             if (result.success && result.data) {
+                // Handle jika data array atau object tunggal
                 const doc = Array.isArray(result.data) ? result.data[0] : result.data;
                 setData(doc);
                 
-                // Isi state jika data sudah pernah disimpan sebelumnya
+                // Isi form jika sudah ada data sebelumnya
                 if(doc.tanggalVerlap) setTanggalVerlap(doc.tanggalVerlap);
                 if(doc.catatanVerlap) setCatatanVerlap(doc.catatanVerlap);
             } else {
-                alert("Data tidak ditemukan!");
+                alert("Data dengan No Urut tersebut tidak ditemukan!");
                 router.push('/verifikasi-lapangan');
             }
         } catch (error) {
             console.error("Error:", error);
-            alert("Gagal memuat data (Koneksi/Server Error)");
+            alert("Gagal memuat data.");
         } finally {
             setLoading(false);
         }
     };
 
-    // 4. Handle Submit (Simpan)
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!confirm("Terbitkan Berita Acara Verifikasi Lapangan?")) return;
+        if (!confirm("Simpan Hasil Verifikasi Lapangan?")) return;
 
         setSubmitting(true);
         try {
-            // Gunakan endpoint khusus verlap atau endpoint umum yg disesuaikan
+            // Endpoint simpan (sesuaikan dengan logic update database kamu)
             const res = await fetch('/api/submit/verlap', { 
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    id: data._id || id, // Kirim ID asli
+                    id: data._id, // Saat simpan, kita ambil ID asli dari data yang sudah di-fetch
                     tanggalVerlap: tanggalVerlap,
                     catatanVerlap: catatanVerlap
                 })
@@ -72,7 +74,7 @@ export default function VerifikasiLapanganDetail({ params }: { params: Promise<{
 
             const result = await res.json();
             if (result.success) {
-                alert("✅ Berhasil! BA Verlap diterbitkan.");
+                alert("✅ Berhasil disimpan!");
                 router.push('/verifikasi-lapangan');
             } else {
                 alert("Gagal: " + result.message);
@@ -84,84 +86,52 @@ export default function VerifikasiLapanganDetail({ params }: { params: Promise<{
         }
     };
 
-    if (loading) return <div className="p-8 text-center text-gray-500">Memuat data...</div>;
-    if (!data) return <div className="p-8 text-center text-red-500">Data tidak ditemukan.</div>;
+    if (loading) return <div className="p-10 text-center">Memuat data No Urut: {id}...</div>;
+    if (!data) return <div className="p-10 text-center text-red-500">Data tidak ditemukan.</div>;
 
     return (
         <div className="min-h-screen bg-gray-50 p-8">
-            <div className="max-w-4xl mx-auto bg-white rounded-xl shadow border border-gray-200 p-8">
+            <div className="max-w-4xl mx-auto bg-white rounded-xl shadow p-8">
                 
-                {/* HEADER */}
-                <div className="mb-6 flex items-center justify-between">
-                    <h1 className="text-xl font-bold text-gray-800">Verifikasi Lapangan</h1>
-                    <Link href="/verifikasi-lapangan" className="text-sm text-gray-500 hover:text-green-600">
-                        ← Kembali ke Daftar
-                    </Link>
-                </div>
-
-                {/* INFO DOKUMEN */}
-                <div className="bg-green-50 p-4 rounded-lg border border-green-100 mb-6 text-sm">
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <p className="text-gray-500">Nomor Registrasi:</p>
-                            <p className="font-bold font-mono text-green-900 text-lg">
-                                {data.no_registrasi || data.nomorChecklist || '-'}
-                            </p>
-                        </div>
-                        <div>
-                            <p className="text-gray-500">Pemrakarsa:</p>
-                            <p className="font-semibold text-gray-800">{data.pemrakarsa || data.namaPemrakarsa}</p>
-                        </div>
-                        <div className="col-span-2">
-                            <p className="text-gray-500">Kegiatan:</p>
-                            <p className="font-semibold text-gray-700">
-                                {data.nama_kegiatan || data.namaKegiatan || '-'}
-                            </p>
-                        </div>
+                {/* Header */}
+                <div className="mb-6 border-b pb-4 flex justify-between items-center">
+                    <div>
+                        <h1 className="text-xl font-bold text-gray-800">Verifikasi Lapangan</h1>
+                        <p className="text-sm text-gray-500">No Urut: <span className="font-mono font-bold">{id}</span></p>
                     </div>
+                    <Link href="/verifikasi-lapangan" className="text-sm text-blue-600 hover:underline">Kembali</Link>
                 </div>
 
-                {/* FORM INPUT */}
-                <form onSubmit={handleSubmit} className="border-t pt-6">
-                    <h3 className="font-bold text-lg mb-4 text-green-800">Input Hasil Lapangan</h3>
-                    
+                {/* Info Singkat */}
+                <div className="bg-blue-50 p-4 rounded mb-6 text-sm text-blue-900">
+                    <p><strong>Kegiatan:</strong> {data.namaKegiatan || data.nama_kegiatan}</p>
+                    <p><strong>Pemrakarsa:</strong> {data.namaPemrakarsa || data.pemrakarsa}</p>
+                    <p><strong>No Registrasi:</strong> {data.nomorChecklist || data.no_registrasi}</p>
+                </div>
+
+                {/* Form */}
+                <form onSubmit={handleSubmit}>
                     <div className="mb-4">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Tanggal Verifikasi
-                        </label>
+                        <label className="block text-sm font-medium mb-1">Tanggal Verlap</label>
                         <input 
-                            type="date"
-                            required
-                            className="w-full md:w-1/2 border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-green-500 outline-none"
+                            type="date" required 
+                            className="border p-2 rounded w-full md:w-1/2"
                             value={tanggalVerlap}
                             onChange={(e) => setTanggalVerlap(e.target.value)}
                         />
                     </div>
-
-                    <div className="mb-6">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Catatan Lapangan
-                        </label>
+                    <div className="mb-4">
+                        <label className="block text-sm font-medium mb-1">Catatan</label>
                         <textarea 
-                            rows={4}
-                            className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-green-500 outline-none"
-                            placeholder="Tuliskan temuan di sini..."
+                            rows={3}
+                            className="border p-2 rounded w-full"
                             value={catatanVerlap}
                             onChange={(e) => setCatatanVerlap(e.target.value)}
                         />
                     </div>
-
-                    <div className="mt-6">
-                        <button
-                            type="submit"
-                            disabled={submitting}
-                            className={`px-6 py-2.5 rounded-lg font-bold text-white transition-colors w-full md:w-auto ${
-                                submitting ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'
-                            }`}
-                        >
-                            {submitting ? 'Menyimpan...' : '✅ Simpan & Terbitkan BA'}
-                        </button>
-                    </div>
+                    <button disabled={submitting} className="bg-blue-600 text-white px-6 py-2 rounded font-bold hover:bg-blue-700">
+                        {submitting ? 'Menyimpan...' : 'Simpan Hasil'}
+                    </button>
                 </form>
 
             </div>
