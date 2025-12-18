@@ -139,42 +139,75 @@ export async function POST(
             updateQuery = { nomorUjiBerkas: generatedNomorStr, tanggalUjiBerkas: tanggalPenerbitanUa };
         } 
         
-        // ==========================================
-        // TAHAP C (VERIFIKASI LAPANGAN) -> WAJIB GANJIL
-        // ==========================================
+// ---------------------------------------------------------
+        // TAHAP C (VERIFIKASI LAPANGAN) -> GANJIL (1, 3, 5...)
+        // ---------------------------------------------------------
         else if (tahap === 'c' || tahap === 'verlap') {
-            const tanggalVerifikasi = body.tanggalVerifikasi || body.tanggalVerlap; // Support kedua nama
-            
-            if (!tanggalVerifikasi) {
-                 return NextResponse.json({ success: false, message: 'Tanggal Verifikasi wajib diisi.' }, { status: 400 });
+            const tanggalVerifikasi = body.tanggalVerifikasi || body.tanggalVerlap;
+            if (!tanggalVerifikasi) return NextResponse.json({ success: false, message: 'Tanggal Verifikasi wajib diisi.' }, { status: 400 });
+
+            // Cek apakah dokumen ini SUDAH punya nomor urut verlap sebelumnya?
+            let currentSeq = existingData.seqVerlap; 
+
+            if (!currentSeq) {
+                // Jika belum punya, CARI NOMOR TERAKHIR di seluruh database
+                // Kita cari dokumen dengan 'seqVerlap' tertinggi
+                const lastVerlapDoc = await collection.find({ seqVerlap: { $exists: true } })
+                                                      .sort({ seqVerlap: -1 })
+                                                      .limit(1)
+                                                      .toArray();
+                
+                const lastSeq = lastVerlapDoc.length > 0 ? lastVerlapDoc[0].seqVerlap : -1; // -1 supaya kalau ditambah 2 jadi 1
+                
+                // Tambah 2 dari nomor terakhir (misal terakhir 1 -> jadi 3)
+                // Kalau belum ada data sama sekali (-1), jadi 1.
+                currentSeq = lastSeq + 2; 
+
+                // Pengaman: Jika database kosong/baru mulai, paksa jadi 1 (Ganjil Pertama)
+                if (lastSeq === -1) currentSeq = 1;
             }
 
-            // RUMUS GANJIL: (NoUrut * 2) - 1
-            // Contoh: NoUrut 1 -> 1, NoUrut 2 -> 3, NoUrut 3 -> 5
-            const nomorGanjil = (queryNoUrut * 2) - 1;
-
-            generatedNomorStr = existingData.nomorBAVerlap || generateNomor(nomorGanjil, tanggalVerifikasi, 'BA.V', existingData.jenisDokumen);
+            generatedNomorStr = generateNomor(currentSeq, tanggalVerifikasi, 'BA.V', existingData.jenisDokumen);
             
             updateQuery = { 
                 nomorBAVerlap: generatedNomorStr, 
                 tanggalVerlap: tanggalVerifikasi,
+                seqVerlap: currentSeq, // KITA SIMPAN URUTANNYA BIAR BISA DICEK NANTI
                 status: 'Verifikasi Lapangan Selesai', 
                 updatedAt: new Date()
             };
         }
         
-        // ==========================================
-        // TAHAP D (PEMERIKSAAN) -> WAJIB GENAP
-        // ==========================================
+        // ---------------------------------------------------------
+        // TAHAP D (PEMERIKSAAN) -> GENAP (2, 4, 6...)
+        // ---------------------------------------------------------
         else if (tahap === 'd') {
             const { tanggalPemeriksaan } = body;
 
-            // RUMUS GENAP: NoUrut * 2
-            // Contoh: NoUrut 1 -> 2, NoUrut 2 -> 4 (Meskipun verlapnya 3 dilewati)
-            const nomorGenap = queryNoUrut * 2;
+            // Cek apakah dokumen ini SUDAH punya nomor urut pemeriksaan sebelumnya?
+            let currentSeq = existingData.seqPemeriksaan;
 
-            generatedNomorStr = existingData.nomorBAPemeriksaan || generateNomor(nomorGenap, tanggalPemeriksaan, 'BA.P', existingData.jenisDokumen);
-            updateQuery = { nomorBAPemeriksaan: generatedNomorStr, tanggalPemeriksaan: tanggalPemeriksaan };
+            if (!currentSeq) {
+                // Jika belum punya, cari yang tertinggi di database
+                const lastPemeriksaanDoc = await collection.find({ seqPemeriksaan: { $exists: true } })
+                                                           .sort({ seqPemeriksaan: -1 })
+                                                           .limit(1)
+                                                           .toArray();
+
+                const lastSeq = lastPemeriksaanDoc.length > 0 ? lastPemeriksaanDoc[0].seqPemeriksaan : 0;
+                
+                // Tambah 2 (misal terakhir 2 -> jadi 4)
+                // Kalau database kosong (0), jadi 2.
+                currentSeq = lastSeq + 2;
+            }
+
+            generatedNomorStr = generateNomor(currentSeq, tanggalPemeriksaan, 'BA.P', existingData.jenisDokumen);
+            
+            updateQuery = { 
+                nomorBAPemeriksaan: generatedNomorStr, 
+                tanggalPemeriksaan: tanggalPemeriksaan,
+                seqPemeriksaan: currentSeq, // SIMPAN URUTANNYA
+            };
         }
         
         // --- TAHAP E (REVISI) ---
