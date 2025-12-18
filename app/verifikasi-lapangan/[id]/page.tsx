@@ -1,118 +1,181 @@
-import { getDb } from '@/lib/db';
-import { ObjectId } from 'mongodb';
-import { redirect } from 'next/navigation';
-import { revalidatePath } from 'next/cache';
-import RisalahFinalPage from '@/components/RisalahFinalPage'; // Pastikan komponen UI ini ada
+'use client';
 
-// --- SERVER ACTIONS ---
+import React, { useState, useEffect, use } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
-// 1. Ambil History SK Terakhir (untuk referensi nomor)
-async function getHistorySK() {
-  const db = await getDb();
-  const history = await db.collection('izin_terbit')
-    .find({})
-    .sort({ tanggal_terbit: -1 })
-    .limit(3)
-    .toArray();
+// Komponen Halaman Detail Verifikasi Lapangan
+export default function VerifikasiLapanganDetail({ params }: { params: Promise<{ id: string }> }) {
+    // Unwrapping params (Next.js 15 style)
+    const { id } = use(params);
+    const router = useRouter();
+
+    // State Management
+    const [loading, setLoading] = useState(true);
+    const [data, setData] = useState<any>(null);
     
-  // Mapping agar sesuai props komponen UI
-  // Asumsi di collection 'izin_terbit' ada field: nomor_sk, tanggal_terbit, nama_pemrakarsa
-  return history.map((h: any) => ({
-    no_sk: h.nomor_sk,
-    tgl: h.tanggal_terbit, 
-    pemrakarsa: h.nama_pemrakarsa || 'Unknown'
-  }));
-}
+    // Form State khusus Verlap
+    const [tanggalVerlap, setTanggalVerlap] = useState('');
+    const [catatanVerlap, setCatatanVerlap] = useState(''); // Tambahan untuk temuan lapangan
+    const [submitting, setSubmitting] = useState(false);
 
-// 2. Ambil Detail Dokumen Saat Ini
-async function getDocById(id: string) {
-  const db = await getDb();
-  try {
-    const doc = await db.collection('permohonan').findOne({ _id: new ObjectId(id) });
-    if (!doc) return null;
-    return {
-      pemrakarsa: doc.pemrakarsa,
-      no_registrasi: doc.no_registrasi
-    };
-  } catch (e) {
-    return null;
-  }
-}
+    // 1. Fetch Data saat ID tersedia
+    useEffect(() => {
+        if (id) fetchData();
+    }, [id]);
 
-// 3. Action Simpan (Update DB)
-async function saveAction(formData: any) {
-  "use server";
-  
-  const { id, tanggalPengolahan } = formData;
-  const db = await getDb();
-  
-  // Logic Generator Nomor (Contoh Sederhana)
-  const timestamp = Math.floor(Date.now() / 1000).toString().substr(-4);
-  const newNomorSK = `660/${timestamp}/PKPLH/2025`; 
-
-  try {
-    const objectId = new ObjectId(id);
-    
-    // A. Update status di tabel permohonan
-    const doc = await db.collection('permohonan').findOne({ _id: objectId });
-    await db.collection('permohonan').updateOne(
-        { _id: objectId },
-        { 
-            $set: { 
-                status: 'SELESAI',
-                nomor_sk: newNomorSK,
-                tanggal_sk: tanggalPengolahan 
+    const fetchData = async () => {
+        try {
+            // Gunakan endpoint yang sama atau sesuaikan jika ada endpoint khusus getById
+            const res = await fetch('/api/record/find', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: id }) // Mengirim ID dokumen
+            });
+            const result = await res.json();
+            
+            if (result.success && result.data) {
+                const doc = Array.isArray(result.data) ? result.data[0] : result.data;
+                setData(doc);
+                
+                // Pre-fill jika data sudah pernah disimpan sebelumnya
+                if(doc.tanggalVerlap) setTanggalVerlap(doc.tanggalVerlap);
+                if(doc.catatanVerlap) setCatatanVerlap(doc.catatanVerlap);
+            } else {
+                alert("Data permohonan tidak ditemukan!");
+                router.push('/verifikasi-lapangan');
             }
+        } catch (error) {
+            console.error("Error fetching data:", error);
+        } finally {
+            setLoading(false);
         }
-    );
+    };
 
-    // B. Simpan ke Arsip Izin Terbit (untuk history)
-    await db.collection('izin_terbit').insertOne({
-        permohonan_id: objectId,
-        nomor_sk: newNomorSK,
-        tanggal_terbit: tanggalPengolahan,
-        nama_pemrakarsa: doc?.pemrakarsa || '-',
-        created_at: new Date()
-    });
+    // 2. Handle Submit Form
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!confirm("Simpan hasil Verifikasi Lapangan dan Terbitkan Berita Acara?")) return;
 
-  } catch (error) {
-    console.error("Gagal simpan:", error);
-    throw new Error("Database error");
-  }
+        setSubmitting(true);
+        try {
+            // POST ke Endpoint khusus Verlap (sesuaikan URL API-mu)
+            const res = await fetch('/api/submit/verlap', { 
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    id: data._id || id, // Pastikan ID terkirim
+                    tanggalVerlap: tanggalVerlap,
+                    catatanVerlap: catatanVerlap
+                })
+            });
 
-  // Refresh halaman tabel & redirect
-  revalidatePath('/verifikasi');
-  redirect('/verifikasi');
-}
+            const result = await res.json();
+            if (result.success) {
+                alert("✅ Berhasil! Berita Acara Verlap diterbitkan.");
+                router.push('/verifikasi-lapangan'); // Kembali ke tabel
+            } else {
+                alert("Gagal: " + result.message);
+            }
+        } catch (error) {
+            alert("Terjadi kesalahan sistem saat menyimpan.");
+            console.error(error);
+        } finally {
+            setSubmitting(false);
+        }
+    };
 
+    // Loading State
+    if (loading) return <div className="p-8 text-center text-gray-500">Memuat data verifikasi...</div>;
+    if (!data) return <div className="p-8 text-center text-red-500">Data tidak ditemukan.</div>;
 
-// --- MAIN PAGE COMPONENT ---
-export default async function HalamanDetailVerifikasi({ params }: { params: { id: string } }) {
-  const [historyData, docData] = await Promise.all([
-    getHistorySK(),
-    getDocById(params.id)
-  ]);
-
-  if (!docData) {
     return (
-      <div className="p-10 text-center">
-        <h2 className="text-red-500 font-bold">Error 404</h2>
-        <p>Dokumen dengan ID tersebut tidak ditemukan.</p>
-      </div>
+        <div className="min-h-screen bg-gray-50 p-8">
+            <div className="max-w-4xl mx-auto bg-white rounded-xl shadow border border-gray-200 p-8">
+                
+                {/* Header Section */}
+                <div className="mb-6 flex items-center justify-between">
+                    <h1 className="text-xl font-bold text-gray-800">Verifikasi Lapangan</h1>
+                    <Link href="/verifikasi-lapangan" className="text-sm text-gray-500 hover:text-green-600">
+                        ← Kembali ke Daftar
+                    </Link>
+                </div>
+
+                {/* Info Dokumen Box */}
+                <div className="bg-green-50 p-4 rounded-lg border border-green-100 mb-6 text-sm">
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <p className="text-gray-500">Nomor Registrasi:</p>
+                            <p className="font-bold font-mono text-green-900 text-lg">
+                                {data.no_registrasi || data.nomorChecklist || '-'}
+                            </p>
+                        </div>
+                        <div>
+                            <p className="text-gray-500">Pemrakarsa:</p>
+                            <p className="font-semibold text-gray-800">{data.pemrakarsa || data.namaPemrakarsa}</p>
+                        </div>
+                        <div className="col-span-2">
+                            <p className="text-gray-500">Lokasi / Alamat Kegiatan:</p>
+                            <p className="font-semibold text-gray-700">
+                                {data.alamat_kegiatan || data.lokasi || '-'}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Form Input Hasil Verlap */}
+                <form onSubmit={handleSubmit} className="border-t pt-6">
+                    <h3 className="font-bold text-lg mb-4 text-green-800">Input Hasil Verifikasi Lapangan</h3>
+                    
+                    {/* Input Tanggal */}
+                    <div className="mb-4">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Tanggal Pelaksanaan
+                        </label>
+                        <input 
+                            type="date"
+                            required
+                            className="w-full md:w-1/2 border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-green-500 outline-none transition-all"
+                            value={tanggalVerlap}
+                            onChange={(e) => setTanggalVerlap(e.target.value)}
+                        />
+                    </div>
+
+                    {/* Input Catatan (TextArea) */}
+                    <div className="mb-6">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Catatan / Temuan Lapangan
+                        </label>
+                        <textarea 
+                            rows={4}
+                            placeholder="Tuliskan temuan atau catatan verifikasi di sini..."
+                            className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-green-500 outline-none transition-all"
+                            value={catatanVerlap}
+                            onChange={(e) => setCatatanVerlap(e.target.value)}
+                        />
+                    </div>
+
+                    {/* Submit Button */}
+                    <div className="mt-6">
+                        <button
+                            type="submit"
+                            disabled={submitting}
+                            className={`px-6 py-2.5 rounded-lg font-bold text-white transition-colors w-full md:w-auto ${
+                                submitting 
+                                ? 'bg-gray-400 cursor-not-allowed' 
+                                : 'bg-green-600 hover:bg-green-700 shadow-md hover:shadow-lg'
+                            }`}
+                        >
+                            {submitting ? 'Sedang Menyimpan...' : '✅ Simpan & Terbitkan BA Verlap'}
+                        </button>
+                    </div>
+                    
+                    <p className="text-xs text-gray-400 mt-3">
+                         Sistem akan otomatis men-generate Nomor Berita Acara (BA) Verlap setelah disimpan.
+                    </p>
+                </form>
+
+            </div>
+        </div>
     );
-  }
-
-  // Wrapper untuk bind ID ke Server Action
-  const bindedAction = async (tanggal: string) => {
-    "use server";
-    await saveAction({ id: params.id, tanggalPengolahan: tanggal });
-  };
-
-  return (
-    <RisalahFinalPage 
-      riwayatDokumen={historyData}
-      dataDokumen={docData}
-      onSaveAction={bindedAction}
-    />
-  );
 }
