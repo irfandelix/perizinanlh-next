@@ -41,10 +41,12 @@ const getKodeJenisDokumen = (inputJenis: string) => {
     return map[normalized] || normalized;
 };
 
-const generateNomor = (noUrut: number, dateString: string, tahapan: string, jenisDokumen: string) => {
+// Pastikan fungsi generateNomor menerima angka (number) apa saja
+const generateNomor = (nomorUntukSurat: number, dateString: string, tahapan: string, jenisDokumen: string) => {
     const { month, year } = getDateParts(dateString);
     const kodeJenis = getKodeJenisDokumen(jenisDokumen);
-    const noUrutStr = formatToThreeDigits(noUrut);
+    // Kita gunakan nomor hasil kalkulasi ganjil/genap disini
+    const noUrutStr = formatToThreeDigits(nomorUntukSurat); 
     return `600.4/${noUrutStr}.${month}/17/${tahapan}.${kodeJenis}/${year}`;
 };
 
@@ -137,17 +139,41 @@ export async function POST(
             updateQuery = { nomorUjiBerkas: generatedNomorStr, tanggalUjiBerkas: tanggalPenerbitanUa };
         } 
         
-        // --- TAHAP C ---
+        // ==========================================
+        // TAHAP C (VERIFIKASI LAPANGAN) -> WAJIB GANJIL
+        // ==========================================
         else if (tahap === 'c' || tahap === 'verlap') {
-            const { tanggalVerifikasi } = body;
-            generatedNomorStr = existingData.nomorBAVerlap || generateNomor(queryNoUrut, tanggalVerifikasi, 'BA.V', existingData.jenisDokumen);
-            updateQuery = { nomorBAVerlap: generatedNomorStr, tanggalVerlap: tanggalVerifikasi };
+            const tanggalVerifikasi = body.tanggalVerifikasi || body.tanggalVerlap; // Support kedua nama
+            
+            if (!tanggalVerifikasi) {
+                 return NextResponse.json({ success: false, message: 'Tanggal Verifikasi wajib diisi.' }, { status: 400 });
+            }
+
+            // RUMUS GANJIL: (NoUrut * 2) - 1
+            // Contoh: NoUrut 1 -> 1, NoUrut 2 -> 3, NoUrut 3 -> 5
+            const nomorGanjil = (queryNoUrut * 2) - 1;
+
+            generatedNomorStr = existingData.nomorBAVerlap || generateNomor(nomorGanjil, tanggalVerifikasi, 'BA.V', existingData.jenisDokumen);
+            
+            updateQuery = { 
+                nomorBAVerlap: generatedNomorStr, 
+                tanggalVerlap: tanggalVerifikasi,
+                status: 'Verifikasi Lapangan Selesai', 
+                updatedAt: new Date()
+            };
         }
         
-        // --- TAHAP D ---
+        // ==========================================
+        // TAHAP D (PEMERIKSAAN) -> WAJIB GENAP
+        // ==========================================
         else if (tahap === 'd') {
             const { tanggalPemeriksaan } = body;
-            generatedNomorStr = existingData.nomorBAPemeriksaan || generateNomor(queryNoUrut, tanggalPemeriksaan, 'BA.P', existingData.jenisDokumen);
+
+            // RUMUS GENAP: NoUrut * 2
+            // Contoh: NoUrut 1 -> 2, NoUrut 2 -> 4 (Meskipun verlapnya 3 dilewati)
+            const nomorGenap = queryNoUrut * 2;
+
+            generatedNomorStr = existingData.nomorBAPemeriksaan || generateNomor(nomorGenap, tanggalPemeriksaan, 'BA.P', existingData.jenisDokumen);
             updateQuery = { nomorBAPemeriksaan: generatedNomorStr, tanggalPemeriksaan: tanggalPemeriksaan };
         }
         
