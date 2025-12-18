@@ -139,57 +139,46 @@ export async function POST(
             updateQuery = { nomorUjiBerkas: generatedNomorStr, tanggalUjiBerkas: tanggalPenerbitanUa };
         } 
         
-        // --- TAHAP C (VERIFIKASI LAPANGAN) ---
+        // ---------------------------------------------------------
+        // TAHAP C (VERIFIKASI LAPANGAN) -> GANJIL (1, 3, 5...)
+        // ---------------------------------------------------------
         else if (tahap === 'c' || tahap === 'verlap') {
             const tanggalVerifikasi = body.tanggalVerifikasi || body.tanggalVerlap;
+            if (!tanggalVerifikasi) return NextResponse.json({ success: false, message: 'Tanggal Verifikasi wajib diisi.' }, { status: 400 });
 
-            if (!tanggalVerifikasi) {
-                 return NextResponse.json({ success: false, message: 'Tanggal Verifikasi wajib diisi.' }, { status: 400 });
-            }
-
-            let currentSeq = existingData.seqVerlap;
+            // 1. Cek apakah dokumen ini SUDAH punya seqVerlap (Data Baru)
+            let currentSeq = existingData.seqVerlap; 
 
             if (!currentSeq) {
-                // 1. Coba cari yang punya label seqVerlap (Data Baru)
-                const lastVerlapDoc = await collection.find({ seqVerlap: { $exists: true } })
-                                                      .sort({ seqVerlap: -1 })
-                                                      .limit(1)
-                                                      .toArray();
-                
-                if (lastVerlapDoc.length > 0) {
-                    currentSeq = lastVerlapDoc[0].seqVerlap + 2;
-                } else {
-                    // 2. FALLBACK: Jika tidak ada label, CARI STRING TERAKHIR (Data Lama)
-                    // Ambil dokumen dengan nomorBAVerlap terisi, urutkan dari yang terbaru dibuat (createdAt atau _id)
-                    const lastManualDoc = await collection.find({ nomorBAVerlap: { $exists: true, $ne: "" } })
-                                                          .sort({ _id: -1 }) 
-                                                          .limit(1)
-                                                          .toArray();
+                // 2. Jika belum, kita cari angka TERBESAR dari seluruh database
+                // Kita ambil semua dokumen yang sudah punya Nomor BA Verlap
+                const allDocs = await collection.find({ 
+                    nomorBAVerlap: { $exists: true, $ne: "" } 
+                }).project({ nomorBAVerlap: 1, seqVerlap: 1 }).toArray();
 
-                    if (lastManualDoc.length > 0) {
-                        // String: "600.4/129.12/17/BA.V.UKLUPL/2025"
-                        // Kita ambil angka "129"-nya
-                        try {
-                            const nomorStr = lastManualDoc[0].nomorBAVerlap;
-                            // Split berdasarkan '/' -> ambil bagian kedua "129.12"
-                            const parts = nomorStr.split('/'); 
-                            if (parts.length > 1) {
-                                // Split berdasarkan '.' -> ambil bagian pertama "129"
-                                const numberPart = parts[1].split('.')[0];
-                                const lastNumber = parseInt(numberPart, 10);
-                                
-                                if (!isNaN(lastNumber)) {
-                                    currentSeq = lastNumber + 2; // Lanjutkan urutan lama (129 + 2 = 131)
-                                }
-                            }
-                        } catch (e) {
-                            console.log("Gagal parsing nomor lama, reset ke 1");
+                let maxNumber = 0;
+
+                allDocs.forEach(doc => {
+                    // Prioritas 1: Gunakan seqVerlap jika ada
+                    if (doc.seqVerlap) {
+                        if (doc.seqVerlap > maxNumber) maxNumber = doc.seqVerlap;
+                    } 
+                    // Prioritas 2: Parsing String Manual (Untuk data lama: 161, 129, dll)
+                    else if (doc.nomorBAVerlap) {
+                        // Regex: Cari tanda '/' diikuti 3 digit angka, diikuti tanda '.'
+                        // Cocok untuk: .../161.10... atau .../129.12...
+                        const match = doc.nomorBAVerlap.match(/\/(\d{3})\./);
+                        if (match && match[1]) {
+                            const num = parseInt(match[1], 10);
+                            if (num > maxNumber) maxNumber = num;
                         }
                     }
-                }
+                });
 
-                // 3. Jika benar-benar kosong (DB Baru), mulai dari 1
-                if (!currentSeq) currentSeq = 1;
+                // Angka terakhir ketemu (misal 161). 
+                // Kita tambah 2 -> Jadi 163.
+                // Jika database kosong (maxNumber 0), mulai dari 1.
+                currentSeq = maxNumber === 0 ? 1 : maxNumber + 2;
             }
 
             generatedNomorStr = generateNomor(currentSeq, tanggalVerifikasi, 'BA.V', existingData.jenisDokumen);
@@ -203,46 +192,37 @@ export async function POST(
             };
         }
         
-        // --- TAHAP D (PEMERIKSAAN) ---
+        // ---------------------------------------------------------
+        // TAHAP D (PEMERIKSAAN) -> GENAP (2, 4, 6...)
+        // ---------------------------------------------------------
         else if (tahap === 'd') {
             const { tanggalPemeriksaan } = body;
             
-            // Logika SAMA untuk Pemeriksaan (Genap)
             let currentSeq = existingData.seqPemeriksaan;
 
             if (!currentSeq) {
-                // 1. Cari data baru (seqPemeriksaan)
-                const lastPemeriksaanDoc = await collection.find({ seqPemeriksaan: { $exists: true } })
-                                                           .sort({ seqPemeriksaan: -1 })
-                                                           .limit(1)
-                                                           .toArray();
+                // Logic SAMA PERSIS dengan Tahap C, tapi untuk field Pemeriksaan
+                const allDocs = await collection.find({ 
+                    nomorBAPemeriksaan: { $exists: true, $ne: "" } 
+                }).project({ nomorBAPemeriksaan: 1, seqPemeriksaan: 1 }).toArray();
 
-                if (lastPemeriksaanDoc.length > 0) {
-                    currentSeq = lastPemeriksaanDoc[0].seqPemeriksaan + 2;
-                } else {
-                    // 2. Fallback baca string data lama
-                     const lastManualDoc = await collection.find({ nomorBAPemeriksaan: { $exists: true, $ne: "" } })
-                                                          .sort({ _id: -1 }) 
-                                                          .limit(1)
-                                                          .toArray();
-                    
-                     if (lastManualDoc.length > 0) {
-                        try {
-                            const nomorStr = lastManualDoc[0].nomorBAPemeriksaan;
-                            const parts = nomorStr.split('/'); 
-                            if (parts.length > 1) {
-                                const numberPart = parts[1].split('.')[0];
-                                const lastNumber = parseInt(numberPart, 10);
-                                if (!isNaN(lastNumber)) {
-                                    currentSeq = lastNumber + 2; 
-                                }
-                            }
-                        } catch (e) {}
+                let maxNumber = 0;
+
+                allDocs.forEach(doc => {
+                    if (doc.seqPemeriksaan) {
+                        if (doc.seqPemeriksaan > maxNumber) maxNumber = doc.seqPemeriksaan;
+                    } 
+                    else if (doc.nomorBAPemeriksaan) {
+                        const match = doc.nomorBAPemeriksaan.match(/\/(\d{3})\./);
+                        if (match && match[1]) {
+                            const num = parseInt(match[1], 10);
+                            if (num > maxNumber) maxNumber = num;
+                        }
                     }
-                }
-                
-                // 3. Jika kosong, mulai dari 2 (Genap)
-                if (!currentSeq) currentSeq = 2;
+                });
+
+                // Genap berikutnya
+                currentSeq = maxNumber === 0 ? 2 : maxNumber + 2;
             }
 
             generatedNomorStr = existingData.nomorBAPemeriksaan || generateNomor(currentSeq, tanggalPemeriksaan, 'BA.P', existingData.jenisDokumen);
