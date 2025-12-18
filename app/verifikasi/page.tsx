@@ -1,30 +1,28 @@
 import Link from 'next/link';
 import { getDb } from '@/lib/db';
-import { ObjectId } from 'mongodb';
-import { BookOpen, Clock, CheckCircle, Lock, AlertCircle } from 'lucide-react';
+
+// Agar halaman selalu refresh data terbaru (Server Component)
+export const dynamic = 'force-dynamic';
 
 export default async function VerifikasiPage() {
   const db = await getDb();
 
   // --- DEBUGGING MODE: ON ---
-  // Kita ambil SEMUA data tanpa filter status dulu
-  // Biar ketahuan sebenarnya status dokumen kamu itu tulisannya apa.
+  // Ambil SEMUA data, urutkan dari yang terbaru diinput
   const dataDokumen = await db.collection('dokumen')
-    .find({}) // <--- KOSONGKAN FILTERNYA
-    .sort({ _id: -1 })
-    .limit(50)
+    .find({}) 
+    .sort({ _id: -1 }) // Paling baru di atas
+    .limit(50)         // Batasi 50 biar tidak berat
     .toArray();
-
-  console.log("DATA DARI DB:", dataDokumen); // Cek terminal VSCode kamu nanti
 
   return (
     <div className="bg-gray-50 min-h-screen p-8">
       <div className="max-w-7xl mx-auto">
         
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-800">Verifikasi Akhir (DEBUG MODE)</h1>
-          <p className="text-red-500 text-sm font-bold">
-            ⚠️ Menampilkan SEMUA dokumen tanpa filter. Cek kolom "Status Saat Ini".
+          <h1 className="text-2xl font-bold text-gray-800">Verifikasi Akhir</h1>
+          <p className="text-blue-600 text-sm font-bold">
+            Verifikasi kelengkapan pasca perbaikan sebelum dokumen diteruskan ke bagian Arsip untuk penomoran SK.
           </p>
         </div>
 
@@ -33,9 +31,9 @@ export default async function VerifikasiPage() {
             <table className="w-full text-left text-sm text-gray-600">
               <thead className="bg-gray-50 text-gray-700 uppercase text-xs font-bold">
                 <tr>
-                  <th className="px-6 py-3">Pemrakarsa</th>
-                  <th className="px-6 py-3">STATUS ASLI (DATABASE)</th>
-                  <th className="px-6 py-3">Aksi</th>
+                  <th className="px-6 py-3">Pemrakarsa / Kegiatan</th>
+                  <th className="px-6 py-3">Status Saat Ini</th>
+                  <th className="px-6 py-3 text-center">Aksi</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -43,26 +41,62 @@ export default async function VerifikasiPage() {
                 {dataDokumen.length === 0 ? (
                   <tr>
                     <td colSpan={3} className="px-6 py-10 text-center text-gray-400">
-                      Benar-benar kosong. Cek koneksi DB_NAME di .env kamu.
+                      Database Kosong.
                     </td>
                   </tr>
                 ) : (
-                  dataDokumen.map((doc: any) => (
-                    <tr key={doc._id.toString()}>
-                      <td className="px-6 py-4 font-bold">{doc.pemrakarsa}</td>
-                      
-                      {/* INI YANG PENTING: KITA LIHAT TEXT ASLINYA */}
-                      <td className="px-6 py-4">
-                        <span className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded font-mono border border-yellow-300">
-                          {doc.status || "TIDAK ADA STATUS"}
-                        </span>
-                      </td>
+                  dataDokumen.map((doc: any) => {
+                    // --- LOGIKA PERBAIKAN TAMPILAN ---
+                    
+                    // 1. Cek Nama Pemrakarsa (Bisa beda-beda nama fieldnya di DB lama vs baru)
+                    const nama = doc.namaPemrakarsa || doc.pemrakarsa || doc.nama_pemrakarsa || "Tanpa Nama";
+                    
+                    // 2. Ambil Info Kegiatan/Registrasi
+                    const kegiatan = doc.namaKegiatan || doc.judul_kegiatan || doc.kegiatan || "-";
+                    const noReg = doc.nomorChecklist || doc.no_registrasi || doc.noUrut || "?";
 
-                      <td className="px-6 py-4">
-                         <Link href={`/verifikasi/${doc._id}`} className="text-blue-600 underline">Cek</Link>
-                      </td>
-                    </tr>
-                  ))
+                    // 3. Cek apakah dokumen ini sudah punya Status Verifikasi?
+                    // (Logika: Jika status kosong, berarti belum pernah diproses)
+                    const statusText = doc.status || "BELUM DIPROSES";
+                    const statusColor = doc.status 
+                        ? "bg-green-100 text-green-800 border-green-300" // Jika ada isinya (Hijau)
+                        : "bg-yellow-100 text-yellow-800 border-yellow-300"; // Jika kosong (Kuning)
+
+                    return (
+                      <tr key={doc._id.toString()} className="hover:bg-gray-50">
+                        
+                        {/* KOLOM 1: IDENTITAS */}
+                        <td className="px-6 py-4">
+                          <div className="font-bold text-gray-800 text-base">{nama}</div>
+                          <div className="text-xs text-gray-500 mb-1">{kegiatan}</div>
+                          <div className="text-[10px] font-mono bg-gray-100 inline-block px-1 rounded text-gray-500">
+                            Reg: {noReg} | No Urut: {doc.noUrut}
+                          </div>
+                        </td>
+                        
+                        {/* KOLOM 2: STATUS */}
+                        <td className="px-6 py-4">
+                          <span className={`px-2 py-1 rounded font-bold text-xs border ${statusColor}`}>
+                            {statusText}
+                          </span>
+                        </td>
+
+                        {/* KOLOM 3: AKSI (LINK YANG BENAR) */}
+                        <td className="px-6 py-4 text-center">
+                          {/* PENTING:
+                              Href mengarah ke doc.noUrut (Angka), BUKAN doc._id (String Aneh).
+                              Contoh: /verifikasi/101
+                          */}
+                          <Link 
+                            href={`/verifikasi-lapangan/${doc.noUrut}`} 
+                            className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-2 px-4 rounded transition-colors"
+                          >
+                            Pilih / Proses
+                          </Link>
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
