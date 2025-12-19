@@ -55,28 +55,25 @@ export default async function VerifikasiPage() {
                     
                     // --- 2. DATA RPD ---
                     const nomorRPD = doc.nomorRisalah || doc.no_risalah || doc.nomor_risalah || null;
-                    const isAdaRPD = !!nomorRPD; // Boolean: true jika RPD ada
+                    const isAdaRPD = !!nomorRPD; 
 
-                    // --- 3. LOGIKA STATUS BARU ---
-                    // Dokumen dianggap SELESAI jika: Ada Status di DB -ATAU- Sudah punya Nomor RPD
+                    // --- 3. LOGIKA STATUS ---
                     const isSelesai = !!doc.status || isAdaRPD;
                     
-                    // Tentukan Teks Status
                     let statusText = doc.status;
                     if (!statusText) {
-                        // Jika status DB kosong, tapi RPD ada, maka otomatis "RPD TERBIT"
                         statusText = isAdaRPD ? "RPD TERBIT" : "BELUM DIPROSES";
                     }
 
                     const statusClass = isSelesai
-                        ? "bg-green-100 text-green-800 border-green-300" // Hijau
-                        : "bg-yellow-100 text-yellow-800 border-yellow-300"; // Kuning
+                        ? "bg-green-100 text-green-800 border-green-300"
+                        : "bg-yellow-100 text-yellow-800 border-yellow-300";
 
                     return (
                       <tr key={doc._id.toString()} className={`hover:bg-gray-50 transition-colors ${isSelesai ? 'bg-green-50/20' : ''}`}>
                         
-                        {/* NO REGISTRASI */}
-                        <td className="px-6 py-4 align-top">
+                        {/* NO REGISTRASI - Align Middle */}
+                        <td className="px-6 py-4 align-middle">
                             <div className="font-mono text-blue-700 font-bold text-xs">
                                 {noReg}
                             </div>
@@ -85,18 +82,17 @@ export default async function VerifikasiPage() {
                             </div>
                         </td>
 
-                        {/* PEMRAKARSA */}
-                        <td className="px-6 py-4 align-top">
+                        {/* PEMRAKARSA - Align Middle */}
+                        <td className="px-6 py-4 align-middle">
                           <div className="font-bold text-gray-800 text-sm">{nama}</div>
                           <div className="text-xs text-gray-500 mt-1">{kegiatan}</div>
                         </td>
 
-                        {/* RPD (RISALAH) - PERBAIKAN TAMPILAN */}
-                        <td className="px-6 py-4 align-top">
+                        {/* RPD (RISALAH) - Align Middle */}
+                        <td className="px-6 py-4 align-middle">
                           {isAdaRPD ? (
                             <div className="flex items-center gap-2 text-gray-700">
                                 <FileText className="w-4 h-4 text-purple-600 flex-shrink-0" />
-                                {/* PERBAIKAN 1: whitespace-nowrap agar 1 baris */}
                                 <span className="font-mono text-xs font-bold whitespace-nowrap text-purple-700">
                                     {nomorRPD}
                                 </span>
@@ -106,15 +102,15 @@ export default async function VerifikasiPage() {
                           )}
                         </td>
                         
-                        {/* STATUS */}
-                        <td className="px-6 py-4 align-top">
+                        {/* STATUS - Align Middle */}
+                        <td className="px-6 py-4 align-middle">
                           <span className={`px-2 py-1 rounded font-bold text-[10px] border inline-block whitespace-nowrap ${statusClass}`}>
                             {statusText}
                           </span>
                         </td>
 
-                        {/* AKSI */}
-                        <td className="px-6 py-4 text-center align-top">
+                        {/* AKSI - Align Middle */}
+                        <td className="px-6 py-4 text-center align-middle">
                           <Link 
                             href={`/verifikasi-lapangan/${doc.noUrut}`} 
                             className={`inline-block text-xs font-bold py-2 px-4 rounded transition-colors shadow-sm whitespace-nowrap ${
