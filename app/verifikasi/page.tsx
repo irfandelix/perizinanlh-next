@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { getDb } from '@/lib/db';
-import { FileText } from 'lucide-react'; // Icon untuk mempercantik RPD
+import { FileText } from 'lucide-react';
 
 // Agar halaman selalu refresh data terbaru
 export const dynamic = 'force-dynamic';
@@ -11,7 +11,6 @@ export default async function VerifikasiPage() {
   // --- QUERY DATABASE ---
   const dataDokumen = await db.collection('dokumen')
     .find({}) 
-    // SORTING: Dari noUrut terbesar (Terbaru) ke terkecil (Lama)
     .sort({ noUrut: -1 }) 
     .limit(100) 
     .toArray();
@@ -34,10 +33,7 @@ export default async function VerifikasiPage() {
                 <tr>
                   <th className="px-6 py-3 min-w-[180px]">No. Registrasi</th>
                   <th className="px-6 py-3 min-w-[250px]">Pemrakarsa / Kegiatan</th>
-                  
-                  {/* --- KOLOM BARU: RPD --- */}
-                  <th className="px-6 py-3 min-w-[200px]">No. Risalah (RPD)</th>
-
+                  <th className="px-6 py-3">No. Risalah (RPD)</th>
                   <th className="px-6 py-3">Status Saat Ini</th>
                   <th className="px-6 py-3 text-center">Aksi</th>
                 </tr>
@@ -46,32 +42,40 @@ export default async function VerifikasiPage() {
                 
                 {dataDokumen.length === 0 ? (
                   <tr>
-                    {/* Jangan lupa update colSpan jadi 5 karena kolom nambah satu */}
                     <td colSpan={5} className="px-6 py-10 text-center text-gray-400">
                       Database Kosong.
                     </td>
                   </tr>
                 ) : (
                   dataDokumen.map((doc: any) => {
-                    // --- NORMALISASI DATA ---
+                    // --- 1. DATA DASAR ---
                     const nama = doc.namaPemrakarsa || doc.pemrakarsa || doc.nama_pemrakarsa || "Tanpa Nama";
                     const kegiatan = doc.namaKegiatan || doc.judul_kegiatan || doc.kegiatan || "-";
                     const noReg = doc.nomorChecklist || doc.no_registrasi || doc.nomor_registrasi || ("Urut: " + doc.noUrut);
                     
-                    // Ambil Data Risalah (RPD)
+                    // --- 2. DATA RPD ---
                     const nomorRPD = doc.nomorRisalah || doc.no_risalah || doc.nomor_risalah || null;
+                    const isAdaRPD = !!nomorRPD; // Boolean: true jika RPD ada
 
-                    const statusText = doc.status || "BELUM DIPROSES";
-                    const isSelesai = !!doc.status;
+                    // --- 3. LOGIKA STATUS BARU ---
+                    // Dokumen dianggap SELESAI jika: Ada Status di DB -ATAU- Sudah punya Nomor RPD
+                    const isSelesai = !!doc.status || isAdaRPD;
                     
+                    // Tentukan Teks Status
+                    let statusText = doc.status;
+                    if (!statusText) {
+                        // Jika status DB kosong, tapi RPD ada, maka otomatis "RPD TERBIT"
+                        statusText = isAdaRPD ? "RPD TERBIT" : "BELUM DIPROSES";
+                    }
+
                     const statusClass = isSelesai
-                        ? "bg-green-100 text-green-800 border-green-300"
-                        : "bg-yellow-100 text-yellow-800 border-yellow-300";
+                        ? "bg-green-100 text-green-800 border-green-300" // Hijau
+                        : "bg-yellow-100 text-yellow-800 border-yellow-300"; // Kuning
 
                     return (
                       <tr key={doc._id.toString()} className={`hover:bg-gray-50 transition-colors ${isSelesai ? 'bg-green-50/20' : ''}`}>
                         
-                        {/* 1. NO REGISTRASI */}
+                        {/* NO REGISTRASI */}
                         <td className="px-6 py-4 align-top">
                             <div className="font-mono text-blue-700 font-bold text-xs">
                                 {noReg}
@@ -81,18 +85,19 @@ export default async function VerifikasiPage() {
                             </div>
                         </td>
 
-                        {/* 2. PEMRAKARSA */}
+                        {/* PEMRAKARSA */}
                         <td className="px-6 py-4 align-top">
                           <div className="font-bold text-gray-800 text-sm">{nama}</div>
                           <div className="text-xs text-gray-500 mt-1">{kegiatan}</div>
                         </td>
 
-                        {/* 3. KOLOM BARU: RPD (RISALAH) */}
+                        {/* RPD (RISALAH) - PERBAIKAN TAMPILAN */}
                         <td className="px-6 py-4 align-top">
-                          {nomorRPD ? (
-                            <div className="flex items-start gap-2 text-gray-700">
-                                <FileText className="w-4 h-4 text-purple-600 mt-0.5 flex-shrink-0" />
-                                <span className="font-mono text-xs font-medium break-all">
+                          {isAdaRPD ? (
+                            <div className="flex items-center gap-2 text-gray-700">
+                                <FileText className="w-4 h-4 text-purple-600 flex-shrink-0" />
+                                {/* PERBAIKAN 1: whitespace-nowrap agar 1 baris */}
+                                <span className="font-mono text-xs font-bold whitespace-nowrap text-purple-700">
                                     {nomorRPD}
                                 </span>
                             </div>
@@ -101,18 +106,18 @@ export default async function VerifikasiPage() {
                           )}
                         </td>
                         
-                        {/* 4. STATUS */}
+                        {/* STATUS */}
                         <td className="px-6 py-4 align-top">
-                          <span className={`px-2 py-1 rounded font-bold text-[10px] border inline-block ${statusClass}`}>
+                          <span className={`px-2 py-1 rounded font-bold text-[10px] border inline-block whitespace-nowrap ${statusClass}`}>
                             {statusText}
                           </span>
                         </td>
 
-                        {/* 5. AKSI */}
+                        {/* AKSI */}
                         <td className="px-6 py-4 text-center align-top">
                           <Link 
                             href={`/verifikasi-lapangan/${doc.noUrut}`} 
-                            className={`inline-block text-xs font-bold py-2 px-4 rounded transition-colors shadow-sm ${
+                            className={`inline-block text-xs font-bold py-2 px-4 rounded transition-colors shadow-sm whitespace-nowrap ${
                                 isSelesai 
                                 ? "bg-white text-gray-700 border border-gray-300 hover:bg-gray-100" 
                                 : "bg-blue-600 text-white hover:bg-blue-700 border border-blue-600"
