@@ -117,7 +117,7 @@ export default function Sidebar() {
                     
                     {/* Profil Singkat - Style Minimalis */}
                     <div className="flex items-center gap-4 mb-2">
-                        <div className="w-12 h-12 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-lg shadow-sm">
+                        <div className="w-12 h-12 rounded-full bg-green-600 flex items-center justify-center text-white font-bold text-lg shadow-sm">
                             {session?.user?.name?.charAt(0).toUpperCase() || 'U'}
                         </div>
                         <div className="flex-1 min-w-0">
