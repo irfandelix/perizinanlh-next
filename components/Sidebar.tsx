@@ -4,7 +4,8 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
-import { Menu, X, LayoutDashboard, FileText, ArrowRightCircle, Archive, ClipboardList, LogOut, CheckSquare, Microscope, FileSearch, Printer } from 'lucide-react';
+// 1. TAMBAHKAN IMPORT ICON 'FileEdit'
+import { Menu, X, LayoutDashboard, FileText, ArrowRightCircle, Archive, ClipboardList, LogOut, CheckSquare, Microscope, FileSearch, Printer, FileEdit } from 'lucide-react';
 
 export default function Sidebar() {
     const { data: session } = useSession();
@@ -14,7 +15,7 @@ export default function Sidebar() {
     // @ts-ignore
     const userRole = session?.user?.role; 
 
-    // --- DEFINISI MENU (SUDAH DIURUTKAN ULANG) ---
+    // --- DEFINISI MENU ---
     const allNavItems = [
         // 1. MENU UMUM (Semua Bisa Akses)
         { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, roles: ['mpp', 'dlh'] },
@@ -22,7 +23,6 @@ export default function Sidebar() {
         // 2. MENU KHUSUS MPP
         { name: 'Registrasi Dokumen', href: '/register', icon: FileText, roles: ['mpp'] },
         
-        // [UBAH 1 & 2] Penyerahan Kembali ditaruh DI ATAS Input PHP
         { name: 'Penyerahan Kembali', href: '/pengembalian', icon: ArrowRightCircle, roles: ['mpp'] },
         { name: 'Penerimaan Hasil Perbaikan', href: '/penerimaan', icon: ClipboardList, roles: ['mpp'] }, 
         
@@ -32,6 +32,10 @@ export default function Sidebar() {
         { name: 'Uji Administrasi', href: '/uji-administrasi', icon: CheckSquare, roles: ['dlh'] },
         { name: 'Verifikasi Lapangan', href: '/verifikasi-lapangan', icon: Microscope, roles: ['dlh'] },
         { name: 'Pemeriksaan Substansi', href: '/pemeriksaan-substansi', icon: FileSearch, roles: ['dlh'] },
+        
+        // --- [BARU] MENU PEMERIKSAAN REVISI (TAHAP E) ---
+        { name: 'Pemeriksaan Revisi', href: '/pemeriksaan-revisi', icon: FileEdit, roles: ['dlh'] },
+
         { name: 'Risalah Pengolah', href: '/verifikasi', icon: FileText, roles: ['dlh'] },
 
         // 4. REKAP DATA
@@ -42,15 +46,9 @@ export default function Sidebar() {
         item.roles.includes(userRole)
     );
 
-    // --- PERBAIKAN LOGIKA DI SINI ---
     const isActive = (href: string) => {
-        // Jika path sama persis (Contoh: /verifikasi === /verifikasi)
         if (pathname === href) return true;
-        
-        // Jika path adalah sub-halaman (Contoh: /verifikasi/123)
-        // Kita tambahkan '/' agar /verifikasi-lapangan TIDAK terhitung
         if (pathname.startsWith(`${href}/`)) return true;
-
         return false;
     };
 

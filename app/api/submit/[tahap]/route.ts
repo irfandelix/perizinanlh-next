@@ -2,7 +2,6 @@ import { NextResponse, NextRequest } from 'next/server';
 import clientPromise from '@/lib/db'; 
 
 // --- DEFINISI TIPE ---
-// Sesuai nama folder [tahap]
 type Params = {
     tahap: string;
 };
@@ -23,7 +22,6 @@ const getKodeJenisDokumen = (inputJenis: string) => {
     if (!inputJenis) return 'DOK';
     const normalized = inputJenis.trim().toUpperCase();
 
-    // Mapping sesuai opsi di Frontend
     const map: Record<string, string> = {
         'SPPL': 'SPPL', 
         'UKLUPL': 'UKLUPL', 
@@ -37,17 +35,24 @@ const getKodeJenisDokumen = (inputJenis: string) => {
         'AMDAL': 'AMDAL'
     };
 
-    // Jika tidak ada di map, gunakan string aslinya
     return map[normalized] || normalized;
 };
 
-// Pastikan fungsi generateNomor menerima angka (number) apa saja
+// [PERUBAHAN UTAMA ADA DI SINI]
 const generateNomor = (nomorUntukSurat: number, dateString: string, tahapan: string, jenisDokumen: string) => {
     const { month, year } = getDateParts(dateString);
     const kodeJenis = getKodeJenisDokumen(jenisDokumen);
-    // Kita gunakan nomor hasil kalkulasi ganjil/genap disini
     const noUrutStr = formatToThreeDigits(nomorUntukSurat); 
-    return `600.4/${noUrutStr}.${month}/17/${tahapan}.${kodeJenis}/${year}`;
+    
+    // Tentukan Prefix (Awalan Nomor)
+    // Default: 600.4
+    // Jika Verlap (BA.V) atau Pemeriksaan (BA.P), gunakan 600.4.25
+    let prefix = "600.4";
+    if (tahapan.includes("BA.V") || tahapan.includes("BA.P")) {
+        prefix = "600.4.25";
+    }
+
+    return `${prefix}/${noUrutStr}.${month}/17/${tahapan}.${kodeJenis}/${year}`;
 };
 
 // ================= MAIN HANDLER =================
@@ -59,40 +64,46 @@ export async function POST(
     let generatedNomorStr: string = '';
 
     try {
-        // MENANGKAP VARIABEL DARI NAMA FOLDER [tahap]
         const { tahap } = await params;
         
         // 1. AMBIL RAW BODY & FLATTENING DATA
         const rawBody = await request.json();
         let body = rawBody;
 
-        // Cek jika data terbungkus dalam 'formData', kita keluarkan isinya
         if (rawBody.formData) {
-            body = {
-                ...rawBody.formData,      
-                ...rawBody,               
-            };
+            body = { ...rawBody.formData, ...rawBody };
             delete body.formData;         
         }
 
         console.log(`[API] Processing Tahap: ${tahap}`);
 
         const client = await clientPromise;
-        const db = client.db(); // Default DB dari URI
+        const db = client.db(); 
         const collection = db.collection('dokumen'); 
 
         // ==========================================
-        // TAHAP A (REGISTRASI AWAL)
+        // TAHAP A (REGISTRASI AWAL) - RESET TAHUNAN
         // ==========================================
         if (tahap === 'tahap-a') {
-            const lastDoc = await collection.find().sort({ noUrut: -1 }).limit(1).toArray();
+            const { year } = getDateParts(body.tanggalMasukDokumen);
+            
+            // Cari dokumen terakhir HANYA di tahun tersebut
+            const lastDoc = await collection.find({
+                tanggalMasukDokumen: { $regex: new RegExp(`^${year}`) }
+            })
+            .sort({ noUrut: -1 })
+            .limit(1)
+            .toArray();
+
             const noUrut = lastDoc.length > 0 ? (lastDoc[0].noUrut || 0) + 1 : 1;
             
+            // Generate (Akan pakai 600.4 karena tahapan 'REG')
             const nomorChecklist = generateNomor(noUrut, body.tanggalMasukDokumen, 'REG', body.jenisDokumen);
             
             const newRecord = {
                 ...body,
                 noUrut, 
+                tahun: year, 
                 nomorChecklist,
                 statusTerakhir: 'PROSES',
                 createdAt: new Date(),
@@ -108,7 +119,7 @@ export async function POST(
             
             return NextResponse.json({ 
                 success: true, 
-                message: 'Registrasi Berhasil!', 
+                message: `Registrasi Berhasil! Data urutan ke-${noUrut} di tahun ${year}.`, 
                 generatedData: { noUrut, nomorChecklist } 
             });
         }
@@ -124,15 +135,22 @@ export async function POST(
         }
 
         const queryNoUrut = parseInt(noUrut);
-        const existingData = await collection.findOne({ noUrut: queryNoUrut });
+
+        // Ambil data terbaru berdasarkan noUrut (sort createdAt desc untuk keamanan tahun)
+        const existingData = await collection.findOne(
+            { noUrut: queryNoUrut }, 
+            { sort: { createdAt: -1 } }
+        );
         
         if (!existingData) {
             return NextResponse.json({ success: false, message: `Data dengan No Urut ${queryNoUrut} tidak ditemukan.` }, { status: 404 });
         }
 
+        const docId = existingData._id;
         let updateQuery: any = {};
 
-        // --- TAHAP B ---
+        // --- TAHAP B (UJI ADMIN) ---
+        // Biasanya 600.4 karena BA.HUA (Hasil Uji Administrasi)
         if (tahap === 'b') {
             const { tanggalPenerbitanUa } = body;
             generatedNomorStr = existingData.nomorUjiBerkas || generateNomor(queryNoUrut, tanggalPenerbitanUa, 'BA.HUA', existingData.jenisDokumen);
@@ -140,18 +158,16 @@ export async function POST(
         } 
         
         // ---------------------------------------------------------
-        // TAHAP C (VERIFIKASI LAPANGAN) -> GANJIL (1, 3, 5...)
+        // TAHAP C (VERIFIKASI LAPANGAN - BA.V) -> PREFIX 600.4.25
         // ---------------------------------------------------------
         else if (tahap === 'c' || tahap === 'verlap') {
             const tanggalVerifikasi = body.tanggalVerifikasi || body.tanggalVerlap;
             if (!tanggalVerifikasi) return NextResponse.json({ success: false, message: 'Tanggal Verifikasi wajib diisi.' }, { status: 400 });
 
-            // 1. Cek apakah dokumen ini SUDAH punya seqVerlap (Data Baru)
             let currentSeq = existingData.seqVerlap; 
 
             if (!currentSeq) {
-                // 2. Jika belum, kita cari angka TERBESAR dari seluruh database
-                // Kita ambil semua dokumen yang sudah punya Nomor BA Verlap
+                // Cari max number dari BA.V yang sudah ada
                 const allDocs = await collection.find({ 
                     nomorBAVerlap: { $exists: true, $ne: "" } 
                 }).project({ nomorBAVerlap: 1, seqVerlap: 1 }).toArray();
@@ -159,14 +175,10 @@ export async function POST(
                 let maxNumber = 0;
 
                 allDocs.forEach(doc => {
-                    // Prioritas 1: Gunakan seqVerlap jika ada
                     if (doc.seqVerlap) {
                         if (doc.seqVerlap > maxNumber) maxNumber = doc.seqVerlap;
                     } 
-                    // Prioritas 2: Parsing String Manual (Untuk data lama: 161, 129, dll)
                     else if (doc.nomorBAVerlap) {
-                        // Regex: Cari tanda '/' diikuti 3 digit angka, diikuti tanda '.'
-                        // Cocok untuk: .../161.10... atau .../129.12...
                         const match = doc.nomorBAVerlap.match(/\/(\d{3})\./);
                         if (match && match[1]) {
                             const num = parseInt(match[1], 10);
@@ -175,12 +187,10 @@ export async function POST(
                     }
                 });
 
-                // Angka terakhir ketemu (misal 161). 
-                // Kita tambah 2 -> Jadi 163.
-                // Jika database kosong (maxNumber 0), mulai dari 1.
-                currentSeq = maxNumber === 0 ? 1 : maxNumber + 2;
+                currentSeq = maxNumber === 0 ? 1 : maxNumber + 2; 
             }
 
+            // Fungsi generateNomor otomatis pakai 600.4.25 karena ada string 'BA.V'
             generatedNomorStr = generateNomor(currentSeq, tanggalVerifikasi, 'BA.V', existingData.jenisDokumen);
             
             updateQuery = { 
@@ -192,8 +202,8 @@ export async function POST(
             };
         }
         
-// ---------------------------------------------------------
-        // TAHAP D (PEMERIKSAAN) -> GENAP (2, 4, 6...)
+        // ---------------------------------------------------------
+        // TAHAP D (PEMERIKSAAN - BA.P) -> PREFIX 600.4.25
         // ---------------------------------------------------------
         else if (tahap === 'd') {
             const { tanggalPemeriksaan } = body;
@@ -202,12 +212,9 @@ export async function POST(
                  return NextResponse.json({ success: false, message: 'Tanggal Pemeriksaan wajib diisi.' }, { status: 400 });
             }
 
-            // 1. Cek apakah dokumen ini SUDAH punya seqPemeriksaan?
             let currentSeq = existingData.seqPemeriksaan;
 
             if (!currentSeq) {
-                // 2. Jika belum, kita cari angka TERBESAR dari seluruh database (Scan Manual)
-                // Ambil semua dokumen yang sudah punya Nomor BA Pemeriksaan
                 const allDocs = await collection.find({ 
                     nomorBAPemeriksaan: { $exists: true, $ne: "" } 
                 }).project({ nomorBAPemeriksaan: 1, seqPemeriksaan: 1 }).toArray();
@@ -215,14 +222,10 @@ export async function POST(
                 let maxNumber = 0;
 
                 allDocs.forEach(doc => {
-                    // Prioritas 1: Gunakan seqPemeriksaan jika ada (Data Baru)
                     if (doc.seqPemeriksaan) {
                         if (doc.seqPemeriksaan > maxNumber) maxNumber = doc.seqPemeriksaan;
                     } 
-                    // Prioritas 2: Parsing String Manual (Untuk data lama seperti 162)
                     else if (doc.nomorBAPemeriksaan) {
-                        // Regex: Cari tanda '/' diikuti angka, diikuti tanda '.'
-                        // Contoh: .../162.10... akan mengambil angka 162
                         const match = doc.nomorBAPemeriksaan.match(/\/(\d+)\./);
                         if (match && match[1]) {
                             const num = parseInt(match[1], 10);
@@ -231,22 +234,20 @@ export async function POST(
                     }
                 });
 
-                // Kalkulasi: Ambil yang terbesar (162), tambah 2 -> Jadi 164
-                // Jika database kosong, mulai dari 2.
-                currentSeq = maxNumber === 0 ? 2 : maxNumber + 2;
+                currentSeq = maxNumber === 0 ? 2 : maxNumber + 2; 
             }
 
-            // Generate Nomor Baru
+            // Fungsi generateNomor otomatis pakai 600.4.25 karena ada string 'BA.P'
             generatedNomorStr = existingData.nomorBAPemeriksaan || generateNomor(currentSeq, tanggalPemeriksaan, 'BA.P', existingData.jenisDokumen);
             
             updateQuery = { 
                 nomorBAPemeriksaan: generatedNomorStr, 
                 tanggalPemeriksaan: tanggalPemeriksaan,
-                seqPemeriksaan: currentSeq // Simpan urutannya
+                seqPemeriksaan: currentSeq 
             };
         }
         
-        // --- TAHAP E (REVISI) ---
+        // --- TAHAP E (REVISI - BA.P.X) -> PREFIX 600.4.25 ---
         else if (tahap === 'e') {
             const { tanggalRevisi, nomorRevisi } = body;
             const revisionMap: Record<string, string> = { '1': 'nomorRevisi1', '2': 'nomorRevisi2', '3': 'nomorRevisi3', '4': 'nomorRevisi4', '5': 'nomorRevisi5' };
@@ -257,6 +258,7 @@ export async function POST(
             
             if (!fieldNo || !fieldTgl) return NextResponse.json({ success: false, message: 'Nomor Revisi tidak valid.' }, { status: 400 });
 
+            // Otomatis 600.4.25 karena mengandung 'BA.P'
             generatedNomorStr = generateNomor(queryNoUrut, tanggalRevisi, `BA.P.${nomorRevisi}`, existingData.jenisDokumen);
             updateQuery = { [fieldNo]: generatedNomorStr, [fieldTgl]: tanggalRevisi, statusTerakhir: 'REVISI' };
         }
@@ -299,8 +301,8 @@ export async function POST(
             return NextResponse.json({ success: false, message: 'Tahap tidak valid atau URL salah.' }, { status: 400 });
         }
 
-        // EKSEKUSI UPDATE
-        const updateResult = await collection.updateOne({ noUrut: queryNoUrut }, { $set: updateQuery });
+        // EKSEKUSI UPDATE (BY _ID)
+        const updateResult = await collection.updateOne({ _id: docId }, { $set: updateQuery });
         
         if (updateResult.modifiedCount === 0 && updateResult.matchedCount === 0) {
              return NextResponse.json({ success: false, message: 'Gagal update data. Data mungkin tidak ditemukan.' }, { status: 500 });
