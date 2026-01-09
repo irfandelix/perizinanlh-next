@@ -112,7 +112,7 @@ export default function Sidebar() {
                 {/* Header Profile ala Google */}
                 <div className="px-6 pt-8 pb-4">
                     <h2 className="text-[22px] text-slate-600 font-normal leading-tight mb-6">
-                        SIMON <span className="font-medium text-slate-900">DLH</span>
+                        PERIZINAN <span className="font-medium text-slate-900">DLH</span>
                     </h2>
                     
                     {/* Profil Singkat - Style Minimalis */}
@@ -187,7 +187,7 @@ export default function Sidebar() {
                     </button>
                     
                     <div className="mt-4 px-6 text-[11px] text-slate-400 text-center">
-                        &copy; 2025 Dinas Lingkungan Hidup Kab. Sragen
+                        &copy; 2026 Dinas Lingkungan Hidup Kab. Sragen
                     </div>
                 </div>
             </aside>
