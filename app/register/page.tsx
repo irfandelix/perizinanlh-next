@@ -158,6 +158,12 @@ export default function RegisterDokumenPage() {
                                     <option value="UKL-UPL">UKL-UPL</option>
                                     <option value="AMDAL">AMDAL</option>
                                     <option value="SPPL">SPPL</option>
+                                    
+                                    {/* --- OPSI BARU DITAMBAHKAN DI SINI --- */}
+                                    <option value="KAJIAN TEKNIS AIR LIMBAH">Kajian Teknis Air Limbah</option>
+                                    <option value="KAJIAN TEKNIS EMISI">Kajian Teknis Emisi</option>
+                                    
+                                    {/* Opsi Lama */}
                                     <option value="RINTEK LB3">Rincian Teknis Limbah B3</option>
                                     <option value="PERTEK AIR LIMBAH">Persetujuan Teknis Air Limbah</option>
                                     <option value="PERTEK EMISI">Persetujuan Teknis Emisi</option>

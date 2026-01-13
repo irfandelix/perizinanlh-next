@@ -18,6 +18,7 @@ const getDateParts = (dateString: string) => {
     return { month: parseInt(parts[1], 10), year: parseInt(parts[0], 10) };
 };
 
+// [PERUBAHAN 1: UPDATE MAPPING KODE DOKUMEN]
 const getKodeJenisDokumen = (inputJenis: string) => {
     if (!inputJenis) return 'DOK';
     const normalized = inputJenis.trim().toUpperCase();
@@ -29,16 +30,24 @@ const getKodeJenisDokumen = (inputJenis: string) => {
         'RINTEK LB3': 'RT.LB3', 
         'PERTEK AIR LIMBAH': 'ST.AL',
         'PERTEK EMISI': 'ST.EM', 
+        
+        // Tambahan Baru: Kajian Teknis
+        'KAJIAN TEKNIS AIR LIMBAH': 'KT.AL',
+        'KAJIAN TEKNIS EMISI': 'KT.EM',
+        'KT AL': 'KT.AL', // Opsional: variasi input
+        'KT EM': 'KT.EM', // Opsional: variasi input
+
         'SLO': 'SLO', 
         'DPLH': 'DPLH',
         'DELH': 'DELH', 
         'AMDAL': 'AMDAL'
     };
 
+    // Jika input tidak ada di map, gunakan string aslinya
     return map[normalized] || normalized;
 };
 
-// [PERUBAHAN UTAMA ADA DI SINI]
+// [PERUBAHAN 2: UPDATE PREFIX NOMOR SURAT]
 const generateNomor = (nomorUntukSurat: number, dateString: string, tahapan: string, jenisDokumen: string) => {
     const { month, year } = getDateParts(dateString);
     const kodeJenis = getKodeJenisDokumen(jenisDokumen);
@@ -150,7 +159,6 @@ export async function POST(
         let updateQuery: any = {};
 
         // --- TAHAP B (UJI ADMIN) ---
-        // Biasanya 600.4 karena BA.HUA (Hasil Uji Administrasi)
         if (tahap === 'b') {
             const { tanggalPenerbitanUa } = body;
             generatedNomorStr = existingData.nomorUjiBerkas || generateNomor(queryNoUrut, tanggalPenerbitanUa, 'BA.HUA', existingData.jenisDokumen);
