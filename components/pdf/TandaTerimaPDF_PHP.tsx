@@ -169,7 +169,7 @@ export const TandaTerimaPDF_PHP = ({ data }: any) => {
         {/* KOP SURAT */}
         <View style={styles.headerContainer}>
             {/* Pastikan file logo ada di public/logo_sragen.png */}
-            <Image style={styles.logo} src="public/logo-sragen.png" /> 
+            <Image style={styles.logo} src="/logo-sragen.png" /> 
             
             <View style={styles.headerTextContainer}>
                 <Text style={styles.headerText1}>PEMERINTAH KABUPATEN SRAGEN</Text>
