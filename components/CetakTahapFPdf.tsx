@@ -1,9 +1,9 @@
 'use client';
 
 import React from 'react';
-import { Page, Text, View, Document, StyleSheet, Font } from '@react-pdf/renderer';
+import { Page, Text, View, Document, StyleSheet, Font, Image } from '@react-pdf/renderer';
 
-// Register Font agar Bold berfungsi dengan baik
+// --- REGISTER FONT ---
 Font.register({
   family: 'Times-Roman',
   src: 'https://fonts.gstatic.com/s/timesnewroman/v12/TimesNewRomanPSMT.ttf'
@@ -12,57 +12,114 @@ Font.register({
   family: 'Times-Bold',
   src: 'https://fonts.gstatic.com/s/timesnewroman/v12/TimesNewRomanPS-BoldMT.ttf'
 });
+Font.register({
+  family: 'Times-Italic',
+  src: 'https://fonts.gstatic.com/s/timesnewroman/v12/TimesNewRomanPS-ItalicMT.ttf'
+});
 
+// --- STYLES ---
 const styles = StyleSheet.create({
   page: {
-    padding: 30,
-    fontSize: 10,
+    paddingTop: 30,
+    paddingBottom: 40,
+    paddingHorizontal: 50,
+    fontSize: 11,
     fontFamily: 'Times-Roman',
+    lineHeight: 1.3,
+  },
+  headerContainer: {
+    flexDirection: 'row',
+    borderBottomWidth: 3, 
+    borderBottomColor: '#000',
+    borderBottomStyle: 'solid',
+    paddingBottom: 10,
+    marginBottom: 2, 
+  },
+  headerLine2: {
+    borderBottomWidth: 1, 
+    borderBottomColor: '#000',
+    marginBottom: 20,
+  },
+  logo: {
+    width: 65,
+    height: 75,
+    marginRight: 15,
+  },
+  headerTextContainer: {
+    flex: 1,
+    alignItems: 'center', 
+    justifyContent: 'center',
+  },
+  headerText1: {
+    fontSize: 14,
+    fontFamily: 'Times-Roman',
+    textTransform: 'uppercase',
+  },
+  headerText2: {
+    fontSize: 16,
+    fontFamily: 'Times-Bold',
+    textTransform: 'uppercase',
+    marginTop: 2,
+  },
+  headerAddress: {
+    fontSize: 9,
+    textAlign: 'center',
+    marginTop: 2,
   },
   title: {
     textAlign: 'center',
-    fontSize: 14,
+    fontSize: 12,
     fontFamily: 'Times-Bold',
-    marginBottom: 20,
+    textDecoration: 'underline',
     textTransform: 'uppercase',
-    textDecoration: 'underline'
+    marginTop: 10,
+    marginBottom: 20,
   },
-  // Table Utilities
-  table: { 
-    width: "auto", 
-    borderStyle: "solid", 
-    borderWidth: 1, 
-    borderColor: '#000',
-    marginBottom: 15
-  }, 
-  tableRow: { 
-    flexDirection: "row",
-    borderBottomWidth: 1,
-    borderBottomColor: '#000',
-    borderBottomStyle: 'solid'
-  }, 
-  tableCol: { 
-    borderRightWidth: 1, 
-    borderRightColor: '#000',
-    borderRightStyle: 'solid',
-    padding: 4
-  }, 
-  tableColLast: {
-    padding: 4
+  row: {
+    flexDirection: 'row',
+    marginBottom: 6,
   },
-  tableCell: { 
-    fontSize: 10 
+  labelCol: {
+    width: '35%',
   },
-  bold: {
-    fontFamily: 'Times-Bold'
+  separatorCol: {
+    width: '3%',
+    textAlign: 'center',
   },
-  footerHeader: {
-    backgroundColor: '#E7E6E6',
+  valueCol: {
+    width: '62%',
+    fontFamily: 'Times-Bold', 
   },
-  signBox: {
-    height: 100, 
+  paragraph: {
+    marginTop: 15,
+    marginBottom: 30,
+    textAlign: 'justify',
+    textIndent: 0, 
+    lineHeight: 1.5,
+  },
+  signatureRow: {
+    flexDirection: 'row',
     justifyContent: 'space-between',
-    padding: 5
+    marginTop: 10,
+  },
+  signatureBox: {
+    width: '45%',
+    alignItems: 'center',
+  },
+  signatureName: {
+    marginTop: 60, 
+    fontFamily: 'Times-Bold',
+    textDecoration: 'underline',
+  },
+  footer: {
+    position: 'absolute',
+    bottom: 30,
+    left: 50,
+    right: 50,
+    fontSize: 8,
+    fontFamily: 'Times-Italic',
+    color: 'grey',
+    textAlign: 'center',
   }
 });
 
@@ -70,125 +127,121 @@ const formatDate = (dateString: any) => {
     if (!dateString) return '-';
     const date = new Date(dateString);
     if (isNaN(date.getTime())) return '-';
-    return new Intl.DateTimeFormat('id-ID', { day: '2-digit', month: 'long', year: 'numeric' }).format(date);
+    return new Intl.DateTimeFormat('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }).format(date);
 };
 
-// --- DOKUMEN PDF ---
 export const TahapFDocument = ({ data }: any) => {
   
-  // LOGIKA DINAMIS:
-  // Ambil data dari props khusus (nomorSurat, petugas, tanggalTerima) jika ada.
-  // Jika tidak ada, baru fallback ke data default (nomorPHP biasa).
-  const nomorSuratFinal = data.nomorSurat || data.nomorPHP;
+  // --- 1. Pastikan Data Terbaca ---
+  const nomorSuratFinal = data.nomorSurat || data.nomorPHP || '-';
   const tanggalFinal = data.tanggalTerima || data.tanggalPenyerahanPerbaikan || data.tanggalPHP;
   const petugasFinal = data.petugas || data.petugasPenerimaPerbaikan;
-  const labelPHP = data.phpKe ? `(${data.phpKe})` : ''; // Contoh output: "(PHP Ke-2)"
+
+  // --- 2. LOGIKA LABEL SURAT (MANUAL & TEGAS) ---
+  // Fungsi ini menentukan Teks Label di sebelah kiri titik dua
+  const getLabelSurat = () => {
+      const jenisPHP = data.phpKe || ''; // Menerima string "PHP Ke-1", "PHP Ke-2", dst
+
+      // Cek string secara manual agar tidak salah parsing
+      if (jenisPHP.includes('Ke-2')) {
+          return "Nomor PHP 1 (Revisi)";
+      }
+      if (jenisPHP.includes('Ke-3')) {
+          return "Nomor PHP 2 (Revisi)";
+      }
+      if (jenisPHP.includes('Ke-4')) {
+          return "Nomor PHP 3 (Revisi)";
+      }
+      if (jenisPHP.includes('Ke-5')) {
+          return "Nomor PHP 4 (Revisi)";
+      }
+      
+      // Default (Ke-1 atau tidak terdeteksi)
+      return "Nomor PHP (Revisi)";
+  };
 
   return (
     <Document>
       <Page size="A4" style={styles.page}>
         
+        {/* KOP SURAT */}
+        <View style={styles.headerContainer}>
+            <Image style={styles.logo} src="/logo_sragen.png" /> 
+            <View style={styles.headerTextContainer}>
+                <Text style={styles.headerText1}>PEMERINTAH KABUPATEN SRAGEN</Text>
+                <Text style={styles.headerText2}>DINAS LINGKUNGAN HIDUP</Text>
+                <Text style={styles.headerAddress}>Jalan Ronggowarsito Nomor 18B, Sragen Wetan, Sragen, Jawa Tengah 57214</Text>
+                <Text style={styles.headerAddress}>Telepon (0271) 891136, Faksimile (0271) 891136, Laman www.dlh.sragenkab.go.id</Text>
+                <Text style={styles.headerAddress}>Pos-el dlh.sragenkab.go.id</Text>
+            </View>
+        </View>
+        <View style={styles.headerLine2} />
+
         {/* JUDUL */}
         <Text style={styles.title}>
-          TANDA TERIMA BERKAS{'\n'}PERBAIKAN DOKUMEN LINGKUNGAN
+          TANDA TERIMA PERBAIKAN DOKUMEN (PHP)
         </Text>
 
-        {/* TABEL INFO UTAMA */}
-        <View style={styles.table}>
-          <View style={styles.tableRow}>
-              <View style={{ ...styles.tableCol, width: '35%' }}><Text style={styles.tableCell}>Nama Kegiatan</Text></View>
-              <View style={{ ...styles.tableCol, width: '2%', textAlign:'center' }}><Text style={styles.tableCell}>:</Text></View>
-              <View style={{ ...styles.tableColLast, width: '63%' }}><Text style={styles.tableCell}>{data.namaKegiatan}</Text></View>
-          </View>
-          <View style={styles.tableRow}>
-              <View style={{ ...styles.tableCol, width: '35%' }}><Text style={styles.tableCell}>Jenis Permohonan</Text></View>
-              <View style={{ ...styles.tableCol, width: '2%', textAlign:'center' }}><Text style={styles.tableCell}>:</Text></View>
-              <View style={{ ...styles.tableColLast, width: '63%' }}><Text style={styles.tableCell}>{data.jenisDokumen}</Text></View>
-          </View>
-          
-          {/* BAGIAN PENTING: NOMOR SURAT DINAMIS */}
-          <View style={styles.tableRow}>
-              <View style={{ ...styles.tableCol, width: '35%' }}>
-                  <Text style={styles.tableCell}>Nomor Penerimaan Hasil Perbaikan {labelPHP}</Text>
-              </View>
-              <View style={{ ...styles.tableCol, width: '2%', textAlign:'center' }}><Text style={styles.tableCell}>:</Text></View>
-              <View style={{ ...styles.tableColLast, width: '63%' }}>
-                  <Text style={{...styles.tableCell, ...styles.bold}}>{nomorSuratFinal}</Text>
-              </View>
-          </View>
-
-          {/* BAGIAN PENTING: TANGGAL DINAMIS */}
-          <View style={{ ...styles.tableRow, borderBottomWidth: 0 }}>
-              <View style={{ ...styles.tableCol, width: '35%' }}><Text style={styles.tableCell}>Tanggal Masuk Berkas</Text></View>
-              <View style={{ ...styles.tableCol, width: '2%', textAlign:'center' }}><Text style={styles.tableCell}>:</Text></View>
-              <View style={{ ...styles.tableColLast, width: '63%' }}>
-                  <Text style={styles.tableCell}>{formatDate(tanggalFinal)}</Text>
-              </View>
-          </View>
-        </View>
-
-        {/* TABEL FOOTER & TTD */}
-        <View style={styles.table}>
-            
-            {/* Header Contact */}
-            <View style={styles.tableRow}>
-                 <View style={{ ...styles.tableColLast, width: '100%', ...styles.footerHeader }}>
-                     <Text style={{...styles.tableCell, ...styles.bold}}>Contact Person (Nomor Telepon)</Text>
-                 </View>
+        {/* ISI DATA */}
+        <View>
+            <View style={styles.row}>
+                <Text style={styles.labelCol}>Nomor Registrasi</Text>
+                <Text style={styles.separatorCol}>:</Text>
+                <Text style={styles.valueCol}>{data.nomorChecklist || data.nomorRegistrasi}</Text>
             </View>
 
-            {/* Isi Contact */}
-            <View style={styles.tableRow}>
-                 <View style={{ ...styles.tableCol, width: '40%' }}><Text style={styles.tableCell}>Pemrakarsa / Pemberi Kuasa</Text></View>
-                 <View style={{ ...styles.tableColLast, width: '60%' }}><Text style={styles.tableCell}>: {data.namaPemrakarsa} ({data.teleponPemrakarsa || '-'})</Text></View>
+            {/* --- BAGIAN LABEL DINAMIS --- */}
+            <View style={styles.row}>
+                {/* Memanggil fungsi getLabelSurat() */}
+                <Text style={styles.labelCol}>{getLabelSurat()}</Text>
+                <Text style={styles.separatorCol}>:</Text>
+                <Text style={styles.valueCol}>{nomorSuratFinal}</Text>
             </View>
-            <View style={styles.tableRow}>
-                 <View style={{ ...styles.tableCol, width: '40%' }}><Text style={styles.tableCell}>Penerima Kuasa / Konsultan</Text></View>
-                 <View style={{ ...styles.tableColLast, width: '60%' }}><Text style={styles.tableCell}>: {data.namaKonsultan || '-'} ({data.teleponKonsultan || '-'})</Text></View>
+            {/* --------------------------- */}
+
+            <View style={styles.row}>
+                <Text style={styles.labelCol}>Tanggal Penyerahan</Text>
+                <Text style={styles.separatorCol}>:</Text>
+                <Text style={styles.valueCol}>{formatDate(tanggalFinal)}</Text>
             </View>
-            
-            {/* KOMPLEKS: KOLOM CAP DAN TANDA TANGAN */}
-            <View style={{ flexDirection: 'row' }}>
-                {/* Kolom Kiri: Cap Dinas */}
-                <View style={{ width: '35%', borderRightWidth: 1, borderColor: '#000' }}>
-                    <View style={{ height: 130, padding: 5 }}>
-                        <Text style={{...styles.tableCell, ...styles.bold, textAlign: 'center'}}>Kolom Cap Dinas</Text>
-                    </View>
-                </View>
 
-                {/* Kolom Kanan: Wrapper untuk Status dan TTD */}
-                <View style={{ width: '65%' }}>
-                    
-                    {/* Baris Status */}
-                    <View style={{ borderBottomWidth: 1, borderColor: '#000', height: 30, justifyContent: 'center' }}>
-                        <Text style={{...styles.tableCell, textAlign: 'center', ...styles.bold}}>
-                            Status: Diterima untuk diperiksa
-                        </Text>
-                    </View>
+            <View style={styles.row}>
+                <Text style={styles.labelCol}>Nama Kegiatan</Text>
+                <Text style={styles.separatorCol}>:</Text>
+                <Text style={styles.valueCol}>{data.namaKegiatan}</Text>
+            </View>
 
-                    {/* Baris Tanda Tangan */}
-                    <View style={{ flexDirection: 'row', height: 100 }}>
-                        
-                        {/* TTD Pengirim */}
-                        <View style={{ width: '50%', borderRightWidth: 1, borderColor: '#000', ...styles.signBox }}>
-                            <Text style={{ fontSize: 9, textAlign:'center', ...styles.bold }}>Yang Menyerahkan</Text>
-                            <Text style={{ fontSize: 9, textAlign:'center', ...styles.bold, textDecoration:'underline' }}>
-                                ({data.namaPengirim || '....................'})
-                            </Text>
-                        </View>
-
-                        {/* TTD Petugas (DINAMIS) */}
-                        <View style={{ width: '50%', ...styles.signBox }}>
-                            <Text style={{ fontSize: 9, textAlign:'center', ...styles.bold }}>Petugas MPP</Text>
-                            <Text style={{ fontSize: 9, textAlign:'center', ...styles.bold, textDecoration:'underline' }}>
-                                ({petugasFinal || '....................'})
-                            </Text>
-                        </View>
-
-                    </View>
-                </View>
+            <View style={styles.row}>
+                <Text style={styles.labelCol}>Pemrakarsa</Text>
+                <Text style={styles.separatorCol}>:</Text>
+                <Text style={styles.valueCol}>{data.namaPemrakarsa}</Text>
             </View>
         </View>
+
+        {/* PARAGRAF */}
+        <Text style={styles.paragraph}>
+            Telah diterima dokumen perbaikan (Revisi) atas kegiatan tersebut di atas. Dokumen ini telah diverifikasi kelengkapannya dan akan diproses lebih lanjut sesuai dengan Standar Operasional Prosedur (SOP) yang berlaku pada Dinas Lingkungan Hidup Kabupaten Sragen.
+        </Text>
+
+        {/* TANDA TANGAN */}
+        <View style={styles.signatureRow}>
+            <View style={styles.signatureBox}>
+                <Text>Yang Menyerahkan</Text>
+                <Text>(Pemrakarsa / Konsultan)</Text>
+                <Text style={styles.signatureName}>({data.namaPengirim || '....................'})</Text>
+            </View>
+
+            <View style={styles.signatureBox}>
+                <Text>Petugas Penerima</Text>
+                <Text>Dinas Lingkungan Hidup</Text>
+                <Text style={styles.signatureName}>({petugasFinal || '....................'})</Text>
+            </View>
+        </View>
+
+        {/* FOOTER */}
+        <Text style={styles.footer}>
+            *Dokumen ini diterbitkan secara elektronik oleh Sistem Informasi Perizinan Lingkungan Hidup Kab. Sragen.
+        </Text>
 
       </Page>
     </Document>
