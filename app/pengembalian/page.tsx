@@ -9,7 +9,7 @@ import { Search, Save, RotateCcw, FileText, AlertCircle } from 'lucide-react';
 interface RecordData {
     noUrut: string;
     namaPemrakarsa: string;
-    namaKegiatan?: string; // Menambahkan ini agar info lebih lengkap
+    namaKegiatan?: string; 
     jenisKegiatan: string;
     alamatKegiatan: string;
     statusTerakhir: string;
@@ -17,7 +17,7 @@ interface RecordData {
     nomorChecklist?: string;
 }
 
-// Style tabel yang sama dengan form PHP agar konsisten
+// Style tabel
 const tableStyles = `
     .record-table { width: 100%; border-collapse: collapse; margin-top: 1.5rem; font-size: 0.9rem; }
     .record-table th, .record-table td { border: 1px solid #e5e7eb; padding: 0.75rem; text-align: left; vertical-align: top; }
@@ -57,7 +57,7 @@ export default function FormPengembalian() {
 
             setRecordData(data);
             
-            // Ambil tanggal yang sudah ada di DB (jika ada) untuk mengisi form otomatis
+            // Ambil tanggal yang sudah ada di DB (jika ada)
             const existingDate = data.tanggalPengembalian;
             setTanggalPengembalian(existingDate ? existingDate.split('T')[0] : '');
         } catch (err: any) {
@@ -101,7 +101,8 @@ export default function FormPengembalian() {
         <div className="p-6 max-w-5xl mx-auto bg-white shadow-lg rounded-xl my-8 border border-gray-100">
             <style jsx>{tableStyles}</style>
 
-            <h1 className="text-2xl font-bold mb-6 text-gray-800 flex items-center gap-2 border-b pb-4">
+            {/* --- HEADER (GARIS HITAM DIHAPUS) --- */}
+            <h1 className="text-2xl font-bold mb-6 text-gray-800 flex items-center gap-2">
                 <RotateCcw className="text-orange-600" />
                 Pengembalian Dokumen (Revisi)
             </h1>
