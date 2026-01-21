@@ -1,155 +1,220 @@
 'use client';
 
-import React from 'react';
-import { Page, Text, View, Document, StyleSheet, Font, Image } from '@react-pdf/renderer';
+import React, { useState, useEffect, useCallback } from 'react';
+import api from '@/lib/api'; 
+import Modal from '@/components/Modal'; 
+import { Download, Search, Save } from 'lucide-react'; 
+import { PDFDownloadLink } from '@react-pdf/renderer';
 
-// --- REGISTER FONT ---
-Font.register({
-  family: 'Times-Roman',
-  src: 'https://fonts.gstatic.com/s/timesnewroman/v12/TimesNewRomanPSMT.ttf'
-});
-Font.register({
-  family: 'Times-Bold',
-  src: 'https://fonts.gstatic.com/s/timesnewroman/v12/TimesNewRomanPS-BoldMT.ttf'
-});
-Font.register({
-  family: 'Times-Italic',
-  src: 'https://fonts.gstatic.com/s/timesnewroman/v12/TimesNewRomanPS-ItalicMT.ttf'
-});
+// --- IMPORT PDF (Pastikan file ini ada di components/pdf/TandaTerimaPDF_PHP.tsx) ---
+import { TandaTerimaPDF_PHP } from '@/components/pdf/TandaTerimaPDF_PHP';
 
-const styles = StyleSheet.create({
-  page: { paddingTop: 30, paddingBottom: 40, paddingHorizontal: 50, fontSize: 11, fontFamily: 'Times-Roman', lineHeight: 1.3 },
-  headerContainer: { flexDirection: 'row', borderBottomWidth: 3, borderBottomColor: '#000', borderBottomStyle: 'solid', paddingBottom: 10, marginBottom: 2 },
-  headerLine2: { borderBottomWidth: 1, borderBottomColor: '#000', marginBottom: 20 },
-  logo: { width: 65, height: 75, marginRight: 15 },
-  headerTextContainer: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  headerText1: { fontSize: 14, fontFamily: 'Times-Roman', textTransform: 'uppercase' },
-  headerText2: { fontSize: 16, fontFamily: 'Times-Bold', textTransform: 'uppercase', marginTop: 2 },
-  headerAddress: { fontSize: 9, textAlign: 'center', marginTop: 2 },
-  title: { textAlign: 'center', fontSize: 12, fontFamily: 'Times-Bold', textDecoration: 'underline', textTransform: 'uppercase', marginTop: 10, marginBottom: 20 },
-  row: { flexDirection: 'row', marginBottom: 6 },
-  labelCol: { width: '35%' },
-  separatorCol: { width: '3%', textAlign: 'center' },
-  valueCol: { width: '62%', fontFamily: 'Times-Bold' },
-  paragraph: { marginTop: 15, marginBottom: 30, textAlign: 'justify', textIndent: 0, lineHeight: 1.5 },
-  signatureRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 },
-  signatureBox: { width: '45%', alignItems: 'center' },
-  signatureName: { marginTop: 60, fontFamily: 'Times-Bold', textDecoration: 'underline' },
-  footer: { position: 'absolute', bottom: 30, left: 50, right: 50, fontSize: 8, fontFamily: 'Times-Italic', color: 'grey', textAlign: 'center' }
-});
+const tableStyles = `
+    .record-table { width: 100%; border-collapse: collapse; margin-top: 1.5rem; font-size: 0.9rem; }
+    .record-table th, .record-table td { border: 1px solid #e5e7eb; padding: 0.75rem; text-align: left; vertical-align: top; }
+    .record-table th { background-color: #f3f4f6; font-weight: 600; width: 30%; color: #374151; }
+    .record-table td span { font-weight: bold; color: #2563eb; }
+`;
 
-const formatDate = (dateString: any) => {
-    if (!dateString) return '-';
-    const date = new Date(dateString);
-    if (isNaN(date.getTime())) return '-';
-    return new Intl.DateTimeFormat('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }).format(date);
-};
+// --- WAJIB PAKAI 'export default' AGAR NEXT.JS BISA BACA ---
+export default function FormPenerimaan() {
+    const [nomorChecklist, setNomorChecklist] = useState('');
+    const [recordData, setRecordData] = useState<any>(null);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
+    const [isClient, setIsClient] = useState(false);
 
-// --- PERBAIKAN DI SINI: NAMA EXPORT HARUS SAMA DENGAN IMPORT ---
-export const TandaTerimaPDF_PHP = ({ data }: any) => {
-  
-  // 1. Data Dinamis
-  const nomorSuratFinal = data.nomorSurat || data.nomorPHP || '-';
-  const tanggalFinal = data.tanggalTerima || data.tanggalPenyerahanPerbaikan || data.tanggalPHP;
-  const petugasFinal = data.petugas || data.petugasPenerimaPerbaikan;
+    useEffect(() => { setIsClient(true); }, []);
 
-  // 2. LOGIKA LABEL (KAMUS MANUAL)
-  const getLabelSurat = () => {
-      const jenis = data.phpKe || 'PHP Ke-1'; 
+    const [formData, setFormData] = useState({ 
+        tanggalPenyerahanPerbaikan: '',
+        petugasPenerimaPerbaikan: '',
+        nomorRevisi: '1' 
+    });
 
-      const mapLabels: Record<string, string> = {
-          'PHP Ke-1': 'Nomor PHP (Revisi)',
-          'PHP Ke-2': 'Nomor PHP 1 (Revisi)',
-          'PHP Ke-3': 'Nomor PHP 2 (Revisi)',
-          'PHP Ke-4': 'Nomor PHP 3 (Revisi)',
-          'PHP Ke-5': 'Nomor PHP 4 (Revisi)',
-      };
+    const [modalInfo, setModalInfo] = useState({ show: false, title: '', message: '' });
+    const closeModal = () => setModalInfo({ ...modalInfo, show: false });
+    const showModal = (title: string, message: string) => setModalInfo({ show: true, title, message });
 
-      return mapLabels[jenis] || 'Nomor PHP (Revisi)';
-  };
+    // --- FETCH DATA ---
+    const fetchRecord = useCallback(async (checklist: string) => {
+        if (!checklist) { setRecordData(null); setError(''); return; }
+        setLoading(true);
+        try {
+            const response = await api.post(`/api/record/find`, { keyword: checklist });
+            if(response.data?.data?.length > 0) {
+                 setRecordData(response.data.data[0]); 
+                 setError('');
+            } else {
+                 setRecordData(null);
+                 setError("Data tidak ditemukan.");
+            }
+        } catch (err: any) {
+            setError(err.response?.data?.message || 'Gagal mengambil data.');
+        } finally {
+            setLoading(false);
+        }
+    }, []);
 
-  return (
-    <Document>
-      <Page size="A4" style={styles.page}>
-        
-        {/* KOP SURAT */}
-        <View style={styles.headerContainer}>
-            <Image style={styles.logo} src="/logo_sragen.png" /> 
-            <View style={styles.headerTextContainer}>
-                <Text style={styles.headerText1}>PEMERINTAH KABUPATEN SRAGEN</Text>
-                <Text style={styles.headerText2}>DINAS LINGKUNGAN HIDUP</Text>
-                <Text style={styles.headerAddress}>Jalan Ronggowarsito Nomor 18B, Sragen Wetan, Sragen, Jawa Tengah 57214</Text>
-                <Text style={styles.headerAddress}>Telepon (0271) 891136, Faksimile (0271) 891136, Laman www.dlh.sragenkab.go.id</Text>
-                <Text style={styles.headerAddress}>Pos-el dlh.sragenkab.go.id</Text>
-            </View>
-        </View>
-        <View style={styles.headerLine2} />
+    // Debounce Search
+    useEffect(() => {
+        const handler = setTimeout(() => { if(nomorChecklist) fetchRecord(nomorChecklist); }, 800);
+        return () => clearTimeout(handler);
+    }, [nomorChecklist, fetchRecord]);
 
-        {/* JUDUL */}
-        <Text style={styles.title}>
-          TANDA TERIMA PERBAIKAN DOKUMEN (PHP)
-        </Text>
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+        setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    };
 
-        {/* ISI DATA */}
-        <View>
-            <View style={styles.row}>
-                <Text style={styles.labelCol}>Nomor Registrasi</Text>
-                <Text style={styles.separatorCol}>:</Text>
-                <Text style={styles.valueCol}>{data.nomorChecklist || data.nomorRegistrasi}</Text>
-            </View>
+    // --- SUBMIT DATA ---
+    const handleApiSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!recordData) return;
+        try {
+            const response = await api.post(`/api/submit/f`, { 
+                noUrut: recordData.noUrut,
+                ...formData 
+            });
+            if (response.data.success) {
+                fetchRecord(nomorChecklist); // Refresh data
+                setFormData(prev => ({ ...prev, tanggalPenyerahanPerbaikan: '', petugasPenerimaPerbaikan: '' }));
+                showModal("Sukses", response.data.message);
+            }
+        } catch (err: any) {
+            showModal("Gagal", err.response?.data?.message || "Terjadi kesalahan.");
+        }
+    };
 
-            {/* LABEL DINAMIS */}
-            <View style={styles.row}>
-                <Text style={styles.labelCol}>{getLabelSurat()}</Text>
-                <Text style={styles.separatorCol}>:</Text>
-                <Text style={styles.valueCol}>{nomorSuratFinal}</Text>
-            </View>
+    // --- HELPER RENDER BARIS TABEL ---
+    const renderPHPRow = (labelRevisi: string, noSurat: string, tgl: string, petugas: string, pdfFileName: string) => {
+        if (!noSurat) return null; 
 
-            <View style={styles.row}>
-                <Text style={styles.labelCol}>Tanggal Penyerahan</Text>
-                <Text style={styles.separatorCol}>:</Text>
-                <Text style={styles.valueCol}>{formatDate(tanggalFinal)}</Text>
-            </View>
+        return (
+            <tr>
+                <th>{labelRevisi}</th>
+                <td>
+                    <div className="flex justify-between items-start">
+                        <div>
+                            No: <span>{noSurat}</span><br/>
+                            <div className="text-gray-500 text-xs mt-1">
+                                Tgl: {tgl} | Petugas: {petugas}
+                            </div>
+                        </div>
+                        
+                        {isClient && (
+                            <PDFDownloadLink
+                                document={
+                                    <TandaTerimaPDF_PHP 
+                                        data={{
+                                            ...recordData,
+                                            // Mengirim label spesifik ke PDF
+                                            phpKe: labelRevisi, 
+                                            nomorSurat: noSurat,
+                                            tanggalTerima: tgl,
+                                            petugas: petugas
+                                        }} 
+                                    />
+                                }
+                                fileName={pdfFileName}
+                                className="no-underline"
+                            >
+                                {({ loading: pdfLoading }) => (
+                                    <button 
+                                        disabled={pdfLoading}
+                                        className={`flex items-center gap-1 border px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm transition-all ${
+                                            pdfLoading ? 'bg-gray-100 text-gray-400 cursor-wait' : 'bg-white border-orange-300 text-orange-700 hover:bg-orange-50'
+                                        }`}
+                                    >
+                                        {pdfLoading ? '...' : <><Download size={14} /> Cetak</>}
+                                    </button>
+                                )}
+                            </PDFDownloadLink>
+                        )}
+                    </div>
+                </td>
+            </tr>
+        );
+    };
 
-            <View style={styles.row}>
-                <Text style={styles.labelCol}>Nama Kegiatan</Text>
-                <Text style={styles.separatorCol}>:</Text>
-                <Text style={styles.valueCol}>{data.namaKegiatan}</Text>
-            </View>
+    return (
+        <div className="p-6 max-w-5xl mx-auto bg-white shadow-lg rounded-xl my-8 border border-gray-100">
+            <style jsx>{tableStyles}</style>
+            
+            <h1 className="text-2xl font-bold mb-6 text-gray-800 flex items-center gap-2">
+                <Search className="text-blue-600" />
+                Penerimaan Hasil Perbaikan (Tahap F)
+            </h1>
 
-            <View style={styles.row}>
-                <Text style={styles.labelCol}>Pemrakarsa</Text>
-                <Text style={styles.separatorCol}>:</Text>
-                <Text style={styles.valueCol}>{data.namaPemrakarsa}</Text>
-            </View>
-        </View>
+            <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 mb-6">
+                <label className="block text-sm font-bold text-blue-800 mb-2">Cari Dokumen (Nomor Checklist)</label>
+                <div className="relative">
+                    <input
+                        type="text"
+                        className="w-full p-3 rounded-lg border border-blue-200 focus:ring-2 focus:ring-blue-400 outline-none"
+                        value={nomorChecklist}
+                        onChange={(e) => setNomorChecklist(e.target.value)}
+                        placeholder="Contoh: 600.4/001.10/..."
+                    />
+                    {loading && <span className="absolute right-3 top-3 text-sm text-blue-500 font-medium">Mencari...</span>}
+                </div>
+                {error && <p className="text-red-500 mt-2 text-sm font-medium bg-red-50 p-2 rounded">{error}</p>}
+            </div>
+            
+            {recordData && (
+                <>
+                {/* FORM INPUT */}
+                <form onSubmit={handleApiSubmit} className="mb-8 p-6 rounded-xl bg-gray-50 border border-gray-200">
+                    <h3 className="font-bold text-lg text-gray-800 mb-4 flex items-center gap-2">
+                        <Save className="w-5 h-5 text-green-600" /> Input Data Revisi Baru
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                        <div>
+                            <label className="block text-sm font-semibold mb-1 text-gray-700">Tahapan Revisi</label>
+                            <select name="nomorRevisi" className="w-full p-2.5 border rounded-lg bg-white" value={formData.nomorRevisi} onChange={handleChange}>
+                                <option value="1">PHP Ke-1 (Awal)</option>
+                                <option value="2">PHP Ke-2</option>
+                                <option value="3">PHP Ke-3</option>
+                                <option value="4">PHP Ke-4</option>
+                                <option value="5">PHP Ke-5</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-semibold mb-1 text-gray-700">Tanggal Terima</label>
+                            <input name="tanggalPenyerahanPerbaikan" type="date" className="w-full p-2.5 border rounded-lg" value={formData.tanggalPenyerahanPerbaikan} onChange={handleChange} required />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-semibold mb-1 text-gray-700">Nama Petugas</label>
+                            <input name="petugasPenerimaPerbaikan" type="text" className="w-full p-2.5 border rounded-lg" value={formData.petugasPenerimaPerbaikan} onChange={handleChange} required placeholder="Nama Penerima..." />
+                        </div>
+                    </div>
+                    <button type="submit" className="mt-5 w-full md:w-auto bg-blue-600 text-white px-8 py-2.5 rounded-lg hover:bg-blue-700 font-bold shadow-md transition-all" disabled={loading}>
+                        Simpan Data
+                    </button>
+                </form>
 
-        {/* PARAGRAF */}
-        <Text style={styles.paragraph}>
-            Telah diterima dokumen perbaikan (Revisi) atas kegiatan tersebut di atas. Dokumen ini telah diverifikasi kelengkapannya dan akan diproses lebih lanjut sesuai dengan Standar Operasional Prosedur (SOP) yang berlaku pada Dinas Lingkungan Hidup Kabupaten Sragen.
-        </Text>
+                {/* TABEL HISTORY */}
+                <div className="animate-fade-in">
+                    <h4 className="font-bold text-lg mb-3 text-gray-800 border-b pb-2">Riwayat Dokumen</h4>
+                    <table className="record-table">
+                        <tbody>
+                            <tr><th>Pemrakarsa</th><td>{recordData.namaPemrakarsa}</td></tr>
+                            <tr><th>Nama Kegiatan</th><td>{recordData.namaKegiatan}</td></tr>
+                            
+                            {/* RENDER SEMUA REVISI YANG ADA */}
+                            {renderPHPRow('PHP Ke-1', recordData.nomorPHP,  recordData.tanggalPHP,  recordData.petugasPenerimaPerbaikan, `TT_PHP1_${recordData.noUrut}.pdf`)}
+                            {renderPHPRow('PHP Ke-2', recordData.nomorPHP2, recordData.tanggalPHP2, recordData.petugasPHP2, `TT_PHP2_${recordData.noUrut}.pdf`)}
+                            {renderPHPRow('PHP Ke-3', recordData.nomorPHP3, recordData.tanggalPHP3, recordData.petugasPHP3, `TT_PHP3_${recordData.noUrut}.pdf`)}
+                            {renderPHPRow('PHP Ke-4', recordData.nomorPHP4, recordData.tanggalPHP4, recordData.petugasPHP4, `TT_PHP4_${recordData.noUrut}.pdf`)}
+                            {renderPHPRow('PHP Ke-5', recordData.nomorPHP5, recordData.tanggalPHP5, recordData.petugasPHP5, `TT_PHP5_${recordData.noUrut}.pdf`)}
+                        </tbody>
+                    </table>
+                </div>
+                </>
+            )}
 
-        {/* TANDA TANGAN */}
-        <View style={styles.signatureRow}>
-            <View style={styles.signatureBox}>
-                <Text>Yang Menyerahkan</Text>
-                <Text>(Pemrakarsa / Konsultan)</Text>
-                <Text style={styles.signatureName}>({data.namaPengirim || '....................'})</Text>
-            </View>
-
-            <View style={styles.signatureBox}>
-                <Text>Petugas Penerima</Text>
-                <Text>Dinas Lingkungan Hidup</Text>
-                <Text style={styles.signatureName}>({petugasFinal || '....................'})</Text>
-            </View>
-        </View>
-
-        {/* FOOTER */}
-        <Text style={styles.footer}>
-            *Dokumen ini diterbitkan secara elektronik oleh Sistem Informasi Perizinan Lingkungan Hidup Kab. Sragen.
-        </Text>
-
-      </Page>
-    </Document>
-  );
-};
+            <Modal show={modalInfo.show} title={modalInfo.title} onClose={closeModal}>
+                <div className="text-gray-700">{modalInfo.message}</div>
+            </Modal>
+        </div>
+    );
+}
