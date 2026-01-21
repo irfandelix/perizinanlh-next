@@ -3,7 +3,7 @@
 import React from 'react';
 import { Page, Text, View, Document, StyleSheet, Font, Image } from '@react-pdf/renderer';
 
-// --- 1. REGISTER FONT (TIMES NEW ROMAN) ---
+// --- 1. REGISTER FONT (Agar Bold & Tampilan Resmi) ---
 Font.register({
   family: 'Times-Roman',
   src: 'https://fonts.gstatic.com/s/timesnewroman/v12/TimesNewRomanPSMT.ttf'
@@ -17,7 +17,7 @@ Font.register({
   src: 'https://fonts.gstatic.com/s/timesnewroman/v12/TimesNewRomanPS-ItalicMT.ttf'
 });
 
-// --- 2. STYLES (MIRIP SURAT RESMI) ---
+// --- 2. STYLES (STYLE SURAT RESMI - TANPA GARIS TABEL KAKU) ---
 const styles = StyleSheet.create({
   page: {
     paddingTop: 30,
@@ -30,14 +30,14 @@ const styles = StyleSheet.create({
   // KOP SURAT
   headerContainer: {
     flexDirection: 'row',
-    borderBottomWidth: 3, // Garis tebal bawah kop
+    borderBottomWidth: 3, 
     borderBottomColor: '#000',
     borderBottomStyle: 'solid',
     paddingBottom: 10,
-    marginBottom: 2, // Spasi untuk garis kedua (tipis)
+    marginBottom: 2, 
   },
   headerLine2: {
-    borderBottomWidth: 1, // Garis tipis di bawah garis tebal
+    borderBottomWidth: 1, 
     borderBottomColor: '#000',
     marginBottom: 20,
   },
@@ -48,7 +48,7 @@ const styles = StyleSheet.create({
   },
   headerTextContainer: {
     flex: 1,
-    alignItems: 'center', // Rata tengah horizontal
+    alignItems: 'center', 
     justifyContent: 'center',
   },
   headerText1: {
@@ -79,7 +79,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
 
-  // ISI DATA (Key-Value tanpa border tabel)
+  // ISI DATA (LAYOUT BARIS RAPI)
   row: {
     flexDirection: 'row',
     marginBottom: 6,
@@ -93,10 +93,10 @@ const styles = StyleSheet.create({
   },
   valueCol: {
     width: '62%',
-    fontFamily: 'Times-Bold', // Isian ditebalkan sesuai gambar
+    fontFamily: 'Times-Bold', // Isian ditebalkan
   },
 
-  // PARAGRAF
+  // PARAGRAF TEKS
   paragraph: {
     marginTop: 15,
     marginBottom: 30,
@@ -116,7 +116,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   signatureName: {
-    marginTop: 60, // Ruang untuk tanda tangan
+    marginTop: 60, 
     fontFamily: 'Times-Bold',
     textDecoration: 'underline',
   },
@@ -143,20 +143,25 @@ const formatDate = (dateString: any) => {
 
 export const TahapFDocument = ({ data }: any) => {
   
-  // 1. Logic Data Dinamis
+  // --- A. LOGIKA DATA DINAMIS ---
+  // Pastikan data mengambil dari properti yang benar (nomorSurat dari tombol, atau fallback ke default)
   const nomorSuratFinal = data.nomorSurat || data.nomorPHP;
   const tanggalFinal = data.tanggalTerima || data.tanggalPenyerahanPerbaikan || data.tanggalPHP;
   const petugasFinal = data.petugas || data.petugasPenerimaPerbaikan;
 
-  // 2. Logic Label (PHP, PHP 1, PHP 2)
+  // --- B. LOGIKA LABEL SURAT (BAGIAN YANG ANDA MINTA) ---
   const getLabelSurat = () => {
+      // Ambil angka dari string "PHP Ke-2"
       const str = data.phpKe || '1'; 
       const match = str.match(/\d+/); 
       let urutan = 1;
       if (match) urutan = parseInt(match[0]);
 
+      // Aturan Penamaan:
+      // PHP Ke-1  --> "Nomor PHP (Revisi)"
+      // PHP Ke-2  --> "Nomor PHP 1 (Revisi)"
+      // PHP Ke-3  --> "Nomor PHP 2 (Revisi)"
       if (urutan === 1) return "Nomor PHP (Revisi)";
-      // Jika Revisi ke-2, labelnya jadi "Nomor PHP 1 (Revisi)" dst
       return `Nomor PHP ${urutan - 1} (Revisi)`;
   };
 
@@ -166,8 +171,7 @@ export const TahapFDocument = ({ data }: any) => {
         
         {/* --- KOP SURAT --- */}
         <View style={styles.headerContainer}>
-            {/* GANTI SRC INI DENGAN PATH LOGO ANDA */}
-            {/* Contoh: src="/images/logo_sragen.png" */}
+            {/* GANTI PATH LOGO SESUAI FILE ANDA */}
             <Image style={styles.logo} src="/logo_sragen.png" /> 
             
             <View style={styles.headerTextContainer}>
@@ -178,7 +182,6 @@ export const TahapFDocument = ({ data }: any) => {
                 <Text style={styles.headerAddress}>Pos-el dlh.sragenkab.go.id</Text>
             </View>
         </View>
-        {/* Garis Tipis Kedua */}
         <View style={styles.headerLine2} />
 
         {/* --- JUDUL --- */}
@@ -186,7 +189,7 @@ export const TahapFDocument = ({ data }: any) => {
           TANDA TERIMA PERBAIKAN DOKUMEN (PHP)
         </Text>
 
-        {/* --- ISI DATA (Tanpa Kotak) --- */}
+        {/* --- ISI DATA --- */}
         <View>
             <View style={styles.row}>
                 <Text style={styles.labelCol}>Nomor Registrasi</Text>
@@ -194,12 +197,13 @@ export const TahapFDocument = ({ data }: any) => {
                 <Text style={styles.valueCol}>{data.nomorChecklist || data.nomorRegistrasi}</Text>
             </View>
 
-            {/* LABEL DINAMIS: Nomor PHP (Revisi) / Nomor PHP 1 (Revisi) */}
+            {/* --- BAGIAN DINAMIS (LABEL BERUBAH DISINI) --- */}
             <View style={styles.row}>
                 <Text style={styles.labelCol}>{getLabelSurat()}</Text>
                 <Text style={styles.separatorCol}>:</Text>
                 <Text style={styles.valueCol}>{nomorSuratFinal}</Text>
             </View>
+            {/* --------------------------------------------- */}
 
             <View style={styles.row}>
                 <Text style={styles.labelCol}>Tanggal Penyerahan</Text>
@@ -220,7 +224,7 @@ export const TahapFDocument = ({ data }: any) => {
             </View>
         </View>
 
-        {/* --- PARAGRAF KETERANGAN --- */}
+        {/* --- PARAGRAF PENUTUP --- */}
         <Text style={styles.paragraph}>
             Telah diterima dokumen perbaikan (Revisi) atas kegiatan tersebut di atas. Dokumen ini telah diverifikasi kelengkapannya dan akan diproses lebih lanjut sesuai dengan Standar Operasional Prosedur (SOP) yang berlaku pada Dinas Lingkungan Hidup Kabupaten Sragen.
         </Text>
