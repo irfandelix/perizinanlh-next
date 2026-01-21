@@ -141,7 +141,7 @@ const formatDate = (dateString: any) => {
     return new Intl.DateTimeFormat('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }).format(date);
 };
 
-export const CetakTahapFPDF = ({ data }: any) => {
+export const TandaTerimaPDF_PHP = ({ data }: any) => {
   
   // 1. DATA DINAMIS (Mengambil data spesifik revisi)
   const nomorSuratFinal = data.nomorSurat || data.nomorPHP || '-';
