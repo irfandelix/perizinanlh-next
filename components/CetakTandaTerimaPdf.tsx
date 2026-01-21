@@ -1,207 +1,255 @@
 'use client';
 
 import React from 'react';
-import { Page, Text, View, Document, StyleSheet, Font } from '@react-pdf/renderer';
+import { Page, Text, View, Document, StyleSheet, Font, Image } from '@react-pdf/renderer';
 
-// Register Font (optional, for better visual consistency)
-// Font.register({ family: 'Helvetica-Bold', src: 'path/to/Helvetica-Bold.ttf' }); 
-// Note: React-PDF has default access to Helvetica, Times-Roman, Courier
-
-// --- STYLES ---
-const styles = StyleSheet.create({
-    page: {
-        padding: 50, // Padding halaman A4 Portrait
-        fontSize: 11,
-        fontFamily: 'Helvetica',
-    },
-    // --- KOP SURAT ---
-    header: {
-        borderBottomWidth: 2,
-        borderBottomColor: '#000',
-        borderBottomStyle: 'solid',
-        paddingBottom: 10,
-        marginBottom: 20,
-        textAlign: 'center',
-    },
-    headerText: {
-        fontSize: 14,
-        fontWeight: 'bold',
-        fontFamily: 'Helvetica-Bold',
-        textTransform: 'uppercase',
-    },
-    headerSubText: {
-        fontSize: 10,
-        marginTop: 2,
-    },
-    title: {
-        textAlign: 'center',
-        fontSize: 14,
-        fontWeight: 'bold',
-        fontFamily: 'Helvetica-Bold',
-        marginBottom: 30,
-        textTransform: 'uppercase',
-        textDecoration: 'underline'
-    },
-    // Table Utilities
-    table: { 
-        width: "100%", 
-        marginBottom: 30,
-    }, 
-    tableRow: { 
-        flexDirection: "row",
-        paddingVertical: 5,
-    }, 
-    tableColLeft: { 
-        width: '30%', // Lebar untuk Label
-    },
-    tableColSep: {
-        width: '2%', // Lebar untuk Tanda Titik Dua (:)
-    },
-    tableColRight: {
-        width: '68%', // Lebar untuk Nilai
-        fontFamily: 'Helvetica-Bold',
-    },
-    textBody: { 
-        fontSize: 11,
-    },
-    // Signature Section
-    signContainer: {
-        marginTop: 50,
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        width: '100%',
-        paddingHorizontal: 20,
-    },
-    signatureBlock: {
-        width: '45%',
-        textAlign: 'center',
-    },
-    signatureLine: {
-        borderBottomWidth: 1,
-        borderBottomColor: '#000',
-        borderBottomStyle: 'solid',
-        marginTop: 40,
-        paddingBottom: 2,
-        fontSize: 11,
-        fontFamily: 'Helvetica-Bold',
-    },
-    footerNote: {
-        fontSize: 9,
-        fontStyle: 'italic',
-        marginTop: 50,
-        textAlign: 'left',
-        color: '#444'
-    }
+// --- 1. REGISTER FONT (TIMES NEW ROMAN) ---
+Font.register({
+  family: 'Times-Roman',
+  src: 'https://fonts.gstatic.com/s/timesnewroman/v12/TimesNewRomanPSMT.ttf'
+});
+Font.register({
+  family: 'Times-Bold',
+  src: 'https://fonts.gstatic.com/s/timesnewroman/v12/TimesNewRomanPS-BoldMT.ttf'
+});
+Font.register({
+  family: 'Times-Italic',
+  src: 'https://fonts.gstatic.com/s/timesnewroman/v12/TimesNewRomanPS-ItalicMT.ttf'
 });
 
-// Helper Date
-const formatDate = (dateString: string, includeTime = false) => {
+// --- 2. STYLES (MIRIP SURAT RESMI) ---
+const styles = StyleSheet.create({
+  page: {
+    paddingTop: 30,
+    paddingBottom: 40,
+    paddingHorizontal: 50,
+    fontSize: 11,
+    fontFamily: 'Times-Roman',
+    lineHeight: 1.3,
+  },
+  // KOP SURAT
+  headerContainer: {
+    flexDirection: 'row',
+    borderBottomWidth: 3, // Garis tebal bawah kop
+    borderBottomColor: '#000',
+    borderBottomStyle: 'solid',
+    paddingBottom: 10,
+    marginBottom: 2, // Spasi untuk garis kedua (tipis)
+  },
+  headerLine2: {
+    borderBottomWidth: 1, // Garis tipis di bawah garis tebal
+    borderBottomColor: '#000',
+    marginBottom: 20,
+  },
+  logo: {
+    width: 65,
+    height: 75,
+    marginRight: 15,
+  },
+  headerTextContainer: {
+    flex: 1,
+    alignItems: 'center', // Rata tengah horizontal
+    justifyContent: 'center',
+  },
+  headerText1: {
+    fontSize: 14,
+    fontFamily: 'Times-Roman',
+    textTransform: 'uppercase',
+  },
+  headerText2: {
+    fontSize: 16,
+    fontFamily: 'Times-Bold',
+    textTransform: 'uppercase',
+    marginTop: 2,
+  },
+  headerAddress: {
+    fontSize: 9,
+    textAlign: 'center',
+    marginTop: 2,
+  },
+
+  // JUDUL
+  title: {
+    textAlign: 'center',
+    fontSize: 12,
+    fontFamily: 'Times-Bold',
+    textDecoration: 'underline',
+    textTransform: 'uppercase',
+    marginTop: 10,
+    marginBottom: 20,
+  },
+
+  // ISI DATA (Key-Value tanpa border tabel)
+  row: {
+    flexDirection: 'row',
+    marginBottom: 6,
+  },
+  labelCol: {
+    width: '35%',
+  },
+  separatorCol: {
+    width: '3%',
+    textAlign: 'center',
+  },
+  valueCol: {
+    width: '62%',
+    fontFamily: 'Times-Bold', // Isian ditebalkan sesuai gambar
+  },
+
+  // PARAGRAF
+  paragraph: {
+    marginTop: 15,
+    marginBottom: 30,
+    textAlign: 'justify',
+    textIndent: 0, 
+    lineHeight: 1.5,
+  },
+
+  // TANDA TANGAN
+  signatureRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 10,
+  },
+  signatureBox: {
+    width: '45%',
+    alignItems: 'center',
+  },
+  signatureName: {
+    marginTop: 60, // Ruang untuk tanda tangan
+    fontFamily: 'Times-Bold',
+    textDecoration: 'underline',
+  },
+
+  // FOOTER
+  footer: {
+    position: 'absolute',
+    bottom: 30,
+    left: 50,
+    right: 50,
+    fontSize: 8,
+    fontFamily: 'Times-Italic',
+    color: 'grey',
+    textAlign: 'center',
+  }
+});
+
+const formatDate = (dateString: any) => {
     if (!dateString) return '-';
     const date = new Date(dateString);
     if (isNaN(date.getTime())) return '-';
-
-    const options: Intl.DateTimeFormatOptions = { day: '2-digit', month: 'long', year: 'numeric' };
-    if (includeTime) {
-         options.hour = '2-digit';
-         options.minute = '2-digit';
-    }
-    
-    return new Intl.DateTimeFormat('id-ID', options).format(date);
+    return new Intl.DateTimeFormat('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }).format(date);
 };
 
-// --- DOKUMEN PDF ---
-export const TandaTerimaDocument = ({ data }: any) => {
-    
-    // Tentukan tanggal tempat penandatanganan (misal: Tanggal Masuk Dokumen)
-    const tanggalTtd = formatDate(data.tanggalMasukDokumen);
-    
-    return (
-        <Document>
-            {/* size="A4" orientation="portrait" adalah default, tapi kita set eksplisit */}
-            <Page size="A4" orientation="portrait" style={styles.page}> 
+export const TahapFDocument = ({ data }: any) => {
+  
+  // 1. Logic Data Dinamis
+  const nomorSuratFinal = data.nomorSurat || data.nomorPHP;
+  const tanggalFinal = data.tanggalTerima || data.tanggalPenyerahanPerbaikan || data.tanggalPHP;
+  const petugasFinal = data.petugas || data.petugasPenerimaPerbaikan;
+
+  // 2. Logic Label (PHP, PHP 1, PHP 2)
+  const getLabelSurat = () => {
+      const str = data.phpKe || '1'; 
+      const match = str.match(/\d+/); 
+      let urutan = 1;
+      if (match) urutan = parseInt(match[0]);
+
+      if (urutan === 1) return "Nomor PHP (Revisi)";
+      // Jika Revisi ke-2, labelnya jadi "Nomor PHP 1 (Revisi)" dst
+      return `Nomor PHP ${urutan - 1} (Revisi)`;
+  };
+
+  return (
+    <Document>
+      <Page size="A4" style={styles.page}>
+        
+        {/* --- KOP SURAT --- */}
+        <View style={styles.headerContainer}>
+            {/* GANTI SRC INI DENGAN PATH LOGO ANDA */}
+            {/* Contoh: src="/images/logo_sragen.png" */}
+            <Image style={styles.logo} src="/logo_sragen.png" /> 
+            
+            <View style={styles.headerTextContainer}>
+                <Text style={styles.headerText1}>PEMERINTAH KABUPATEN SRAGEN</Text>
+                <Text style={styles.headerText2}>DINAS LINGKUNGAN HIDUP</Text>
+                <Text style={styles.headerAddress}>Jalan Ronggowarsito Nomor 18B, Sragen Wetan, Sragen, Jawa Tengah 57214</Text>
+                <Text style={styles.headerAddress}>Telepon (0271) 891136, Faksimile (0271) 891136, Laman www.dlh.sragenkab.go.id</Text>
+                <Text style={styles.headerAddress}>Pos-el dlh.sragenkab.go.id</Text>
+            </View>
+        </View>
+        {/* Garis Tipis Kedua */}
+        <View style={styles.headerLine2} />
+
+        {/* --- JUDUL --- */}
+        <Text style={styles.title}>
+          TANDA TERIMA PERBAIKAN DOKUMEN (PHP)
+        </Text>
+
+        {/* --- ISI DATA (Tanpa Kotak) --- */}
+        <View>
+            <View style={styles.row}>
+                <Text style={styles.labelCol}>Nomor Registrasi</Text>
+                <Text style={styles.separatorCol}>:</Text>
+                <Text style={styles.valueCol}>{data.nomorChecklist || data.nomorRegistrasi}</Text>
+            </View>
+
+            {/* LABEL DINAMIS: Nomor PHP (Revisi) / Nomor PHP 1 (Revisi) */}
+            <View style={styles.row}>
+                <Text style={styles.labelCol}>{getLabelSurat()}</Text>
+                <Text style={styles.separatorCol}>:</Text>
+                <Text style={styles.valueCol}>{nomorSuratFinal}</Text>
+            </View>
+
+            <View style={styles.row}>
+                <Text style={styles.labelCol}>Tanggal Penyerahan</Text>
+                <Text style={styles.separatorCol}>:</Text>
+                <Text style={styles.valueCol}>{formatDate(tanggalFinal)}</Text>
+            </View>
+
+            <View style={styles.row}>
+                <Text style={styles.labelCol}>Nama Kegiatan</Text>
+                <Text style={styles.separatorCol}>:</Text>
+                <Text style={styles.valueCol}>{data.namaKegiatan}</Text>
+            </View>
+
+            <View style={styles.row}>
+                <Text style={styles.labelCol}>Pemrakarsa</Text>
+                <Text style={styles.separatorCol}>:</Text>
+                <Text style={styles.valueCol}>{data.namaPemrakarsa}</Text>
+            </View>
+        </View>
+
+        {/* --- PARAGRAF KETERANGAN --- */}
+        <Text style={styles.paragraph}>
+            Telah diterima dokumen perbaikan (Revisi) atas kegiatan tersebut di atas. Dokumen ini telah diverifikasi kelengkapannya dan akan diproses lebih lanjut sesuai dengan Standar Operasional Prosedur (SOP) yang berlaku pada Dinas Lingkungan Hidup Kabupaten Sragen.
+        </Text>
+
+        {/* --- TANDA TANGAN --- */}
+        <View style={styles.signatureRow}>
+            {/* Kiri */}
+            <View style={styles.signatureBox}>
+                <Text>Yang Menyerahkan</Text>
+                <Text>(Pemrakarsa / Konsultan)</Text>
                 
-                {/* --- KOP SURAT --- */}
-                <View style={styles.header}>
-                    <Text style={styles.headerText}>Pemerintah Kabupaten Sragen</Text>
-                    <Text style={styles.headerText}>Dinas Lingkungan Hidup</Text>
-                    <Text style={styles.headerSubText}>Jl. Raya Sukowati No. 255 Sragen, Jawa Tengah - Kode Pos: 57211</Text>
-                </View>
+                <Text style={styles.signatureName}>({data.namaPengirim || '....................'})</Text>
+            </View>
 
-                {/* --- JUDUL DOKUMEN --- */}
-                <Text style={styles.title}>TANDA TERIMA PENYERAHAN DOKUMEN AWAL</Text>
+            {/* Kanan */}
+            <View style={styles.signatureBox}>
+                <Text>Petugas Penerima</Text>
+                <Text>Dinas Lingkungan Hidup</Text>
+                
+                <Text style={styles.signatureName}>({petugasFinal || '....................'})</Text>
+            </View>
+        </View>
 
-                {/* --- ISI / DETAIL DOKUMEN --- */}
-                <View style={styles.table}>
-                    {/* Baris 1: Nama Kegiatan */}
-                    <View style={styles.tableRow}>
-                        <View style={styles.tableColLeft}><Text style={styles.textBody}>Nama Kegiatan</Text></View>
-                        <View style={styles.tableColSep}><Text style={styles.textBody}>:</Text></View>
-                        <View style={styles.tableColRight}><Text style={styles.textBody}>{data.namaKegiatan}</Text></View>
-                    </View>
-                    
-                    {/* Baris 2: Pemrakarsa */}
-                    <View style={styles.tableRow}>
-                        <View style={styles.tableColLeft}><Text style={styles.textBody}>Nama Pemrakarsa</Text></View>
-                        <View style={styles.tableColSep}><Text style={styles.textBody}>:</Text></View>
-                        <View style={styles.tableColRight}><Text style={styles.textBody}>{data.namaPemrakarsa}</Text></View>
-                    </View>
+        {/* --- FOOTER --- */}
+        <Text style={styles.footer}>
+            *Dokumen ini diterbitkan secara elektronik oleh Sistem Informasi Perizinan Lingkungan Hidup Kab. Sragen.
+        </Text>
 
-                    {/* Baris 3: Jenis Dokumen */}
-                    <View style={styles.tableRow}>
-                        <View style={styles.tableColLeft}><Text style={styles.textBody}>Jenis Dokumen</Text></View>
-                        <View style={styles.tableColSep}><Text style={styles.textBody}>:</Text></View>
-                        <View style={styles.tableColRight}><Text style={styles.textBody}>{data.jenisDokumen}</Text></View>
-                    </View>
-                    
-                    {/* Baris 4: Nomor Registrasi */}
-                    <View style={styles.tableRow}>
-                        <View style={styles.tableColLeft}><Text style={styles.textBody}>Nomor Registrasi/Checklist</Text></View>
-                        <View style={styles.tableColSep}><Text style={styles.textBody}>:</Text></View>
-                        <View style={styles.tableColRight}><Text style={{...styles.textBody, fontFamily: 'Helvetica-Bold', fontSize: 12 }}>{data.nomorChecklist}</Text></View>
-                    </View>
-                    
-                    {/* Baris 5: Tanggal Masuk */}
-                    <View style={styles.tableRow}>
-                        <View style={styles.tableColLeft}><Text style={styles.textBody}>Tanggal Diterima</Text></View>
-                        <View style={styles.tableColSep}><Text style={styles.textBody}>:</Text></View>
-                        <View style={styles.tableColRight}><Text style={styles.textBody}>{formatDate(data.tanggalMasukDokumen)}</Text></View>
-                    </View>
-
-                    {/* Baris 6: Alamat Kegiatan */}
-                    <View style={styles.tableRow}>
-                        <View style={styles.tableColLeft}><Text style={styles.textBody}>Lokasi Kegiatan</Text></View>
-                        <View style={styles.tableColSep}><Text style={styles.textBody}>:</Text></View>
-                        <View style={styles.tableColRight}><Text style={styles.textBody}>{data.lokasiKegiatan}</Text></View>
-                    </View>
-                </View>
-
-                {/* --- TANDA TANGAN --- */}
-                <View style={styles.signContainer}>
-                    {/* KIRI: PEMOHON */}
-                    <View style={styles.signatureBlock}>
-                        <Text style={styles.textBody}>Yang Menyerahkan,</Text>
-                        <Text style={styles.textBody}>Pemrakarsa/Kuasa</Text>
-                        <Text style={styles.signatureLine}>
-                            {data.namaPengirim || '.....................................'}
-                        </Text>
-                    </View>
-
-                    {/* KANAN: PETUGAS */}
-                    <View style={styles.signatureBlock}>
-                        <Text style={styles.textBody}>Sragen, {tanggalTtd}</Text>
-                        <Text style={styles.textBody}>Petugas Penerima Dokumen</Text>
-                        <Text style={styles.signatureLine}>
-                            {data.namaPetugas || '.....................................'}
-                        </Text>
-                    </View>
-                </View>
-
-                {/* FOOTER */}
-                <Text style={styles.footerNote}>
-                    Catatan: Tanda terima ini adalah bukti penyerahan berkas awal. Proses selanjutnya akan dilanjutkan dengan Uji Administrasi.
-                </Text>
-
-            </Page>
-        </Document>
-    );
-}
+      </Page>
+    </Document>
+  );
+};
