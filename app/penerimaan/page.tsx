@@ -4,8 +4,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import api from '@/lib/api'; 
 import Modal from '@/components/Modal'; 
 import { Download } from 'lucide-react'; 
-
-// 1. IMPORT PDF DOWNLOAD LINK & KOMPONEN PDF
 import { PDFDownloadLink } from '@react-pdf/renderer';
 import { TandaTerimaPDF_PHP } from '@/components/pdf/TandaTerimaPDF_PHP';
 
@@ -21,13 +19,9 @@ export default function FormPenerimaan() {
     const [recordData, setRecordData] = useState<any>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
-    
-    // State untuk memastikan render hanya terjadi di Client (Wajib untuk PDFDownloadLink)
     const [isClient, setIsClient] = useState(false);
 
-    useEffect(() => {
-        setIsClient(true);
-    }, []);
+    useEffect(() => { setIsClient(true); }, []);
 
     const [formData, setFormData] = useState({ 
         tanggalPenyerahanPerbaikan: '',
@@ -77,13 +71,64 @@ export default function FormPenerimaan() {
                 ...formData 
             });
             if (response.data.success) {
-                fetchRecord(nomorChecklist);
+                fetchRecord(nomorChecklist); // Refresh data setelah simpan
                 setFormData(prev => ({ ...prev, tanggalPenyerahanPerbaikan: '', petugasPenerimaPerbaikan: '' }));
                 showModal("Sukses", response.data.message);
             }
         } catch (err: any) {
             showModal("Gagal", err.response?.data?.message || "Terjadi kesalahan.");
         }
+    };
+
+    // --- HELPER UNTUK RENDER BARIS PHP ---
+    const renderPHPRow = (label: string, noSurat: string, tgl: string, petugas: string, pdfFileName: string) => {
+        if (!noSurat) return null; // Jika data kosong, jangan render baris ini
+
+        return (
+            <tr>
+                <th>{label}</th>
+                <td>
+                    <div className="flex justify-between items-start">
+                        <div>
+                            No: <span>{noSurat}</span><br/>
+                            <div className="text-gray-600 text-sm mt-1">
+                                Tgl: {tgl}<br/>
+                                Penerima: {petugas}
+                            </div>
+                        </div>
+                        
+                        {isClient && (
+                            <PDFDownloadLink
+                                document={
+                                    <TandaTerimaPDF_PHP 
+                                        data={{
+                                            ...recordData,
+                                            phpKe: label, // PHP Ke-1, PHP Ke-2, dst
+                                            nomorSurat: noSurat,
+                                            tanggalTerima: tgl,
+                                            petugas: petugas
+                                        }} 
+                                    />
+                                }
+                                fileName={pdfFileName}
+                                className="no-underline"
+                            >
+                                {({ loading: pdfLoading }) => (
+                                    <button 
+                                        disabled={pdfLoading}
+                                        className={`flex items-center gap-1 border px-3 py-1.5 rounded text-xs font-bold shadow-sm transition-all ${
+                                            pdfLoading ? 'bg-gray-100 text-gray-400 cursor-wait' : 'bg-white border-orange-300 text-orange-700 hover:bg-orange-50'
+                                        }`}
+                                    >
+                                        {pdfLoading ? 'Loading...' : <><Download size={14} /> Download</>}
+                                    </button>
+                                )}
+                            </PDFDownloadLink>
+                        )}
+                    </div>
+                </td>
+            </tr>
+        );
     };
 
     return (
@@ -98,7 +143,7 @@ export default function FormPenerimaan() {
                 <legend className="font-semibold px-2 text-blue-700">Cari Dokumen</legend>
                 <input
                     type="text"
-                    className="border border-gray-300 p-2 rounded w-full outline-none"
+                    className="border border-gray-300 p-2 rounded w-full outline-none focus:ring-2 focus:ring-blue-200"
                     value={nomorChecklist}
                     onChange={(e) => setNomorChecklist(e.target.value)}
                     placeholder="Masukkan Nomor Checklist..."
@@ -119,6 +164,8 @@ export default function FormPenerimaan() {
                                     <option value="1">PHP Ke-1 (Awal)</option>
                                     <option value="2">PHP Ke-2</option>
                                     <option value="3">PHP Ke-3</option>
+                                    <option value="4">PHP Ke-4</option>
+                                    <option value="5">PHP Ke-5</option>
                                 </select>
                             </div>
                             <div>
@@ -143,112 +190,12 @@ export default function FormPenerimaan() {
                             <tr><th>Pemrakarsa</th><td>{recordData.namaPemrakarsa}</td></tr>
                             <tr><th>Kegiatan</th><td>{recordData.namaKegiatan}</td></tr>
                             
-                            {/* --- PHP KE-1 --- */}
-                            {recordData.nomorPHP && (
-                                <tr>
-                                    <th>PHP Ke-1</th>
-                                    <td>
-                                        <div className="flex justify-between items-start">
-                                            <div>
-                                                No: <span>{recordData.nomorPHP}</span><br/>
-                                                <div className="text-gray-600 text-sm mt-1">
-                                                    Tgl: {recordData.tanggalPHP}<br/>
-                                                    Penerima: {recordData.petugasPenerimaPerbaikan}
-                                                </div>
-                                            </div>
-                                            
-                                            {/* IMPLEMENTASI SESUAI PERMINTAAN ANDA */}
-                                            {isClient && (
-                                                <PDFDownloadLink
-                                                    document={
-                                                        <TandaTerimaPDF_PHP 
-                                                            data={{
-                                                                ...recordData, // Bawa semua data record
-                                                                // Override field spesifik untuk PHP ini agar PDF-nya benar
-                                                                phpKe: 'PHP Ke-1',
-                                                                nomorSurat: recordData.nomorPHP,
-                                                                tanggalTerima: recordData.tanggalPHP,
-                                                                petugas: recordData.petugasPenerimaPerbaikan
-                                                            }} 
-                                                        />
-                                                    }
-                                                    fileName={`TandaTerima_PHP1_${recordData.noUrut}.pdf`}
-                                                    className="no-underline"
-                                                >
-                                                    {({ loading: pdfLoading }) => (
-                                                        <button 
-                                                            disabled={pdfLoading}
-                                                            className={`flex items-center gap-1 border px-3 py-1.5 rounded text-xs font-bold shadow-sm transition-all ${
-                                                                pdfLoading 
-                                                                ? 'bg-gray-100 text-gray-400 cursor-wait' 
-                                                                : 'bg-white border-orange-300 text-orange-700 hover:bg-orange-50'
-                                                            }`}
-                                                        >
-                                                            {pdfLoading ? (
-                                                                <span>Loading...</span>
-                                                            ) : (
-                                                                <>
-                                                                    <Download size={14} /> Download
-                                                                </>
-                                                            )}
-                                                        </button>
-                                                    )}
-                                                </PDFDownloadLink>
-                                            )}
-                                        </div>
-                                    </td>
-                                </tr>
-                            )}
-
-                            {/* --- PHP KE-2 --- */}
-                            {recordData.nomorPHP1 && (
-                                <tr>
-                                    <th>PHP Ke-2</th>
-                                    <td>
-                                        <div className="flex justify-between items-start">
-                                            <div>
-                                                No: <span>{recordData.nomorPHP1}</span><br/>
-                                                <div className="text-gray-600 text-sm mt-1">
-                                                    Tgl: {recordData.tanggalPHP1}<br/>
-                                                    Penerima: {recordData.petugasPHP1}
-                                                </div>
-                                            </div>
-
-                                            {/* TOMBOL PHP 2 */}
-                                            {isClient && (
-                                                <PDFDownloadLink
-                                                    document={
-                                                        <TandaTerimaPDF_PHP 
-                                                            data={{
-                                                                ...recordData,
-                                                                phpKe: 'PHP Ke-2',
-                                                                nomorSurat: recordData.nomorPHP1,
-                                                                tanggalTerima: recordData.tanggalPHP1,
-                                                                petugas: recordData.petugasPHP1
-                                                            }} 
-                                                        />
-                                                    }
-                                                    fileName={`TandaTerima_PHP2_${recordData.noUrut}.pdf`}
-                                                    className="no-underline"
-                                                >
-                                                    {({ loading: pdfLoading }) => (
-                                                        <button 
-                                                            disabled={pdfLoading}
-                                                            className={`flex items-center gap-1 border px-3 py-1.5 rounded text-xs font-bold shadow-sm transition-all ${
-                                                                pdfLoading 
-                                                                ? 'bg-gray-100 text-gray-400 cursor-wait' 
-                                                                : 'bg-white border-orange-300 text-orange-700 hover:bg-orange-50'
-                                                            }`}
-                                                        >
-                                                            {pdfLoading ? 'Loading...' : <><Download size={14} /> Download</>}
-                                                        </button>
-                                                    )}
-                                                </PDFDownloadLink>
-                                            )}
-                                        </div>
-                                    </td>
-                                </tr>
-                            )}
+                            {/* RENDER SEMUA PHP YANG ADA (1 s/d 5) */}
+                            {renderPHPRow('PHP Ke-1', recordData.nomorPHP, recordData.tanggalPHP, recordData.petugasPenerimaPerbaikan, `TandaTerima_PHP1_${recordData.noUrut}.pdf`)}
+                            {renderPHPRow('PHP Ke-2', recordData.nomorPHP2, recordData.tanggalPHP2, recordData.petugasPHP2, `TandaTerima_PHP2_${recordData.noUrut}.pdf`)}
+                            {renderPHPRow('PHP Ke-3', recordData.nomorPHP3, recordData.tanggalPHP3, recordData.petugasPHP3, `TandaTerima_PHP3_${recordData.noUrut}.pdf`)}
+                            {renderPHPRow('PHP Ke-4', recordData.nomorPHP4, recordData.tanggalPHP4, recordData.petugasPHP4, `TandaTerima_PHP4_${recordData.noUrut}.pdf`)}
+                            {renderPHPRow('PHP Ke-5', recordData.nomorPHP5, recordData.tanggalPHP5, recordData.petugasPHP5, `TandaTerima_PHP5_${recordData.noUrut}.pdf`)}
                         </tbody>
                     </table>
                 </div>
