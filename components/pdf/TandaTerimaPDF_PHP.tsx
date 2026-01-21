@@ -1,185 +1,255 @@
+'use client';
+
 import React from 'react';
-import { Page, Text, View, Document, StyleSheet, Image } from '@react-pdf/renderer';
+import { Page, Text, View, Document, StyleSheet, Font, Image } from '@react-pdf/renderer';
 
-// --- STYLING ---
-const styles = StyleSheet.create({
-    page: { 
-        paddingTop: 30,
-        paddingBottom: 40,
-        paddingHorizontal: 40,
-        fontFamily: 'Helvetica', 
-        fontSize: 10, 
-        lineHeight: 1.3 
-    },
-    
-    // --- KOP SURAT (SESUAI GAMBAR) ---
-    kopContainer: {
-        flexDirection: 'row',
-        alignItems: 'flex-start', // Logo sejajar atas atau tengah
-        marginBottom: 2
-        // justifyContent: 'center' // Opsional: jika ingin konten di tengah page
-    },
-    // Logo di Kiri
-    logo: {
-        width: 65,  // Ukuran logo disesuaikan
-        height: 75, 
-        marginRight: 10,
-        marginTop: 5
-    },
-    // Teks di Kanan/Tengah
-    kopTextContainer: {
-        flex: 1, 
-        textAlign: 'center',
-        marginTop: 5,
-        marginLeft: -10 // Kompensasi visual agar teks benar-benar terlihat center di halaman
-    },
-    textPemkab: {
-        fontSize: 14,
-        fontFamily: 'Helvetica',
-        marginBottom: 2
-    },
-    textDinas: {
-        fontSize: 18,
-        fontFamily: 'Helvetica-Bold', // Font Tebal
-        fontWeight: 'bold',
-        marginBottom: 2
-    },
-    textAlamat: {
-        fontSize: 9,
-        fontFamily: 'Helvetica',
-    },
-
-    // --- GARIS GANDA ---
-    // Trik membuat garis ganda (Tebal atas, Tipis bawah)
-    garisTebal: { 
-        borderBottomWidth: 3, 
-        borderColor: '#000', 
-        marginTop: 5 
-    },
-    garisTipis: { 
-        borderBottomWidth: 1, 
-        borderColor: '#000', 
-        marginTop: 2,
-        marginBottom: 20 
-    },
-
-    // --- JUDUL DOKUMEN ---
-    judulDokumen: { 
-        textAlign: 'center', 
-        fontSize: 12, 
-        fontFamily: 'Helvetica-Bold',
-        fontWeight: 'bold', 
-        marginBottom: 20, 
-        textTransform: 'uppercase', 
-        textDecoration: 'underline' 
-    },
-
-    // --- ISI TABEL DATA ---
-    row: { flexDirection: 'row', marginBottom: 6 },
-    label: { width: '30%' },
-    separator: { width: '3%', textAlign: 'center' },
-    value: { width: '67%', fontFamily: 'Helvetica-Bold', fontWeight: 'bold' },
-
-    // --- FOOTER TTD ---
-    footer: { marginTop: 40, flexDirection: 'row', justifyContent: 'space-between' },
-    signatureBox: { width: '45%', textAlign: 'center' },
-    signSpace: { height: 65 },
-    namaTerang: { fontFamily: 'Helvetica-Bold', fontWeight: 'bold', textDecoration: 'underline' },
+// --- REGISTER FONT (WAJIB ADA) ---
+Font.register({
+  family: 'Times-Roman',
+  src: 'https://fonts.gstatic.com/s/timesnewroman/v12/TimesNewRomanPSMT.ttf'
+});
+Font.register({
+  family: 'Times-Bold',
+  src: 'https://fonts.gstatic.com/s/timesnewroman/v12/TimesNewRomanPS-BoldMT.ttf'
+});
+Font.register({
+  family: 'Times-Italic',
+  src: 'https://fonts.gstatic.com/s/timesnewroman/v12/TimesNewRomanPS-ItalicMT.ttf'
 });
 
-// Pastikan file "logo-sragen.png" ada di folder public project Anda
-const LOGO_SRC = '/logo-sragen.png'; 
+// --- STYLES SURAT RESMI ---
+const styles = StyleSheet.create({
+  page: {
+    paddingTop: 30,
+    paddingBottom: 40,
+    paddingHorizontal: 50,
+    fontSize: 11,
+    fontFamily: 'Times-Roman',
+    lineHeight: 1.3,
+  },
+  // KOP SURAT
+  headerContainer: {
+    flexDirection: 'row',
+    borderBottomWidth: 3, 
+    borderBottomColor: '#000',
+    borderBottomStyle: 'solid',
+    paddingBottom: 10,
+    marginBottom: 2, 
+  },
+  headerLine2: {
+    borderBottomWidth: 1, 
+    borderBottomColor: '#000',
+    marginBottom: 20,
+  },
+  logo: {
+    width: 65,
+    height: 75,
+    marginRight: 15,
+  },
+  headerTextContainer: {
+    flex: 1,
+    alignItems: 'center', 
+    justifyContent: 'center',
+  },
+  headerText1: {
+    fontSize: 14,
+    fontFamily: 'Times-Roman',
+    textTransform: 'uppercase',
+  },
+  headerText2: {
+    fontSize: 16,
+    fontFamily: 'Times-Bold',
+    textTransform: 'uppercase',
+    marginTop: 2,
+  },
+  headerAddress: {
+    fontSize: 9,
+    textAlign: 'center',
+    marginTop: 2,
+  },
+  
+  // JUDUL
+  title: {
+    textAlign: 'center',
+    fontSize: 12,
+    fontFamily: 'Times-Bold',
+    textDecoration: 'underline',
+    textTransform: 'uppercase',
+    marginTop: 10,
+    marginBottom: 20,
+  },
 
-export const TandaTerimaPDF_PHP = ({ data }: { data: any }) => {
-    
-    // Format Tanggal Indonesia
-    const formatDate = (dateString: string) => {
-        if (!dateString) return '-';
-        const date = new Date(dateString);
-        return date.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
-    };
+  // DATA ROW (Tanpa Border)
+  row: {
+    flexDirection: 'row',
+    marginBottom: 6,
+  },
+  labelCol: {
+    width: '35%',
+  },
+  separatorCol: {
+    width: '3%',
+    textAlign: 'center',
+  },
+  valueCol: {
+    width: '62%',
+    fontFamily: 'Times-Bold', // Data Bold
+  },
 
-    return (
-        <Document>
-            <Page size="A4" style={styles.page}>
+  // PARAGRAF
+  paragraph: {
+    marginTop: 15,
+    marginBottom: 30,
+    textAlign: 'justify',
+    textIndent: 0, 
+    lineHeight: 1.5,
+  },
+
+  // TTD
+  signatureRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 10,
+  },
+  signatureBox: {
+    width: '45%',
+    alignItems: 'center',
+  },
+  signatureName: {
+    marginTop: 60, 
+    fontFamily: 'Times-Bold',
+    textDecoration: 'underline',
+  },
+
+  // FOOTER
+  footer: {
+    position: 'absolute',
+    bottom: 30,
+    left: 50,
+    right: 50,
+    fontSize: 8,
+    fontFamily: 'Times-Italic',
+    color: 'grey',
+    textAlign: 'center',
+  }
+});
+
+const formatDate = (dateString: any) => {
+    if (!dateString) return '-';
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return '-';
+    return new Intl.DateTimeFormat('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }).format(date);
+};
+
+export const CetakTahapFPDF = ({ data }: any) => {
+  
+  // 1. DATA DINAMIS (Mengambil data spesifik revisi)
+  const nomorSuratFinal = data.nomorSurat || data.nomorPHP || '-';
+  const tanggalFinal = data.tanggalTerima || data.tanggalPenyerahanPerbaikan || data.tanggalPHP;
+  const petugasFinal = data.petugas || data.petugasPenerimaPerbaikan;
+
+  // 2. LOGIKA MAPPING LABEL (HARDCODED AGAR PASTI BENAR)
+  const getLabelSurat = () => {
+      // String ini dikirim dari Frontend (renderPHPRow)
+      const jenis = data.phpKe || 'PHP Ke-1'; 
+
+      const mapLabels: Record<string, string> = {
+          'PHP Ke-1': 'Nomor PHP (Revisi)',
+          'PHP Ke-2': 'Nomor PHP 1 (Revisi)',
+          'PHP Ke-3': 'Nomor PHP 2 (Revisi)',
+          'PHP Ke-4': 'Nomor PHP 3 (Revisi)',
+          'PHP Ke-5': 'Nomor PHP 4 (Revisi)',
+      };
+
+      return mapLabels[jenis] || 'Nomor PHP (Revisi)';
+  };
+
+  return (
+    <Document>
+      <Page size="A4" style={styles.page}>
+        
+        {/* KOP SURAT */}
+        <View style={styles.headerContainer}>
+            {/* PASTIKAN LOGO ADA DI FOLDER PUBLIC */}
+            <Image style={styles.logo} src="/logo_sragen.png" /> 
+            
+            <View style={styles.headerTextContainer}>
+                <Text style={styles.headerText1}>PEMERINTAH KABUPATEN SRAGEN</Text>
+                <Text style={styles.headerText2}>DINAS LINGKUNGAN HIDUP</Text>
+                <Text style={styles.headerAddress}>Jalan Ronggowarsito Nomor 18B, Sragen Wetan, Sragen, Jawa Tengah 57214</Text>
+                <Text style={styles.headerAddress}>Telepon (0271) 891136, Faksimile (0271) 891136, Laman www.dlh.sragenkab.go.id</Text>
+                <Text style={styles.headerAddress}>Pos-el dlh.sragenkab.go.id</Text>
+            </View>
+        </View>
+        <View style={styles.headerLine2} />
+
+        {/* JUDUL */}
+        <Text style={styles.title}>
+          TANDA TERIMA PERBAIKAN DOKUMEN (PHP)
+        </Text>
+
+        {/* ISI DATA */}
+        <View>
+            <View style={styles.row}>
+                <Text style={styles.labelCol}>Nomor Registrasi</Text>
+                <Text style={styles.separatorCol}>:</Text>
+                <Text style={styles.valueCol}>{data.nomorChecklist || data.nomorRegistrasi}</Text>
+            </View>
+
+            {/* LABEL DINAMIS */}
+            <View style={styles.row}>
+                <Text style={styles.labelCol}>{getLabelSurat()}</Text>
+                <Text style={styles.separatorCol}>:</Text>
+                <Text style={styles.valueCol}>{nomorSuratFinal}</Text>
+            </View>
+
+            <View style={styles.row}>
+                <Text style={styles.labelCol}>Tanggal Penyerahan</Text>
+                <Text style={styles.separatorCol}>:</Text>
+                <Text style={styles.valueCol}>{formatDate(tanggalFinal)}</Text>
+            </View>
+
+            <View style={styles.row}>
+                <Text style={styles.labelCol}>Nama Kegiatan</Text>
+                <Text style={styles.separatorCol}>:</Text>
+                <Text style={styles.valueCol}>{data.namaKegiatan}</Text>
+            </View>
+
+            <View style={styles.row}>
+                <Text style={styles.labelCol}>Pemrakarsa</Text>
+                <Text style={styles.separatorCol}>:</Text>
+                <Text style={styles.valueCol}>{data.namaPemrakarsa}</Text>
+            </View>
+        </View>
+
+        {/* PARAGRAF */}
+        <Text style={styles.paragraph}>
+            Telah diterima dokumen perbaikan (Revisi) atas kegiatan tersebut di atas. Dokumen ini telah diverifikasi kelengkapannya dan akan diproses lebih lanjut sesuai dengan Standar Operasional Prosedur (SOP) yang berlaku pada Dinas Lingkungan Hidup Kabupaten Sragen.
+        </Text>
+
+        {/* TANDA TANGAN */}
+        <View style={styles.signatureRow}>
+            <View style={styles.signatureBox}>
+                <Text>Yang Menyerahkan</Text>
+                <Text>(Pemrakarsa / Konsultan)</Text>
                 
-                {/* 1. KOP SURAT (LAYOUT PERSIS GAMBAR) */}
-                <View style={styles.kopContainer}>
-                    <Image src={LOGO_SRC} style={styles.logo} />
-                    
-                    <View style={styles.kopTextContainer}>
-                        <Text style={styles.textPemkab}>PEMERINTAH KABUPATEN SRAGEN</Text>
-                        <Text style={styles.textDinas}>DINAS LINGKUNGAN HIDUP</Text>
-                        <Text style={styles.textAlamat}>Jalan Ronggowarsito Nomor 18B, Sragen Wetan, Sragen, Jawa Tengah 57214</Text>
-                        <Text style={styles.textAlamat}>Telepon (0271) 891136, Faksimile (0271) 891136, Laman www.dlh.sragenkab.go.id</Text>
-                        <Text style={styles.textAlamat}>Pos-el dlh.sragenkab.go.id</Text>
-                    </View>
-                </View>
+                <Text style={styles.signatureName}>({data.namaPengirim || '....................'})</Text>
+            </View>
 
-                {/* Garis Ganda */}
-                <View style={styles.garisTebal} />
-                <View style={styles.garisTipis} />
+            <View style={styles.signatureBox}>
+                <Text>Petugas Penerima</Text>
+                <Text>Dinas Lingkungan Hidup</Text>
+                
+                <Text style={styles.signatureName}>({petugasFinal || '....................'})</Text>
+            </View>
+        </View>
 
-                {/* 2. JUDUL */}
-                <Text style={styles.judulDokumen}>TANDA TERIMA PERBAIKAN DOKUMEN (PHP)</Text>
+        {/* FOOTER */}
+        <Text style={styles.footer}>
+            *Dokumen ini diterbitkan secara elektronik oleh Sistem Informasi Perizinan Lingkungan Hidup Kab. Sragen.
+        </Text>
 
-                {/* 3. ISI DATA */}
-                <View>
-                    <View style={styles.row}>
-                        <Text style={styles.label}>Nomor Registrasi</Text>
-                        <Text style={styles.separator}>:</Text>
-                        <Text style={styles.value}>{data.nomorChecklist || data.noUrut}</Text>
-                    </View>
-                    <View style={styles.row}>
-                        <Text style={styles.label}>Nomor PHP (Revisi)</Text>
-                        <Text style={styles.separator}>:</Text>
-                        <Text style={styles.value}>{data.nomorPHP || data.nomorPHP1 || '-'}</Text>
-                    </View>
-                    <View style={styles.row}>
-                        <Text style={styles.label}>Tanggal Penyerahan</Text>
-                        <Text style={styles.separator}>:</Text>
-                        <Text style={styles.value}>{formatDate(data.tanggalPHP || data.tanggalPHP1 || data.tanggalPengembalian)}</Text>
-                    </View>
-                    <View style={styles.row}>
-                        <Text style={styles.label}>Nama Kegiatan</Text>
-                        <Text style={styles.separator}>:</Text>
-                        <Text style={styles.value}>{data.namaKegiatan}</Text>
-                    </View>
-                    <View style={styles.row}>
-                        <Text style={styles.label}>Pemrakarsa</Text>
-                        <Text style={styles.separator}>:</Text>
-                        <Text style={styles.value}>{data.namaPemrakarsa}</Text>
-                    </View>
-                </View>
-
-                {/* 4. KALIMAT PERNYATAAN */}
-                <Text style={{ marginTop: 20, marginBottom: 10, textAlign: 'justify' }}>
-                    Telah diterima dokumen perbaikan (Revisi) atas kegiatan tersebut di atas. Dokumen ini telah diverifikasi kelengkapannya dan akan diproses lebih lanjut sesuai dengan Standar Operasional Prosedur (SOP) yang berlaku pada Dinas Lingkungan Hidup Kabupaten Sragen.
-                </Text>
-
-                {/* 5. FOOTER TANDA TANGAN */}
-                <View style={styles.footer}>
-                    {/* KIRI */}
-                    <View style={styles.signatureBox}>
-                        <Text>Yang Menyerahkan</Text>
-                        <Text>(Pemrakarsa / Konsultan)</Text>
-                        <View style={styles.signSpace}></View>
-                        <Text style={styles.namaTerang}>({data.namaKonsultan || data.namaPemrakarsa || '....................'})</Text>
-                    </View>
-                    
-                    {/* KANAN */}
-                    <View style={styles.signatureBox}>
-                        <Text>Petugas Penerima</Text>
-                        <Text>Dinas Lingkungan Hidup</Text>
-                        <View style={styles.signSpace}></View>
-                        <Text style={styles.namaTerang}>({data.petugasPenerimaPerbaikan || data.petugasPHP || 'Petugas Pelayanan'})</Text>
-                    </View>
-                </View>
-
-                <Text style={{ fontSize: 8, fontStyle: 'italic', marginTop: 40, color: '#666', textAlign: 'center' }}>
-                    *Dokumen ini diterbitkan secara elektronik oleh Sistem Informasi Perizinan Lingkungan Hidup Kab. Sragen.
-                </Text>
-            </Page>
-        </Document>
-    );
+      </Page>
+    </Document>
+  );
 };
