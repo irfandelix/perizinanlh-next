@@ -3,37 +3,26 @@
 import React from 'react';
 import { Page, Text, View, Document, StyleSheet, Font, Image } from '@react-pdf/renderer';
 
-// --- REGISTER FONT (WAJIB ADA) ---
-Font.register({
-  family: 'Times-Roman',
-  src: 'https://fonts.gstatic.com/s/timesnewroman/v12/TimesNewRomanPSMT.ttf'
-});
-Font.register({
-  family: 'Times-Bold',
-  src: 'https://fonts.gstatic.com/s/timesnewroman/v12/TimesNewRomanPS-BoldMT.ttf'
-});
-Font.register({
-  family: 'Times-Italic',
-  src: 'https://fonts.gstatic.com/s/timesnewroman/v12/TimesNewRomanPS-ItalicMT.ttf'
-});
+// Catatan: Di React-PDF, font 'Helvetica' adalah font standar yang tampilan (typeface)-nya sama dengan Arial.
+// Tidak perlu Font.register untuk Helvetica karena sudah bawaan library.
 
-// --- STYLES SURAT RESMI ---
 const styles = StyleSheet.create({
   page: {
     paddingTop: 30,
     paddingBottom: 40,
     paddingHorizontal: 50,
-    fontSize: 11,
-    fontFamily: 'Times-Roman',
+    fontSize: 11, // UKURAN BODY 11
+    fontFamily: 'Helvetica', // PENGGANTI ARIAL
     lineHeight: 1.3,
   },
-  // KOP SURAT
+  
+  // --- KOP SURAT ---
   headerContainer: {
     flexDirection: 'row',
     borderBottomWidth: 3, 
     borderBottomColor: '#000',
     borderBottomStyle: 'solid',
-    paddingBottom: 10,
+    paddingBottom: 8,
     marginBottom: 2, 
   },
   headerLine2: {
@@ -52,60 +41,66 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   headerText1: {
-    fontSize: 14,
-    fontFamily: 'Times-Roman',
+    fontSize: 12, // Nama Pemkab sedikit lebih besar dari alamat
+    fontFamily: 'Helvetica',
     textTransform: 'uppercase',
+    fontWeight: 'normal',
   },
   headerText2: {
-    fontSize: 16,
-    fontFamily: 'Times-Bold',
+    fontSize: 14, // Nama Dinas lebih tebal/besar
+    fontFamily: 'Helvetica-Bold',
     textTransform: 'uppercase',
     marginTop: 2,
   },
   headerAddress: {
-    fontSize: 9,
+    fontSize: 10, // UKURAN KOP (ALAMAT) 10
     textAlign: 'center',
     marginTop: 2,
+    fontFamily: 'Helvetica',
   },
   
-  // JUDUL
+  // --- JUDUL ---
   title: {
     textAlign: 'center',
     fontSize: 12,
-    fontFamily: 'Times-Bold',
+    fontFamily: 'Helvetica-Bold', // Arial Bold
     textDecoration: 'underline',
     textTransform: 'uppercase',
-    marginTop: 10,
+    marginTop: 5,
     marginBottom: 20,
   },
 
-  // DATA ROW (Tanpa Border)
+  // --- ISI DATA ---
   row: {
     flexDirection: 'row',
     marginBottom: 6,
   },
   labelCol: {
     width: '35%',
+    fontSize: 11, // Body 11
   },
   separatorCol: {
     width: '3%',
     textAlign: 'center',
+    fontSize: 11,
   },
   valueCol: {
     width: '62%',
-    fontFamily: 'Times-Bold', // Data Bold
+    fontFamily: 'Helvetica-Bold', // Isian ditebalkan
+    fontSize: 11,
   },
 
-  // PARAGRAF
+  // --- PARAGRAF ---
   paragraph: {
     marginTop: 15,
     marginBottom: 30,
     textAlign: 'justify',
     textIndent: 0, 
     lineHeight: 1.5,
+    fontSize: 11, // Body 11
   },
 
-  // TTD
+  // --- TANDA TANGAN ---
   signatureRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -117,18 +112,22 @@ const styles = StyleSheet.create({
   },
   signatureName: {
     marginTop: 60, 
-    fontFamily: 'Times-Bold',
+    fontFamily: 'Helvetica-Bold',
     textDecoration: 'underline',
+    fontSize: 11,
+  },
+  signatureText: {
+    fontSize: 11,
   },
 
-  // FOOTER
+  // --- FOOTER ---
   footer: {
     position: 'absolute',
     bottom: 30,
     left: 50,
     right: 50,
     fontSize: 8,
-    fontFamily: 'Times-Italic',
+    fontFamily: 'Helvetica-Oblique', // Arial Italic
     color: 'grey',
     textAlign: 'center',
   }
@@ -143,14 +142,13 @@ const formatDate = (dateString: any) => {
 
 export const TandaTerimaPDF_PHP = ({ data }: any) => {
   
-  // 1. DATA DINAMIS (Mengambil data spesifik revisi)
+  // 1. DATA DINAMIS
   const nomorSuratFinal = data.nomorSurat || data.nomorPHP || '-';
   const tanggalFinal = data.tanggalTerima || data.tanggalPenyerahanPerbaikan || data.tanggalPHP;
   const petugasFinal = data.petugas || data.petugasPenerimaPerbaikan;
 
-  // 2. LOGIKA MAPPING LABEL (HARDCODED AGAR PASTI BENAR)
+  // 2. LOGIKA MAPPING LABEL (HARDCODED)
   const getLabelSurat = () => {
-      // String ini dikirim dari Frontend (renderPHPRow)
       const jenis = data.phpKe || 'PHP Ke-1'; 
 
       const mapLabels: Record<string, string> = {
@@ -170,8 +168,8 @@ export const TandaTerimaPDF_PHP = ({ data }: any) => {
         
         {/* KOP SURAT */}
         <View style={styles.headerContainer}>
-            {/* PASTIKAN LOGO ADA DI FOLDER PUBLIC */}
-            <Image style={styles.logo} src="/logo_sragen.png" /> 
+            {/* Pastikan file logo ada di public/logo_sragen.png */}
+            <Image style={styles.logo} src="public/logo-sragen.png" /> 
             
             <View style={styles.headerTextContainer}>
                 <Text style={styles.headerText1}>PEMERINTAH KABUPATEN SRAGEN</Text>
@@ -230,15 +228,15 @@ export const TandaTerimaPDF_PHP = ({ data }: any) => {
         {/* TANDA TANGAN */}
         <View style={styles.signatureRow}>
             <View style={styles.signatureBox}>
-                <Text>Yang Menyerahkan</Text>
-                <Text>(Pemrakarsa / Konsultan)</Text>
+                <Text style={styles.signatureText}>Yang Menyerahkan</Text>
+                <Text style={styles.signatureText}>(Pemrakarsa / Konsultan)</Text>
                 
                 <Text style={styles.signatureName}>({data.namaPengirim || '....................'})</Text>
             </View>
 
             <View style={styles.signatureBox}>
-                <Text>Petugas Penerima</Text>
-                <Text>Dinas Lingkungan Hidup</Text>
+                <Text style={styles.signatureText}>Petugas Penerima</Text>
+                <Text style={styles.signatureText}>Dinas Lingkungan Hidup</Text>
                 
                 <Text style={styles.signatureName}>({petugasFinal || '....................'})</Text>
             </View>
