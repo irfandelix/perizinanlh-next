@@ -271,12 +271,32 @@ export async function POST(
             updateQuery = { [fieldNo]: generatedNomorStr, [fieldTgl]: tanggalRevisi, statusTerakhir: 'REVISI' };
         }
 
-        // --- TAHAP F (PHP) ---
+        // --- TAHAP F (PHP - PENERIMAAN HASIL PERBAIKAN) ---
         else if (tahap === 'f' || tahap === 'penerimaan') {
             const { tanggalPenyerahanPerbaikan, petugasPenerimaPerbaikan, nomorRevisi } = body;
-            const phpFieldMap: Record<string, string> = { '1': 'nomorPHP', '2': 'nomorPHP1', '3': 'nomorPHP2', '4': 'nomorPHP3', '5': 'nomorPHP4' };
-            const petugasFieldMap: Record<string, string> = { '1': 'petugasPenerimaPerbaikan', '2': 'petugasPHP1', '3': 'petugasPHP2', '4': 'petugasPHP3', '5': 'petugasPHP4' };
-            const dateFieldMap: Record<string, string> = { '1': 'tanggalPHP', '2': 'tanggalPHP1', '3': 'tanggalPHP2', '4': 'tanggalPHP3', '5': 'tanggalPHP4' };
+            
+            // [PERBAIKAN DISINI]: Mapping dibuat lurus (3 ke 3, 4 ke 4)
+            const phpFieldMap: Record<string, string> = { 
+                '1': 'nomorPHP', 
+                '2': 'nomorPHP2', 
+                '3': 'nomorPHP3', // Revisi 3 masuk sini
+                '4': 'nomorPHP4', 
+                '5': 'nomorPHP5' 
+            };
+            const petugasFieldMap: Record<string, string> = { 
+                '1': 'petugasPenerimaPerbaikan', 
+                '2': 'petugasPHP2', 
+                '3': 'petugasPHP3', // Revisi 3 masuk sini
+                '4': 'petugasPHP4', 
+                '5': 'petugasPHP5' 
+            };
+            const dateFieldMap: Record<string, string> = { 
+                '1': 'tanggalPHP', 
+                '2': 'tanggalPHP2', 
+                '3': 'tanggalPHP3', // Revisi 3 masuk sini
+                '4': 'tanggalPHP4', 
+                '5': 'tanggalPHP5' 
+            };
 
             const fieldNo = phpFieldMap[nomorRevisi];
             const fieldPetugas = petugasFieldMap[nomorRevisi];
@@ -284,11 +304,24 @@ export async function POST(
 
             if (!fieldNo) return NextResponse.json({ success: false, message: 'Nomor Revisi PHP tidak valid.' }, { status: 400 });
 
+            // Generate Kode Tahapan Surat (PHP.1, PHP.2, dst)
+            // Revisi 1 = PHP
+            // Revisi 2 = PHP.1
+            // Revisi 3 = PHP.2
             let kodeTahapan = 'PHP';
-            if (nomorRevisi !== '1') kodeTahapan = `PHP.${parseInt(nomorRevisi) - 1}`;
+            if (nomorRevisi !== '1') {
+                kodeTahapan = `PHP.${parseInt(nomorRevisi) - 1}`;
+            }
 
             generatedNomorStr = generateNomor(queryNoUrut, tanggalPenyerahanPerbaikan, kodeTahapan, existingData.jenisDokumen);
-            updateQuery = { [fieldNo]: generatedNomorStr, [fieldTgl]: tanggalPenyerahanPerbaikan, [fieldPetugas]: petugasPenerimaPerbaikan, statusTerakhir: 'DIPERIKSA', updatedAt: new Date() };
+            
+            updateQuery = { 
+                [fieldNo]: generatedNomorStr, 
+                [fieldTgl]: tanggalPenyerahanPerbaikan, 
+                [fieldPetugas]: petugasPenerimaPerbaikan, 
+                statusTerakhir: 'DIPERIKSA', 
+                updatedAt: new Date() 
+            };
         }
 
         // --- TAHAP G ---
