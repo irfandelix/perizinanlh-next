@@ -134,6 +134,53 @@ export async function POST(
         }
 
         // ==========================================
+        // REGISTRASI AMDALNET (SABUNGAN NO URUT DENGAN MPP)
+        // ==========================================
+        else if (tahap === 'amdalnet') {
+            const { year } = getDateParts(body.tanggalMasukDokumen);
+            
+            // Cari dokumen terakhir di tahun tersebut (TANPA membedakan sumber MPP/Amdalnet)
+            const lastDoc = await collection.find({
+                tanggalMasukDokumen: { $regex: new RegExp(`^${year}`) }
+            })
+            .sort({ noUrut: -1 })
+            .limit(1)
+            .toArray();
+
+            // Ambil nomor urut gabungan terakhir, lalu + 1
+            const noUrut = lastDoc.length > 0 ? (lastDoc[0].noUrut || 0) + 1 : 1;
+            
+            // Generate Nomor persis seperti MPP (contoh: 600.4/002.02/17/REG.UKLUPL/2026)
+            const nomorChecklist = generateNomor(noUrut, body.tanggalMasukDokumen, 'REG', body.jenisDokumen);
+            
+            const newRecord = {
+                ...body,
+                noUrut: noUrut, 
+                tahun: year, 
+                nomorRegistrasiLH: nomorChecklist, // Disimpan untuk form Amdalnet
+                nomorChecklist: nomorChecklist,    // Disamakan agar terdeteksi di form MPP selanjutnya
+                sumberData: 'AMDALNET',            // Penanda bahwa ini masuk dari form Amdalnet
+                statusTerakhir: 'PROSES',
+                createdAt: new Date(),
+                // Sediakan field kosong untuk tahap selanjutnya agar tidak error saat diupdate MPP
+                nomorUjiBerkas: "", tanggalUjiBerkas: "",
+                nomorBAVerlap: "", tanggalVerlap: "",
+                nomorBAPemeriksaan: "", tanggalPemeriksaan: "",
+                nomorRevisi1: "", tanggalRevisi1: "",
+                nomorPHP: "", tanggalPHP: "",
+                fileTahapB: "", fileTahapC: "", fileTahapD: "", filePKPLH: "" 
+            };
+            
+            await collection.insertOne(newRecord);
+            
+            return NextResponse.json({ 
+                success: true, 
+                message: `Registrasi Amdalnet Berhasil! Mendapat urutan gabungan ke-${noUrut} di tahun ${year}.`, 
+                nomorRegistrasiLH: nomorChecklist 
+            });
+        }
+
+        // ==========================================
         // LOGIKA UPDATE (TAHAP SELANJUTNYA)
         // ==========================================
         

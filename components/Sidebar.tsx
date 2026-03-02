@@ -7,7 +7,7 @@ import { useSession, signOut } from 'next-auth/react';
 import { 
   Menu, X, LayoutDashboard, FileText, ArrowRightCircle, 
   Archive, ClipboardList, LogOut, CheckSquare, Microscope, 
-  FileSearch, Printer, FileEdit
+  FileSearch, Printer, FileEdit, Globe
 } from 'lucide-react';
 
 export default function Sidebar() {
@@ -19,58 +19,62 @@ export default function Sidebar() {
     const userRole = session?.user?.role; 
 
     // --- DEFINISI MENU DENGAN WARNA ---
-    // Saya menambahkan properti 'color' (untuk ikon) dan 'bgColor' (untuk lingkaran)
     const allNavItems = [
         // 1. MENU UMUM
         { 
             name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, roles: ['mpp', 'dlh'],
-            color: 'text-blue-600', bgColor: 'bg-blue-100' // Biru (Home style)
+            color: 'text-blue-600', bgColor: 'bg-blue-100' 
         },
 
         // 2. MENU KHUSUS MPP
         { 
             name: 'Registrasi Dokumen', href: '/register', icon: FileText, roles: ['mpp'],
-            color: 'text-green-600', bgColor: 'bg-green-100' // Hijau (Personal info style)
+            color: 'text-green-600', bgColor: 'bg-green-100' 
         },
         { 
             name: 'Penyerahan Kembali', href: '/pengembalian', icon: ArrowRightCircle, roles: ['mpp'],
-            color: 'text-orange-600', bgColor: 'bg-orange-100' // Orange
+            color: 'text-orange-600', bgColor: 'bg-orange-100' 
         },
         { 
             name: 'Penerimaan Hasil Perbaikan', href: '/penerimaan', icon: ClipboardList, roles: ['mpp'],
-            color: 'text-purple-600', bgColor: 'bg-purple-100' // Ungu
+            color: 'text-purple-600', bgColor: 'bg-purple-100' 
         }, 
         { 
             name: 'Cetak Ulang', href: '/cetak-ulang', icon: Printer, roles: ['mpp'],
-            color: 'text-cyan-600', bgColor: 'bg-cyan-100' // Cyan
+            color: 'text-cyan-600', bgColor: 'bg-cyan-100' 
         },
 
         // 3. MENU KHUSUS DLH
+        // --- Registrasi Amdalnet dipindah ke paling atas DLH ---
+        { 
+            name: 'Registrasi Amdalnet', href: '/register-amdalnet', icon: Globe, roles: ['dlh'],
+            color: 'text-emerald-600', bgColor: 'bg-emerald-100' 
+        },
         { 
             name: 'Uji Administrasi', href: '/uji-administrasi', icon: CheckSquare, roles: ['dlh'],
-            color: 'text-indigo-600', bgColor: 'bg-indigo-100' // Indigo
+            color: 'text-indigo-600', bgColor: 'bg-indigo-100' 
         },
         { 
             name: 'Verifikasi Lapangan', href: '/verifikasi-lapangan', icon: Microscope, roles: ['dlh'],
-            color: 'text-pink-600', bgColor: 'bg-pink-100' // Pink
+            color: 'text-pink-600', bgColor: 'bg-pink-100' 
         },
         { 
             name: 'Pemeriksaan Substansi', href: '/pemeriksaan-substansi', icon: FileSearch, roles: ['dlh'],
-            color: 'text-teal-600', bgColor: 'bg-teal-100' // Teal
+            color: 'text-teal-600', bgColor: 'bg-teal-100' 
         },
         { 
             name: 'Pemeriksaan Revisi', href: '/pemeriksaan-revisi', icon: FileEdit, roles: ['dlh'],
-            color: 'text-yellow-600', bgColor: 'bg-yellow-100' // Kuning
+            color: 'text-yellow-600', bgColor: 'bg-yellow-100' 
         },
         { 
             name: 'Risalah Pengolah', href: '/verifikasi', icon: FileText, roles: ['dlh'],
-            color: 'text-blue-600', bgColor: 'bg-blue-100' // Biru lagi
+            color: 'text-blue-600', bgColor: 'bg-blue-100' 
         },
 
         // 4. REKAP DATA
         { 
             name: 'Rekapitulasi Data', href: '/rekap', icon: Archive, roles: ['mpp', 'dlh'],
-            color: 'text-red-600', bgColor: 'bg-red-100' // Merah
+            color: 'text-red-600', bgColor: 'bg-red-100' 
         },
     ];
 
@@ -88,7 +92,6 @@ export default function Sidebar() {
     
     return (
         <>
-            {/* Tombol Mobile */}
             <button
                 className="fixed top-4 left-4 z-50 p-2 rounded-full bg-white text-slate-600 md:hidden shadow-md border border-slate-200"
                 onClick={() => setIsOpen(!isOpen)}
@@ -96,7 +99,6 @@ export default function Sidebar() {
                 {isOpen ? <X size={24} /> : <Menu size={24} />}
             </button>
             
-            {/* Overlay Mobile */}
             {isOpen && (
                 <div className="fixed inset-0 bg-black/20 z-30 md:hidden backdrop-blur-sm" onClick={() => setIsOpen(false)}/>
             )}
@@ -109,13 +111,11 @@ export default function Sidebar() {
                     md:relative md:shrink-0 flex flex-col h-screen print:hidden shadow-[1px_0_5px_rgba(0,0,0,0.05)]
                 `}
             >
-                {/* Header Profile ala Google */}
                 <div className="px-6 pt-8 pb-4">
                     <h2 className="text-[22px] text-slate-600 font-normal leading-tight mb-6">
                         PERIZINAN <span className="font-medium text-slate-900">DLH</span>
                     </h2>
                     
-                    {/* Profil Singkat - Style Minimalis */}
                     <div className="flex items-center gap-4 mb-2">
                         <div className="w-12 h-12 rounded-full bg-green-600 flex items-center justify-center text-white font-bold text-lg shadow-sm">
                             {session?.user?.name?.charAt(0).toUpperCase() || 'U'}
@@ -131,7 +131,6 @@ export default function Sidebar() {
                     </div>
                 </div>
 
-                {/* List Menu Scrollable */}
                 <nav className="flex-1 overflow-y-auto py-2 pr-4 space-y-1">
                     {filteredNavItems.map((item) => {
                         const active = isActive(item.href);
@@ -144,12 +143,11 @@ export default function Sidebar() {
                                     group flex items-center w-full pl-6 pr-4 py-3 
                                     rounded-r-full transition-all duration-200 ease-in-out
                                     ${active 
-                                        ? 'bg-[#e8f0fe]' // Warna Background Active khas Google (Biru sangat muda)
-                                        : 'hover:bg-slate-50' // Hover biasa
+                                        ? 'bg-[#e8f0fe]' 
+                                        : 'hover:bg-slate-50' 
                                     }
                                 `}
                             >
-                                {/* LINGKARAN BERWARNA UNTUK ICON */}
                                 <div className={`
                                     w-10 h-10 rounded-full flex items-center justify-center mr-4 shrink-0
                                     ${item.bgColor} ${item.color}
@@ -158,12 +156,11 @@ export default function Sidebar() {
                                     <item.icon size={20} strokeWidth={2.5} />
                                 </div>
 
-                                {/* TEXT LABEL */}
                                 <span className={`
                                     text-[15px] tracking-wide
                                     ${active 
-                                        ? 'font-medium text-blue-900' // Teks saat aktif
-                                        : 'font-normal text-slate-600 group-hover:text-slate-900' // Teks biasa
+                                        ? 'font-medium text-blue-900' 
+                                        : 'font-normal text-slate-600 group-hover:text-slate-900' 
                                     }
                                 `}>
                                     {item.name}
@@ -173,13 +170,11 @@ export default function Sidebar() {
                     })}
                 </nav>
 
-                {/* Footer / Logout */}
                 <div className="p-4 mt-auto border-t border-slate-100">
                     <button 
                         onClick={() => signOut({ callbackUrl: '/' })}
                         className="flex items-center w-full pl-4 pr-4 py-3 rounded-full hover:bg-slate-100 transition-all duration-200 group"
                     >
-                        {/* Icon Logout Abu-abu */}
                         <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center mr-4 group-hover:bg-slate-200">
                             <LogOut size={20} className="text-slate-600" />
                         </div>
