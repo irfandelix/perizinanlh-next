@@ -63,7 +63,7 @@ function TableContent({ rekapData }: { rekapData: Dokumen[] }) {
                         <th className="p-4 font-bold text-sm w-32">Tgl Masuk</th>
                         <th className="p-4 font-bold text-sm">Nama Kegiatan</th>
                         <th className="p-4 font-bold text-sm">Pemrakarsa</th>
-                        <th className="p-4 font-bold text-sm w-24 text-center">Jenis</th>
+                        <th className="p-4 font-bold text-sm w-36 text-center">Jenis Dok</th> {/* <-- Diperlebar di sini */}
                         <th className="p-4 font-bold text-sm w-24 text-center">Detail</th>
                     </tr>
                 </thead>
@@ -83,7 +83,8 @@ function TableContent({ rekapData }: { rekapData: Dokumen[] }) {
                                 </td>
                                 <td className="p-4 text-sm font-medium text-gray-700">{doc.namaPemrakarsa}</td>
                                 <td className="p-4 text-center">
-                                    <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-lg text-xs font-bold tracking-wide">
+                                    {/* <-- whitespace-nowrap ditambahkan di sini --> */}
+                                    <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-lg text-xs font-bold tracking-wide whitespace-nowrap inline-block">
                                         {doc.jenisDokumen}
                                     </span>
                                 </td>
@@ -132,7 +133,6 @@ function TableContent({ rekapData }: { rekapData: Dokumen[] }) {
                                                     <History size={18} /> Riwayat Revisi & Akhir
                                                 </h4>
                                                 
-                                                {/* Logic untuk menampilkan revisi terakhir yang terisi saja, atau '-' jika kosong */}
                                                 <div className="mb-3">
                                                     <span className="text-gray-500 text-xs font-semibold uppercase tracking-wider block mb-0.5">Riwayat Revisi</span>
                                                     <div className="text-sm font-medium text-gray-800 space-y-1">
