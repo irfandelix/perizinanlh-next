@@ -4,7 +4,8 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { 
     LayoutDashboard, FileText, MapPin, BookOpen, 
-    FileEdit, FileCheck, Loader2, ArrowRight, Activity, Clock, CalendarDays, ChevronLeft, ChevronRight
+    FileEdit, FileCheck, Loader2, ArrowRight, Activity, Clock, 
+    CalendarDays, ChevronLeft, ChevronRight, X, User
 } from 'lucide-react';
 
 interface Dokumen {
@@ -41,6 +42,29 @@ const addWorkingDays = (startDateStr: string, daysToAdd: number) => {
     return `${yyyy}-${mm}-${dd}`;
 };
 
+// --- FUNGSI HELPER BARU: Mengurangi Hari Kerja untuk Hitung Mundur (H-3, H-2, dst) ---
+const subtractWorkingDays = (startDateStr: string, daysToSubtract: number) => {
+    let currentDate = new Date(startDateStr);
+    let subtractedDays = 0;
+    while (subtractedDays < daysToSubtract) {
+        currentDate.setDate(currentDate.getDate() - 1);
+        const dayOfWeek = currentDate.getDay();
+        if (dayOfWeek !== 0 && dayOfWeek !== 6) { // 0 = Minggu, 6 = Sabtu
+            subtractedDays++;
+        }
+    }
+    const yyyy = currentDate.getFullYear();
+    const mm = String(currentDate.getMonth() + 1).padStart(2, '0');
+    const dd = String(currentDate.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+};
+
+// --- FUNGSI HELPER: Format Tanggal Indo ---
+const formatDateIndo = (dateStr: string) => {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+};
+
 export default function DashboardPage() {
     const [dataDokumen, setDataDokumen] = useState<Dokumen[]>([]);
     const [loading, setLoading] = useState(true);
@@ -49,9 +73,13 @@ export default function DashboardPage() {
         total: 0, ujiAdmin: 0, verlap: 0, substansi: 0, revisi: 0, selesai: 0, tahunTerbaru: ''
     });
 
-    // --- STATE UNTUK KALENDER BULANAN ---
+    // --- STATE KALENDER & MODAL ---
     const [currentMonth, setCurrentMonth] = useState(new Date());
     const [calendarEvents, setCalendarEvents] = useState<any[]>([]);
+    
+    const [modalOpen, setModalOpen] = useState(false);
+    const [modalDate, setModalDate] = useState("");
+    const [modalEvents, setModalEvents] = useState<any[]>([]);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -79,39 +107,63 @@ export default function DashboardPage() {
                         const events: any[] = [];
 
                         latestDocs.forEach(doc => {
-                            // --- LOGIKA HITUNG STATISTIK (Cek dari tahap paling akhir ke awal) ---
+                            // Hitung Statistik
                             if (doc.nomorRisalah) selesai++;
                             else if (doc.nomorBAPemeriksaan || doc.nomorPHP) revisi++; 
                             else if (doc.nomorBAVerlap) substansi++; 
                             else if (doc.nomorUjiBerkas) verlap++; 
                             else ujiAdmin++;
 
-                            // --- GENERATE EVENT KALENDER (SLA) ---
+                            // --- LOGIKA PERINGATAN H-3 SAMPAI DEADLINE ---
                             if (!doc.tanggalMasukDokumen) return;
                             
-                            // PERBAIKAN: Gunakan Nama Kegiatan (Bukan Pemrakarsa)
                             const kegiatan = doc.namaKegiatan || 'Tanpa Judul';
+                            const pemrakarsa = doc.namaPemrakarsa || '-';
+                            const noUrut = doc.noUrut;
                             
-                            const t1 = addWorkingDays(doc.tanggalMasukDokumen, 3); // Uji Admin
-                            const t2 = addWorkingDays(t1, 5); // Verlap
-                            const t3 = addWorkingDays(t2, 5); // BAP
-                            const t4 = addWorkingDays(t3, 5); // Revisi
-                            const t5 = addWorkingDays(t4, 5); // RPD
+                            // Hitung tanggal deadline maksimal tiap tahap
+                            const t1 = addWorkingDays(doc.tanggalMasukDokumen, 3); // Uji Admin (3 Hari)
+                            const t2 = addWorkingDays(t1, 5); // Verlap (5 Hari)
+                            const t3 = addWorkingDays(t2, 5); // BAP (5 Hari)
+                            const t4 = addWorkingDays(t3, 5); // Revisi (5 Hari)
+                            const t5 = addWorkingDays(t4, 5); // RPD (5 Hari)
                             
-                            // PERBAIKAN: Cek dari tahap paling akhir agar tidak nyangkut jika ada step yang terlewat
+                            // Cari tahu dokumen ini sedang stuck di tahap mana, lalu tentukan target deadline-nya
+                            let targetDate = '';
+                            let phaseName = '';
+
                             if (doc.nomorRisalah) {
-                                // Sudah Selesai, tidak perlu tampil di kalender SLA
+                                return; // Jika sudah selesai, tidak usah tampil peringatan di kalender
                             } else if (doc.nomorPHP) {
-                                events.push({ date: t5, title: `RPD: ${kegiatan}`, color: 'bg-rose-100 text-rose-700 border-rose-200' });
+                                targetDate = t5; phaseName = 'RPD';
                             } else if (doc.nomorBAPemeriksaan) {
-                                events.push({ date: t4, title: `Revisi: ${kegiatan}`, color: 'bg-blue-100 text-blue-700 border-blue-200' });
+                                targetDate = t4; phaseName = 'Revisi';
                             } else if (doc.nomorBAVerlap) {
-                                events.push({ date: t3, title: `BAP: ${kegiatan}`, color: 'bg-indigo-100 text-indigo-700 border-indigo-200' });
+                                targetDate = t3; phaseName = 'BAP';
                             } else if (doc.nomorUjiBerkas) {
-                                events.push({ date: t2, title: `Verlap: ${kegiatan}`, color: 'bg-green-100 text-green-700 border-green-200' });
+                                targetDate = t2; phaseName = 'Verlap';
                             } else {
-                                events.push({ date: t1, title: `Admin: ${kegiatan}`, color: 'bg-orange-100 text-orange-700 border-orange-200' });
+                                targetDate = t1; phaseName = 'Admin';
                             }
+
+                            // Buat fungsi untuk bikin event pengingat
+                            const pushEvent = (dateStr: string, color: string, prefix: string) => {
+                                events.push({
+                                    date: dateStr, type: phaseName, kegiatan, pemrakarsa, noUrut, color, prefix, 
+                                    title: `${prefix} ${phaseName}: ${kegiatan}`
+                                });
+                            };
+
+                            // Menambahkan 4 Event Alarm ke Kalender!
+                            // Hijau (H-3)
+                            pushEvent(subtractWorkingDays(targetDate, 3), 'bg-emerald-100 text-emerald-800 border-emerald-300', 'H-3');
+                            // Kuning (H-2)
+                            pushEvent(subtractWorkingDays(targetDate, 2), 'bg-yellow-100 text-yellow-800 border-yellow-300', 'H-2');
+                            // Merah Muda (H-1)
+                            pushEvent(subtractWorkingDays(targetDate, 1), 'bg-red-100 text-red-800 border-red-300', 'H-1');
+                            // Merah Solid (DEADLINE)
+                            pushEvent(targetDate, 'bg-red-600 text-white font-bold shadow-md border-red-700', 'DEADLINE');
+
                         });
 
                         setStats({ total: latestDocs.length, ujiAdmin, verlap, substansi, revisi, selesai, tahunTerbaru: latestYear });
@@ -148,13 +200,20 @@ export default function DashboardPage() {
     const monthName = currentMonth.toLocaleString('id-ID', { month: 'long' });
     
     const daysInMonth = new Date(year, month + 1, 0).getDate();
-    const firstDayIndex = new Date(year, month, 1).getDay(); // 0 (Minggu) sampai 6 (Sabtu)
+    const firstDayIndex = new Date(year, month, 1).getDay(); 
 
-    // PERBAIKAN TypeScript: Menggunakan spread operator untuk array (number | null)
     const calendarDays: (number | null)[] = [
         ...Array.from({ length: firstDayIndex }, () => null),
         ...Array.from({ length: daysInMonth }, (_, i) => i + 1)
     ];
+
+    const handleDayClick = (dateStr: string, dayEvents: any[]) => {
+        if (dayEvents.length > 0) {
+            setModalDate(dateStr);
+            setModalEvents(dayEvents);
+            setModalOpen(true);
+        }
+    };
 
     if (loading) {
         return (
@@ -247,14 +306,14 @@ export default function DashboardPage() {
                 </div>
             </div>
 
-            {/* KALENDER TENGGAT WAKTU (SLA GRID) */}
+            {/* KALENDER PENGINGAT DEADLINE (SLA GRID) */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
                 <div className="p-5 border-b border-gray-100 bg-slate-50/80 flex justify-between items-center">
                     <div>
                         <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-                            <CalendarDays className="text-blue-600" size={22} /> Kalender Batas Waktu SLA
+                            <CalendarDays className="text-blue-600" size={22} /> Kalender Pengingat SLA
                         </h3>
-                        <p className="text-sm text-gray-500 mt-1">Estimasi batas hari penyelesaian dokumen aktif (Telah melewati Sabtu & Minggu).</p>
+                        <p className="text-sm text-gray-500 mt-1">Hitung mundur batas waktu dokumen aktif (Hijau: H-3, Kuning: H-2, Merah Muda: H-1, Merah Solid: Deadline).</p>
                     </div>
                     <div className="flex items-center gap-4 bg-white p-1.5 rounded-xl border border-gray-200 shadow-sm">
                         <button onClick={prevMonth} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-600"><ChevronLeft size={20}/></button>
@@ -264,7 +323,6 @@ export default function DashboardPage() {
                 </div>
 
                 <div className="p-5">
-                    {/* Header Hari */}
                     <div className="grid grid-cols-7 gap-2 mb-2">
                         {['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'].map((day, i) => (
                             <div key={day} className={`text-center text-xs font-bold py-2 ${i === 0 || i === 6 ? 'text-red-500 bg-red-50 rounded' : 'text-slate-500'}`}>
@@ -273,36 +331,44 @@ export default function DashboardPage() {
                         ))}
                     </div>
 
-                    {/* Grid Kalender */}
                     <div className="grid grid-cols-7 gap-2">
                         {calendarDays.map((day, index) => {
                             if (day === null) {
-                                return <div key={`empty-${index}`} className="min-h-[100px] bg-slate-50/50 rounded-xl border border-dashed border-gray-200"></div>;
+                                return <div key={`empty-${index}`} className="min-h-[110px] bg-slate-50/50 rounded-xl border border-dashed border-gray-200"></div>;
                             }
 
-                            // Cek event/deadline di tanggal ini
                             const currentDateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                            const dayEvents = calendarEvents.filter(e => e.date === currentDateStr);
                             
-                            // Highlight hari ini
-                            // Kita pakai Date lokal agar timezone tidak offset
+                            // Urutkan event di hari tersebut agar DEADLINE (H-0) selalu tampil di atas
+                            const dayEvents = calendarEvents
+                                .filter(e => e.date === currentDateStr)
+                                .sort((a, b) => {
+                                    if (a.prefix === 'DEADLINE') return -1;
+                                    if (b.prefix === 'DEADLINE') return 1;
+                                    return a.prefix > b.prefix ? -1 : 1; 
+                                });
+                            
                             const todayLocal = new Date();
                             const todayStr = `${todayLocal.getFullYear()}-${String(todayLocal.getMonth() + 1).padStart(2, '0')}-${String(todayLocal.getDate()).padStart(2, '0')}`;
                             const isToday = currentDateStr === todayStr;
 
                             return (
-                                <div key={day} className={`min-h-[100px] border rounded-xl p-2 transition-all hover:border-blue-300 ${isToday ? 'bg-blue-50/50 border-blue-400 shadow-sm ring-1 ring-blue-400' : 'bg-white border-gray-200'}`}>
+                                <div 
+                                    key={day} 
+                                    onClick={() => handleDayClick(currentDateStr, dayEvents)}
+                                    className={`min-h-[110px] border rounded-xl p-2 transition-all duration-200 ${isToday ? 'bg-blue-50/30 border-blue-400 shadow-sm ring-1 ring-blue-400' : 'bg-white border-gray-200'} ${dayEvents.length > 0 ? 'cursor-pointer hover:shadow-md hover:border-blue-400 hover:-translate-y-0.5' : ''}`}
+                                >
                                     <div className={`text-xs font-bold w-6 h-6 flex items-center justify-center rounded-full mb-1 ${isToday ? 'bg-blue-600 text-white' : 'text-slate-700'}`}>
                                         {day}
                                     </div>
-                                    <div className="space-y-1.5 mt-2">
+                                    <div className="space-y-1 mt-2">
                                         {dayEvents.slice(0, 3).map((ev, idx) => (
-                                            <div key={idx} className={`text-[10px] px-1.5 py-1 rounded border leading-tight line-clamp-2 ${ev.color}`}>
+                                            <div key={idx} className={`text-[10px] px-1.5 py-1 rounded border leading-tight line-clamp-1 shadow-sm ${ev.color}`}>
                                                 {ev.title}
                                             </div>
                                         ))}
                                         {dayEvents.length > 3 && (
-                                            <div className="text-[10px] font-bold text-gray-500 pl-1">+ {dayEvents.length - 3} lainnya</div>
+                                            <div className="text-[10px] font-bold text-gray-500 pl-1 pt-0.5 hover:text-blue-600">+ {dayEvents.length - 3} dokumen</div>
                                         )}
                                     </div>
                                 </div>
@@ -311,6 +377,58 @@ export default function DashboardPage() {
                     </div>
                 </div>
             </div>
+
+            {/* MODAL NOTIFIKASI DETAIL KALENDER */}
+            {modalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden transform transition-all">
+                        <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-slate-50">
+                            <div>
+                                <h3 className="font-extrabold text-gray-800 text-lg flex items-center gap-2">
+                                    <CalendarDays className="text-blue-600" size={22}/>
+                                    Notifikasi Tenggat Waktu
+                                </h3>
+                                <p className="text-sm text-gray-500 font-medium mt-0.5 ml-8">
+                                    {formatDateIndo(modalDate)}
+                                </p>
+                            </div>
+                            <button onClick={() => setModalOpen(false)} className="text-gray-400 hover:text-red-500 hover:bg-red-50 p-2 rounded-full transition-colors">
+                                <X size={20} />
+                            </button>
+                        </div>
+                        
+                        <div className="p-5 max-h-[60vh] overflow-y-auto space-y-3 bg-slate-50/50">
+                            {modalEvents.map((ev, idx) => (
+                                <div key={idx} className={`p-4 rounded-xl border flex flex-col gap-2 shadow-sm ${ev.prefix === 'DEADLINE' ? 'bg-red-50 border-red-200' : 'bg-white border-gray-200'}`}>
+                                    <div className="flex justify-between items-start">
+                                        <div className="flex gap-2 items-center">
+                                            <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md ${ev.prefix === 'DEADLINE' ? 'bg-red-600 text-white' : ev.color}`}>
+                                                {ev.prefix}
+                                            </span>
+                                            <span className="text-xs font-black text-gray-600 uppercase tracking-wider px-2 py-0.5 rounded-md bg-slate-100 border border-slate-200">
+                                                Tahap {ev.type}
+                                            </span>
+                                        </div>
+                                        <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">No. {ev.noUrut}</span>
+                                    </div>
+                                    <p className="font-bold text-sm text-gray-800 leading-snug mt-1">{ev.kegiatan}</p>
+                                    <div className="pt-2 mt-1 border-t border-black/5">
+                                        <p className="text-xs font-medium text-gray-600 flex items-center gap-1.5">
+                                            <User size={12}/> {ev.pemrakarsa}
+                                        </p>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                        
+                        <div className="p-4 border-t border-gray-100 bg-white flex justify-end">
+                            <button onClick={() => setModalOpen(false)} className="px-6 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-bold text-sm transition-colors">
+                                Tutup
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
         </div>
     );
