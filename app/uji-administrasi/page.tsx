@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Eye, FileText } from 'lucide-react'; 
+import { Eye, CheckCircle, Clock, Loader2, AlertCircle, FileText } from 'lucide-react'; 
 
 interface Dokumen {
     _id: string;
@@ -10,11 +10,9 @@ interface Dokumen {
     nomorChecklist: string;
     namaPemrakarsa: string;
     namaKegiatan: string;
-    tanggalMasukDokumen: string;
     statusTerakhir: string;
-    statusVerifikasi?: string;
     jenisDokumen: string;
-    nomorUjiBerkas?: string; // <--- Field Baru untuk Hasil
+    nomorUjiBerkas?: string; 
 }
 
 export default function UjiAdministrasiPage() {
@@ -32,11 +30,9 @@ export default function UjiAdministrasiPage() {
             const result = await res.json();
             
             if (result.success) {
-                // Filter: Tampilkan PROSES (Belum ada BA) atau DIPERIKSA (Sudah ada BA tapi belum selesai total)
-                // Sesuaikan logika ini dengan kebutuhan Anda
+                // Filter: Tampilkan PROSES atau BARU
                 const filtered = result.data.filter((doc: any) => {
                     const st = doc.statusTerakhir;
-                    // Kita tampilkan semua agar terlihat mana yang sudah punya No. BA dan mana yang belum
                     return !st || st === 'PROSES' || st === 'BARU' || st === 'DITERIMA'; 
                 });
                 setDataDokumen(filtered);
@@ -49,85 +45,96 @@ export default function UjiAdministrasiPage() {
     };
 
     return (
-        <div className="bg-gray-50 min-h-screen p-8">
-            <div className="max-w-7xl mx-auto">
-                <div className="mb-8">
-                    <h1 className="text-2xl font-bold text-gray-800">Uji Administrasi</h1>
-                    <p className="text-gray-500 text-sm">Verifikasi kelengkapan berkas dan penerbitan Berita Acara.</p>
-                </div>
-
-                <div className="bg-white rounded-xl shadow border border-gray-200 overflow-hidden">
-                    <div className="p-4 border-b border-gray-100 bg-orange-50 flex justify-between items-center">
-                        <h3 className="font-bold text-orange-800 flex items-center gap-2">
-                            📋 Daftar Dokumen
-                        </h3>
-                        <span className="bg-orange-200 text-orange-800 text-xs px-2 py-1 rounded-full font-bold">
-                            {dataDokumen.length} Dokumen
-                        </span>
+        <div className="min-h-screen bg-gray-50 p-6 md:p-12">
+            
+            {/* HEADER HALAMAN */}
+            <div className="mb-8 max-w-5xl mx-auto">
+                <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-3">
+                    <div className="p-2 bg-orange-600 rounded-lg shadow-md">
+                        <FileText className="text-white w-6 h-6" />
                     </div>
+                    Uji Administrasi (Tahap B)
+                </h1>
+                <p className="text-gray-500 mt-2 ml-14">
+                    Verifikasi kelengkapan berkas awal dan penerbitan Berita Acara Uji Administrasi.
+                </p>
+            </div>
 
+            {/* KONTEN UTAMA */}
+            <div className="max-w-5xl mx-auto bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                
+                {loading ? (
+                    // LOADING STATE
+                    <div className="flex flex-col items-center justify-center p-12 text-orange-600">
+                        <Loader2 className="animate-spin w-8 h-8 mb-2" />
+                        <span className="text-sm">Memuat dokumen uji...</span>
+                    </div>
+                ) : dataDokumen.length === 0 ? (
+                    // EMPTY STATE (KOSONG)
+                    <div className="flex flex-col items-center justify-center p-12 text-gray-400">
+                        <AlertCircle className="w-10 h-10 mb-3 opacity-50" />
+                        <p>Tidak ada dokumen yang sedang diuji administrasi.</p>
+                    </div>
+                ) : (
+                    // TABEL DATA
                     <div className="overflow-x-auto">
-                        <table className="w-full text-left text-sm text-gray-600">
-                            <thead className="bg-gray-50 text-gray-700 uppercase text-xs font-bold">
+                        <table className="w-full text-left text-sm">
+                            <thead className="bg-orange-50 text-orange-900 font-semibold border-b border-orange-100">
                                 <tr>
-                                    <th className="px-6 py-3">Tanggal</th>
-                                    <th className="px-6 py-3">No. Registrasi</th>
-                                    <th className="px-6 py-3">Pemrakarsa</th>
-                                    {/* KOLOM BARU UNTUK HASIL */}
-                                    <th className="px-6 py-3">Hasil (No. BA)</th> 
-                                    <th className="px-6 py-3 text-center">Aksi</th>
+                                    <th className="p-4 w-16 text-center">No Urut</th>
+                                    <th className="p-4">Jenis & Judul</th>
+                                    <th className="p-4">Pemrakarsa</th>
+                                    <th className="p-4">Status Uji</th>
+                                    <th className="p-4 text-center w-32">Aksi</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100">
-                                {loading ? (
-                                    <tr><td colSpan={5} className="px-6 py-10 text-center">Memuat data...</td></tr>
-                                ) : dataDokumen.length === 0 ? (
-                                    <tr><td colSpan={5} className="px-6 py-10 text-center text-gray-400">Tidak ada data.</td></tr>
-                                ) : (
-                                    dataDokumen.map((doc, index) => (
-                                        <tr key={index} className="hover:bg-gray-50 transition-colors">
-                                            <td className="px-6 py-4">{doc.tanggalMasukDokumen}</td>
-                                            <td className="px-6 py-4 font-mono font-medium text-blue-600">
-                                                {doc.nomorChecklist}
-                                                <div className="text-xs text-gray-400 mt-1">{doc.jenisDokumen}</div>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <div className="font-bold text-gray-800">{doc.namaPemrakarsa}</div>
-                                                <div className="text-xs text-gray-500 truncate max-w-xs">{doc.namaKegiatan}</div>
-                                            </td>
-                                            
-                                            {/* MENAMPILKAN HASIL (NOMOR UJI BERKAS) */}
-                                            <td className="px-6 py-4">
-                                                {doc.nomorUjiBerkas ? (
-                                                    <div className="flex items-center gap-2 text-green-700 bg-green-50 px-2 py-1 rounded border border-green-100 w-fit">
-                                                        <FileText className="w-3 h-3" />
-                                                        <span className="font-mono text-xs font-bold">{doc.nomorUjiBerkas}</span>
-                                                    </div>
-                                                ) : (
-                                                    <span className="text-gray-400 italic text-xs">- Belum Terbit -</span>
-                                                )}
-                                            </td>
-
-                                            <td className="px-6 py-4 text-center">
-                                                <Link 
-                                                    href={`/uji-administrasi/${doc.noUrut}`}
-                                                    className={`inline-flex items-center gap-1 px-3 py-1.5 rounded text-xs font-bold shadow-sm transition-all ${
-                                                        doc.nomorUjiBerkas 
-                                                        ? 'bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-300' 
-                                                        : 'bg-orange-500 hover:bg-orange-600 text-white'
-                                                    }`}
-                                                >
-                                                    <Eye className="w-3 h-3" /> 
-                                                    {doc.nomorUjiBerkas ? 'Detail' : 'Proses'}
-                                                </Link>
-                                            </td>
-                                        </tr>
-                                    ))
-                                )}
+                                {dataDokumen.map((doc) => (
+                                    <tr key={doc._id} className="hover:bg-orange-50/30 transition-colors">
+                                        <td className="p-4 text-center font-mono text-gray-500 bg-gray-50/50">
+                                            {doc.noUrut}
+                                        </td>
+                                        <td className="p-4">
+                                            <div className="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-orange-100 text-orange-700 mb-1">
+                                                {doc.jenisDokumen}
+                                            </div>
+                                            <div className="font-medium text-gray-800 line-clamp-2">
+                                                {doc.namaKegiatan || "(Tanpa Judul)"}
+                                            </div>
+                                            <div className="font-mono text-xs text-gray-400 mt-1">{doc.nomorChecklist}</div>
+                                        </td>
+                                        <td className="p-4 text-gray-600 font-medium">
+                                            {doc.namaPemrakarsa || "-"}
+                                        </td>
+                                        <td className="p-4">
+                                            {doc.nomorUjiBerkas ? (
+                                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">
+                                                    <CheckCircle className="w-3 h-3" /> Selesai Uji
+                                                </span>
+                                            ) : (
+                                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 border border-yellow-200 animate-pulse">
+                                                    <Clock className="w-3 h-3" /> Memeriksa...
+                                                </span>
+                                            )}
+                                        </td>
+                                        <td className="p-4 text-center">
+                                            <Link 
+                                                href={`/uji-administrasi/${doc.noUrut}`} 
+                                                className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all shadow-sm ${
+                                                    doc.nomorUjiBerkas 
+                                                    ? 'bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-300' 
+                                                    : 'bg-orange-600 hover:bg-orange-700 text-white'
+                                                }`}
+                                            >
+                                                <Eye size={14} /> {doc.nomorUjiBerkas ? 'Detail' : 'Uji Berkas'}
+                                            </Link>
+                                        </td>
+                                    </tr>
+                                ))}
                             </tbody>
                         </table>
                     </div>
-                </div>
+                )}
             </div>
         </div>
     );

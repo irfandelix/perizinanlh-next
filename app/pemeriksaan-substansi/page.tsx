@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { BookOpen, CheckCircle, Clock } from 'lucide-react'; 
+import { BookOpen, CheckCircle, Clock, Loader2, AlertCircle } from 'lucide-react'; 
 
 interface Dokumen {
     _id: string;
@@ -11,8 +11,8 @@ interface Dokumen {
     namaPemrakarsa: string;
     namaKegiatan: string;
     jenisDokumen: string;
-    nomorBAVerlap?: string;     // Syarat masuk tahap ini
-    nomorBAPemeriksaan?: string; // Output tahap ini
+    nomorBAVerlap?: string;     
+    nomorBAPemeriksaan?: string; 
 }
 
 export default function PemeriksaanSubstansiPage() {
@@ -42,93 +42,96 @@ export default function PemeriksaanSubstansiPage() {
     };
 
     return (
-        <div className="bg-gray-50 min-h-screen p-8">
-            <div className="max-w-7xl mx-auto">
-                <div className="mb-8">
-                    <h1 className="text-2xl font-bold text-gray-800">Pemeriksaan Substansi</h1>
-                    <p className="text-gray-500 text-sm">Rapat pembahasan dan penerbitan Berita Acara Pemeriksaan (Tahap D).</p>
-                </div>
-
-                <div className="bg-white rounded-xl shadow border border-gray-200 overflow-hidden">
-                    <div className="p-4 border-b border-gray-100 bg-indigo-50 flex justify-between items-center">
-                        <h3 className="font-bold text-indigo-800 flex items-center gap-2">
-                            📚 Daftar Pemeriksaan
-                        </h3>
-                        <span className="bg-indigo-200 text-indigo-800 text-xs px-2 py-1 rounded-full font-bold">
-                            {dataDokumen.length} Dokumen
-                        </span>
+        <div className="min-h-screen bg-gray-50 p-6 md:p-12">
+            
+            {/* HEADER HALAMAN */}
+            <div className="mb-8 max-w-5xl mx-auto">
+                <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-3">
+                    <div className="p-2 bg-indigo-600 rounded-lg shadow-md">
+                        <BookOpen className="text-white w-6 h-6" />
                     </div>
+                    Pemeriksaan Substansi (Tahap D)
+                </h1>
+                <p className="text-gray-500 mt-2 ml-14">
+                    Rapat pembahasan dan penerbitan Berita Acara Pemeriksaan Dokumen Lingkungan.
+                </p>
+            </div>
 
+            {/* KONTEN UTAMA */}
+            <div className="max-w-5xl mx-auto bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                
+                {loading ? (
+                    // LOADING STATE
+                    <div className="flex flex-col items-center justify-center p-12 text-indigo-600">
+                        <Loader2 className="animate-spin w-8 h-8 mb-2" />
+                        <span className="text-sm">Memuat daftar pemeriksaan...</span>
+                    </div>
+                ) : dataDokumen.length === 0 ? (
+                    // EMPTY STATE (KOSONG)
+                    <div className="flex flex-col items-center justify-center p-12 text-gray-400">
+                        <AlertCircle className="w-10 h-10 mb-3 opacity-50" />
+                        <p>Belum ada dokumen yang siap diperiksa substansi.</p>
+                    </div>
+                ) : (
+                    // TABEL DATA
                     <div className="overflow-x-auto">
-                        <table className="w-full text-left text-sm text-gray-600">
-                            <thead className="bg-gray-50 text-gray-700 uppercase text-xs font-bold">
+                        <table className="w-full text-left text-sm">
+                            <thead className="bg-indigo-50 text-indigo-900 font-semibold border-b border-indigo-100">
                                 <tr>
-                                    <th className="px-6 py-3">No. Registrasi</th>
-                                    <th className="px-6 py-3">Pemrakarsa / Kegiatan</th>
-                                    <th className="px-6 py-3">No. BA Pemeriksaan</th>
-                                    <th className="px-6 py-3">Status</th>
-                                    <th className="px-6 py-3 text-center">Aksi</th>
+                                    <th className="p-4 w-16 text-center">No Urut</th>
+                                    <th className="p-4">Jenis & Judul</th>
+                                    <th className="p-4">Pemrakarsa</th>
+                                    <th className="p-4">Status Rapat</th>
+                                    <th className="p-4 text-center w-32">Aksi</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100">
-                                {loading ? (
-                                    <tr><td colSpan={5} className="px-6 py-10 text-center">Memuat data...</td></tr>
-                                ) : dataDokumen.length === 0 ? (
-                                    <tr><td colSpan={5} className="px-6 py-10 text-center text-gray-400">Belum ada dokumen siap diperiksa.</td></tr>
-                                ) : (
-                                    dataDokumen.map((doc, index) => (
-                                        <tr key={index} className="hover:bg-gray-50 transition-colors">
-                                            <td className="px-6 py-4 font-mono font-medium text-blue-600">
-                                                {doc.nomorChecklist}
-                                                <div className="text-xs text-gray-400 mt-1">{doc.jenisDokumen}</div>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <div className="font-bold text-gray-800">{doc.namaPemrakarsa}</div>
-                                                <div className="text-xs text-gray-500 truncate max-w-xs">{doc.namaKegiatan}</div>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                {doc.nomorBAPemeriksaan ? (
-                                                    <div className="flex items-center gap-2 text-indigo-700 bg-indigo-50 px-2 py-1 rounded border border-indigo-200 w-fit">
-                                                        <CheckCircle className="w-3 h-3" />
-                                                        <span className="font-mono text-xs font-bold">{doc.nomorBAPemeriksaan}</span>
-                                                    </div>
-                                                ) : (
-                                                    <span className="flex items-center gap-1 text-orange-500 text-xs font-bold animate-pulse">
-                                                        <Clock className="w-3 h-3" /> Menunggu Rapat
-                                                    </span>
-                                                )}
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                {doc.nomorBAVerlap ? (
-                                                    <span className="flex items-center gap-1 text-green-600 text-xs font-bold">
-                                                        <CheckCircle className="w-3 h-3" /> Selesai
-                                                    </span>
-                                                ) : (
-                                                    <span className="flex items-center gap-1 text-orange-500 text-xs font-bold animate-pulse">
-                                                        <Clock className="w-3 h-3" /> Menunggu Input
-                                                    </span>
-                                                )}
-                                            </td>
-                                            <td className="px-6 py-4 text-center">
-                                                <Link 
-                                                    href={`/pemeriksaan-substansi/${doc.noUrut}`}
-                                                    className={`inline-flex items-center gap-1 px-3 py-1.5 rounded text-xs font-bold shadow-sm transition-all ${
-                                                        doc.nomorBAPemeriksaan
-                                                        ? 'bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-300' 
-                                                        : 'bg-indigo-600 hover:bg-indigo-700 text-white'
-                                                    }`}
-                                                >
-                                                    <BookOpen className="w-3 h-3" /> 
-                                                    {doc.nomorBAPemeriksaan ? 'Detail' : 'Input Hasil'}
-                                                </Link>
-                                            </td>
-                                        </tr>
-                                    ))
-                                )}
+                                {dataDokumen.map((doc) => (
+                                    <tr key={doc._id} className="hover:bg-indigo-50/30 transition-colors">
+                                        <td className="p-4 text-center font-mono text-gray-500 bg-gray-50/50">
+                                            {doc.noUrut}
+                                        </td>
+                                        <td className="p-4">
+                                            <div className="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-700 mb-1">
+                                                {doc.jenisDokumen}
+                                            </div>
+                                            <div className="font-medium text-gray-800 line-clamp-2">
+                                                {doc.namaKegiatan || "(Tanpa Judul)"}
+                                            </div>
+                                            <div className="font-mono text-xs text-gray-400 mt-1">{doc.nomorChecklist}</div>
+                                        </td>
+                                        <td className="p-4 text-gray-600 font-medium">
+                                            {doc.namaPemrakarsa || "-"}
+                                        </td>
+                                        <td className="p-4">
+                                            {doc.nomorBAPemeriksaan ? (
+                                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">
+                                                    <CheckCircle className="w-3 h-3" /> Selesai BA
+                                                </span>
+                                            ) : (
+                                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800 border border-orange-200 animate-pulse">
+                                                    <Clock className="w-3 h-3" /> Menunggu
+                                                </span>
+                                            )}
+                                        </td>
+                                        <td className="p-4 text-center">
+                                            <Link 
+                                                href={`/pemeriksaan-substansi/${doc.noUrut}`} 
+                                                className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all shadow-sm ${
+                                                    doc.nomorBAPemeriksaan 
+                                                    ? 'bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-300' 
+                                                    : 'bg-indigo-600 hover:bg-indigo-700 text-white'
+                                                }`}
+                                            >
+                                                <BookOpen size={14} /> {doc.nomorBAPemeriksaan ? 'Detail' : 'Periksa'}
+                                            </Link>
+                                        </td>
+                                    </tr>
+                                ))}
                             </tbody>
                         </table>
                     </div>
-                </div>
+                )}
             </div>
         </div>
     );

@@ -1,131 +1,126 @@
 'use client';
 
-import React, { useState, useEffect, use } from 'react';
-import { useRouter } from 'next/navigation';
-import Link from 'next/link';
+import React, { useState, useEffect } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { Save, ArrowLeft, MapPin, CheckCircle, Loader2, Info } from 'lucide-react';
+import Modal from '@/components/Modal';
+import api from '@/lib/api';
 
-export default function VerifikasiLapanganDetail({ params }: { params: Promise<{ id: string }> }) {
-    // Di sini 'id' adalah angka No Urut dari URL (misal: /verifikasi/101)
-    const { id } = use(params); 
+export default function FormVerifikasiLapangan() {
+    const params = useParams();
     const router = useRouter();
+    const noUrut = params.noUrut as string;
 
-    const [loading, setLoading] = useState(true);
-    const [data, setData] = useState<any>(null);
-    
-    // State Form
-    const [tanggalVerlap, setTanggalVerlap] = useState('');
-    const [submitting, setSubmitting] = useState(false);
+    const [loadingData, setLoadingData] = useState(true);
+    const [submitLoading, setSubmitLoading] = useState(false);
+    const [docInfo, setDocInfo] = useState<any>(null);
+    const [modalInfo, setModalInfo] = useState({ show: false, title: '', message: '', isSuccess: false });
+
+    const [formData, setFormData] = useState({
+        tanggalVerlap: '',
+    });
 
     useEffect(() => {
-        if (id) fetchData();
-    }, [id]);
+        const fetchDocData = async () => {
+            try {
+                const response = await api.get('/api/rekap');
+                const allDocs = response.data.data;
+                const currentDoc = allDocs.find((d: any) => d.noUrut === parseInt(noUrut));
 
-    const fetchData = async () => {
-        try {
-            // KITA PAKAI API LAMA (api/record/find)
-            const res = await fetch('/api/record/find', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                // RAHASIANYA DI SINI:
-                // Kita kirim parameter 'id' dari URL sebagai 'noUrut' ke API.
-                // API lama kamu ada 'parseInt(noUrut)', jadi dia akan mengubah "101" jadi angka 101.
-                body: JSON.stringify({ 
-                  noUrut: Number(id)
-                 }) 
-            });
-            
-            const result = await res.json();
-            
-            if (result.success && result.data) {
-                // Handle jika data array atau object tunggal
-                const doc = Array.isArray(result.data) ? result.data[0] : result.data;
-                setData(doc);
-                
-                // Isi form jika sudah ada data sebelumnya
-                if(doc.tanggalVerlap) setTanggalVerlap(doc.tanggalVerlap);
-            } else {
-                alert("Data dengan No Urut tersebut tidak ditemukan!");
-                router.push('/verifikasi-lapangan');
+                if (currentDoc) setDocInfo(currentDoc);
+                else setModalInfo({ show: true, title: 'Data Tidak Ditemukan', message: 'Dokumen ini tidak ada.', isSuccess: false });
+            } catch (error) {
+                console.error("Gagal mengambil data:", error);
+            } finally {
+                setLoadingData(false);
             }
-        } catch (error) {
-            console.error("Error:", error);
-            alert("Gagal memuat data.");
-        } finally {
-            setLoading(false);
-        }
+        };
+        if (noUrut) fetchDocData();
+    }, [noUrut]);
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setFormData({ ...formData, [e.target.name]: e.target.value });
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!confirm("Simpan Hasil Verifikasi Lapangan?")) return;
+        setSubmitLoading(true);
 
-        setSubmitting(true);
         try {
-            // Endpoint simpan (sesuaikan dengan logic update database kamu)
-            const res = await fetch('/api/submit/verlap', { 
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    id: data._id, // Saat simpan, kita ambil ID asli dari data yang sudah di-fetch
-                    noUrut: data.noUrut, // <--- TAMBAHKAN INI (Supaya error hilang)
-                    tanggalVerlap: tanggalVerlap,
-                })
+            const payload = {
+                noUrut: parseInt(noUrut),
+                tanggalVerlap: formData.tanggalVerlap,
+            };
+
+            const response = await api.post('/api/submit/c', payload);
+            
+            setModalInfo({
+                show: true,
+                title: 'Berhasil Disimpan',
+                message: `Berita Acara Verifikasi Lapangan berhasil diterbitkan! Nomor: ${response.data.generatedNomor}`,
+                isSuccess: true
             });
 
-            const result = await res.json();
-            if (result.success) {
-                alert("✅ Berhasil disimpan!");
-                router.push('/verifikasi-lapangan');
-            } else {
-                alert("Gagal: " + result.message);
-            }
-        } catch (error) {
-            alert("Terjadi kesalahan sistem.");
+            setTimeout(() => { router.push('/verifikasi-lapangan'); }, 2500);
+        } catch (error: any) {
+            setModalInfo({ show: true, title: 'Gagal Menyimpan', message: error.response?.data?.message || 'Error server.', isSuccess: false });
         } finally {
-            setSubmitting(false);
+            setSubmitLoading(false);
         }
     };
 
-    if (loading) return <div className="p-10 text-center">Memuat data No Urut: {id}...</div>;
-    if (!data) return <div className="p-10 text-center text-red-500">Data tidak ditemukan.</div>;
+    if (loadingData) return <div className="min-h-screen flex items-center justify-center bg-gray-50"><Loader2 className="animate-spin w-10 h-10 text-green-600 mb-3" /></div>;
 
     return (
-        <div className="min-h-screen bg-gray-50 p-8">
-            <div className="max-w-4xl mx-auto bg-white rounded-xl shadow p-8">
-                
-                {/* Header */}
-                <div className="mb-6 border-b pb-4 flex justify-between items-center">
+        <div className="p-6 max-w-4xl mx-auto my-8">
+            <button onClick={() => router.back()} className="flex items-center gap-2 text-gray-500 hover:text-green-600 font-medium mb-6 transition-colors">
+                <ArrowLeft size={20} /> Kembali ke Daftar Verifikasi Lapangan
+            </button>
+
+            <div className="bg-white shadow-lg rounded-xl border border-gray-100 overflow-hidden">
+                <div className="bg-green-600 p-6 text-white flex items-center gap-4">
+                    <div className="p-3 bg-white/20 rounded-lg"><MapPin size={28} /></div>
                     <div>
-                        <h1 className="text-xl font-bold text-gray-800">Verifikasi Lapangan</h1>
-                        <p className="text-sm text-gray-500">No Urut: <span className="font-mono font-bold">{id}</span></p>
+                        <h1 className="text-2xl font-bold">Input Verifikasi Lapangan</h1>
+                        <p className="text-green-100 text-sm mt-1">Tahap C: Penerbitan Berita Acara Tinjauan Lapangan (BA.V)</p>
                     </div>
-                    <Link href="/verifikasi-lapangan" className="text-sm text-blue-600 hover:underline">Kembali</Link>
                 </div>
 
-                {/* Info Singkat */}
-                <div className="bg-blue-50 p-4 rounded mb-6 text-sm text-blue-900">
-                    <p><strong>Kegiatan:</strong> {data.namaKegiatan || data.nama_kegiatan}</p>
-                    <p><strong>Pemrakarsa:</strong> {data.namaPemrakarsa || data.pemrakarsa}</p>
-                    <p><strong>No Registrasi:</strong> {data.nomorChecklist || data.no_registrasi}</p>
+                <div className="p-8">
+                    {docInfo && (
+                        <div className="bg-green-50/50 border border-green-100 rounded-xl p-5 mb-8 flex gap-4 items-start">
+                            <Info className="text-green-500 shrink-0 mt-1" />
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-y-3 gap-x-8 w-full">
+                                <div><span className="text-xs font-bold text-gray-500 uppercase">Nama Kegiatan</span><p className="font-semibold text-gray-800">{docInfo.namaKegiatan}</p></div>
+                                <div><span className="text-xs font-bold text-gray-500 uppercase">Pemrakarsa</span><p className="font-semibold text-gray-800">{docInfo.namaPemrakarsa}</p></div>
+                                <div><span className="text-xs font-bold text-gray-500 uppercase">Lokasi Kegiatan</span><p className="font-semibold text-gray-800">{docInfo.lokasiKegiatan || '-'}</p></div>
+                                <div><span className="text-xs font-bold text-gray-500 uppercase">Status Saat Ini</span><p><span className="inline-block mt-1 px-2 py-1 bg-yellow-100 text-yellow-800 text-xs font-bold rounded">{docInfo.statusTerakhir || 'PROSES'}</span></p></div>
+                            </div>
+                        </div>
+                    )}
+
+                    <form onSubmit={handleSubmit} className="space-y-6 animate-fade-in">
+                        <div className="w-full md:w-1/2">
+                            <label className="block text-sm font-bold mb-2 text-gray-700">Tanggal BA Tinjauan Lapangan <span className="text-red-500">*</span></label>
+                            <input type="date" name="tanggalVerlap" className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-400 outline-none transition-all" value={formData.tanggalVerlap} onChange={handleChange} required />
+                            <p className="text-xs text-gray-500 mt-2">Nomor urut surat BA.V akan otomatis dibuatkan oleh sistem.</p>
+                        </div>
+
+                        <div className="flex justify-end pt-6 border-t border-gray-100">
+                            <button type="submit" disabled={submitLoading} className="bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-xl font-bold text-lg shadow-lg flex items-center gap-2 transition-all disabled:opacity-50">
+                                {submitLoading ? 'Menyimpan...' : <><Save size={20} /> Simpan BA Lapangan</>}
+                            </button>
+                        </div>
+                    </form>
                 </div>
-
-                {/* Form */}
-                <form onSubmit={handleSubmit}>
-                    <div className="mb-4">
-                        <label className="block text-sm font-medium mb-1">Tanggal Verlap</label>
-                        <input 
-                            type="date" required 
-                            className="border p-2 rounded w-full md:w-1/2"
-                            value={tanggalVerlap}
-                            onChange={(e) => setTanggalVerlap(e.target.value)}
-                        />
-                    </div>
-                    <button disabled={submitting} className="bg-blue-600 text-white px-6 py-2 rounded font-bold hover:bg-blue-700">
-                        {submitting ? 'Menyimpan...' : 'Simpan Hasil'}
-                    </button>
-                </form>
-
             </div>
+
+            <Modal show={modalInfo.show} title={modalInfo.title} onClose={() => setModalInfo({ ...modalInfo, show: false })}>
+                <div className="flex flex-col items-center justify-center p-4">
+                    {modalInfo.isSuccess ? <CheckCircle size={50} className="text-green-500 mb-4 animate-bounce" /> : <div className="text-red-500 mb-4 text-4xl">⚠️</div>}
+                    <p className="text-center text-gray-700 font-medium">{modalInfo.message}</p>
+                </div>
+            </Modal>
         </div>
     );
 }
