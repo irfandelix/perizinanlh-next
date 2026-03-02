@@ -9,7 +9,9 @@ import api from '@/lib/api';
 export default function FormUjiAdministrasi() {
     const params = useParams();
     const router = useRouter();
-    const noUrut = params.noUrut as string;
+    
+    // PERBAIKAN: Menangkap parameter 'id' sesuai dengan nama folder [id]
+    const id = params.id as string;
 
     const [loadingData, setLoadingData] = useState(true);
     const [submitLoading, setSubmitLoading] = useState(false);
@@ -20,7 +22,6 @@ export default function FormUjiAdministrasi() {
         tanggalPenerbitanUa: '',
     });
 
-    // PERBAIKAN: Menggunakan fetch yang terbukti cepat dan stabil di halaman tabel
     useEffect(() => {
         const fetchDocData = async () => {
             try {
@@ -29,7 +30,8 @@ export default function FormUjiAdministrasi() {
 
                 if (result.success) {
                     const allDocs = result.data;
-                    const currentDoc = allDocs.find((d: any) => d.noUrut === parseInt(noUrut));
+                    // PERBAIKAN: Mencocokkan data menggunakan variabel 'id'
+                    const currentDoc = allDocs.find((d: any) => d.noUrut === parseInt(id));
 
                     if (currentDoc) {
                         setDocInfo(currentDoc);
@@ -42,12 +44,13 @@ export default function FormUjiAdministrasi() {
             } catch (error) {
                 console.error("Gagal mengambil data:", error);
             } finally {
-                setLoadingData(false);
+                setLoadingData(false); // Mematikan loading
             }
         };
         
-        if (noUrut) fetchDocData();
-    }, [noUrut]);
+        // Hanya jalankan jika 'id' dari URL sudah terbaca
+        if (id) fetchDocData();
+    }, [id]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -59,7 +62,8 @@ export default function FormUjiAdministrasi() {
 
         try {
             const payload = {
-                noUrut: parseInt(noUrut),
+                // PERBAIKAN: Mengirim id sebagai noUrut ke backend
+                noUrut: parseInt(id),
                 tanggalPenerbitanUa: formData.tanggalPenerbitanUa,
             };
 
