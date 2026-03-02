@@ -5,9 +5,9 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
 import { 
-  Menu, X, LayoutDashboard, FileText, ArrowRightCircle, 
-  Archive, ClipboardList, LogOut, CheckSquare, Microscope, 
-  FileSearch, Printer, FileEdit, Globe
+    Menu, X, LayoutDashboard, FileText, ArrowRightCircle, 
+    Archive, ClipboardList, LogOut, CheckSquare, MapPin, // PERBAIKAN: Ganti Microscope dengan MapPin untuk Verlap
+    BookOpen, FileEdit, Globe, Printer, FileCheck // PERBAIKAN: Sesuaikan ikon
 } from 'lucide-react';
 
 export default function Sidebar() {
@@ -18,7 +18,7 @@ export default function Sidebar() {
     // @ts-ignore
     const userRole = session?.user?.role; 
 
-    // --- DEFINISI MENU DENGAN WARNA ---
+    // --- DEFINISI MENU DENGAN WARNA SESUAI TEMA HALAMAN ---
     const allNavItems = [
         // 1. MENU UMUM
         { 
@@ -44,37 +44,37 @@ export default function Sidebar() {
             color: 'text-cyan-600', bgColor: 'bg-cyan-100' 
         },
 
-        // 3. MENU KHUSUS DLH
-        // --- Registrasi Amdalnet dipindah ke paling atas DLH ---
+        // 3. MENU KHUSUS DLH (WARNA DISESUAIKAN)
         { 
             name: 'Registrasi Amdalnet', href: '/register-amdalnet', icon: Globe, roles: ['dlh'],
-            color: 'text-emerald-600', bgColor: 'bg-emerald-100' 
+            color: 'text-emerald-600', bgColor: 'bg-emerald-100' // Tema Hijau Zamrud
         },
         { 
-            name: 'Uji Administrasi', href: '/uji-administrasi', icon: CheckSquare, roles: ['dlh'],
-            color: 'text-indigo-600', bgColor: 'bg-indigo-100' 
+            name: 'Uji Administrasi', href: '/uji-administrasi', icon: FileText, roles: ['dlh'],
+            color: 'text-orange-600', bgColor: 'bg-orange-100' // Tema Oranye
         },
         { 
-            name: 'Verifikasi Lapangan', href: '/verifikasi-lapangan', icon: Microscope, roles: ['dlh'],
-            color: 'text-pink-600', bgColor: 'bg-pink-100' 
+            name: 'Verifikasi Lapangan', href: '/verifikasi-lapangan', icon: MapPin, roles: ['dlh'],
+            color: 'text-green-600', bgColor: 'bg-green-100' // Tema Hijau Daun
         },
         { 
-            name: 'Pemeriksaan Substansi', href: '/pemeriksaan-substansi', icon: FileSearch, roles: ['dlh'],
-            color: 'text-teal-600', bgColor: 'bg-teal-100' 
+            name: 'Pemeriksaan Substansi', href: '/pemeriksaan-substansi', icon: BookOpen, roles: ['dlh'],
+            color: 'text-indigo-600', bgColor: 'bg-indigo-100' // Tema Indigo/Ungu
         },
         { 
             name: 'Pemeriksaan Revisi', href: '/pemeriksaan-revisi', icon: FileEdit, roles: ['dlh'],
-            color: 'text-yellow-600', bgColor: 'bg-yellow-100' 
+            color: 'text-blue-600', bgColor: 'bg-blue-100' // Tema Biru
         },
         { 
-            name: 'Risalah Pengolah', href: '/verifikasi', icon: FileText, roles: ['dlh'],
-            color: 'text-blue-600', bgColor: 'bg-blue-100' 
+            // PERBAIKAN PATH: Sebelumnya href-nya '/verifikasi', sekarang aku ubah ke '/risalah-pengolah' sesuai routing kita
+            name: 'Risalah Pengolah', href: '/risalah-pengolah', icon: FileCheck, roles: ['dlh'],
+            color: 'text-rose-600', bgColor: 'bg-rose-100' // Tema Merah Muda/Rose
         },
 
         // 4. REKAP DATA
         { 
             name: 'Rekapitulasi Data', href: '/rekap', icon: Archive, roles: ['mpp', 'dlh'],
-            color: 'text-red-600', bgColor: 'bg-red-100' 
+            color: 'text-red-600', bgColor: 'bg-red-100' // Tema Merah
         },
     ];
 
@@ -117,7 +117,7 @@ export default function Sidebar() {
                     </h2>
                     
                     <div className="flex items-center gap-4 mb-2">
-                        <div className="w-12 h-12 rounded-full bg-green-600 flex items-center justify-center text-white font-bold text-lg shadow-sm">
+                        <div className="w-12 h-12 rounded-full bg-emerald-500 flex items-center justify-center text-white font-bold text-lg shadow-sm">
                             {session?.user?.name?.charAt(0).toUpperCase() || 'U'}
                         </div>
                         <div className="flex-1 min-w-0">
