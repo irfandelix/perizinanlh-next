@@ -35,7 +35,6 @@ const addWorkingDays = (startDateStr: string, daysToAdd: number) => {
             addedDays++;
         }
     }
-    // Format ke YYYY-MM-DD
     const yyyy = currentDate.getFullYear();
     const mm = String(currentDate.getMonth() + 1).padStart(2, '0');
     const dd = String(currentDate.getDate()).padStart(2, '0');
@@ -76,37 +75,46 @@ export default function DashboardPage() {
                         const sortedDocs = latestDocs.sort((a, b) => b.noUrut - a.noUrut);
                         setDataDokumen(sortedDocs);
 
-                        // Hitung Statistik
                         let ujiAdmin = 0, verlap = 0, substansi = 0, revisi = 0, selesai = 0;
-                        latestDocs.forEach(doc => {
-                            if (doc.nomorRisalah) selesai++;
-                            else if (doc.nomorBAPemeriksaan && !doc.nomorPHP) revisi++;
-                            else if (doc.nomorBAVerlap && !doc.nomorBAPemeriksaan) substansi++;
-                            else if (doc.nomorUjiBerkas && !doc.nomorBAVerlap) verlap++;
-                            else if (!doc.nomorUjiBerkas) ujiAdmin++;
-                        });
-                        setStats({ total: latestDocs.length, ujiAdmin, verlap, substansi, revisi, selesai, tahunTerbaru: latestYear });
-
-                        // --- GENERATE EVENT KALENDER (SLA) ---
                         const events: any[] = [];
-                        docs.forEach(doc => {
+
+                        latestDocs.forEach(doc => {
+                            // --- LOGIKA HITUNG STATISTIK (Cek dari tahap paling akhir ke awal) ---
+                            if (doc.nomorRisalah) selesai++;
+                            else if (doc.nomorBAPemeriksaan || doc.nomorPHP) revisi++; 
+                            else if (doc.nomorBAVerlap) substansi++; 
+                            else if (doc.nomorUjiBerkas) verlap++; 
+                            else ujiAdmin++;
+
+                            // --- GENERATE EVENT KALENDER (SLA) ---
                             if (!doc.tanggalMasukDokumen) return;
                             
-                            const pemrakarsa = doc.namaPemrakarsa || 'Tanpa Nama';
+                            // PERBAIKAN: Gunakan Nama Kegiatan (Bukan Pemrakarsa)
+                            const kegiatan = doc.namaKegiatan || 'Tanpa Judul';
+                            
                             const t1 = addWorkingDays(doc.tanggalMasukDokumen, 3); // Uji Admin
                             const t2 = addWorkingDays(t1, 5); // Verlap
-                            const t3 = addWorkingDays(t2, 5); // Revisi
-                            const t4 = addWorkingDays(t3, 5); // Pasca Sidang
+                            const t3 = addWorkingDays(t2, 5); // BAP
+                            const t4 = addWorkingDays(t3, 5); // Revisi
                             const t5 = addWorkingDays(t4, 5); // RPD
                             
-                            // Jika dokumen sudah selesai (punya risalah), kita tidak perlu tampilkan warning lagi di kalender agar tidak penuh.
-                            // Kita hanya menampilkan jadwal untuk yang belum selesai tahapannya.
-                            if (!doc.nomorUjiBerkas) events.push({ date: t1, title: `Admin: ${pemrakarsa}`, color: 'bg-orange-100 text-orange-700 border-orange-200' });
-                            if (doc.nomorUjiBerkas && !doc.nomorBAVerlap) events.push({ date: t2, title: `Verlap: ${pemrakarsa}`, color: 'bg-green-100 text-green-700 border-green-200' });
-                            if (doc.nomorBAVerlap && !doc.nomorBAPemeriksaan) events.push({ date: t3, title: `Rapat: ${pemrakarsa}`, color: 'bg-indigo-100 text-indigo-700 border-indigo-200' });
-                            if (doc.nomorBAPemeriksaan && !doc.nomorPHP) events.push({ date: t4, title: `Revisi: ${pemrakarsa}`, color: 'bg-blue-100 text-blue-700 border-blue-200' });
-                            if (doc.nomorPHP && !doc.nomorRisalah) events.push({ date: t5, title: `RPD: ${pemrakarsa}`, color: 'bg-rose-100 text-rose-700 border-rose-200' });
+                            // PERBAIKAN: Cek dari tahap paling akhir agar tidak nyangkut jika ada step yang terlewat
+                            if (doc.nomorRisalah) {
+                                // Sudah Selesai, tidak perlu tampil di kalender SLA
+                            } else if (doc.nomorPHP) {
+                                events.push({ date: t5, title: `RPD: ${kegiatan}`, color: 'bg-rose-100 text-rose-700 border-rose-200' });
+                            } else if (doc.nomorBAPemeriksaan) {
+                                events.push({ date: t4, title: `Revisi: ${kegiatan}`, color: 'bg-blue-100 text-blue-700 border-blue-200' });
+                            } else if (doc.nomorBAVerlap) {
+                                events.push({ date: t3, title: `BAP: ${kegiatan}`, color: 'bg-indigo-100 text-indigo-700 border-indigo-200' });
+                            } else if (doc.nomorUjiBerkas) {
+                                events.push({ date: t2, title: `Verlap: ${kegiatan}`, color: 'bg-green-100 text-green-700 border-green-200' });
+                            } else {
+                                events.push({ date: t1, title: `Admin: ${kegiatan}`, color: 'bg-orange-100 text-orange-700 border-orange-200' });
+                            }
                         });
+
+                        setStats({ total: latestDocs.length, ujiAdmin, verlap, substansi, revisi, selesai, tahunTerbaru: latestYear });
                         setCalendarEvents(events);
                     }
                 }
@@ -142,11 +150,12 @@ export default function DashboardPage() {
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     const firstDayIndex = new Date(year, month, 1).getDay(); // 0 (Minggu) sampai 6 (Sabtu)
 
-    // Buat array kotak grid (Tanggal kosong + Tanggal isi)
+    // PERBAIKAN TypeScript: Menggunakan spread operator untuk array (number | null)
     const calendarDays: (number | null)[] = [
         ...Array.from({ length: firstDayIndex }, () => null),
         ...Array.from({ length: daysInMonth }, (_, i) => i + 1)
     ];
+
     if (loading) {
         return (
             <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50/50">
@@ -187,8 +196,8 @@ export default function DashboardPage() {
                 <StatCard title="Selesai / RPD" count={stats.selesai} icon={FileCheck} link="/risalah-pengolah" colorClass="text-rose-600" bgIconClass="bg-rose-50 group-hover:bg-rose-100" />
             </div>
 
-            {/* BAGIAN TENGAH: TABEL AKTIVITAS TERBARU (Lebar penuh) */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden mb-8 flex flex-col">
+            {/* TABEL AKTIVITAS TERBARU */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden mb-8">
                 <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-white">
                     <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
                         <Clock className="text-blue-500" size={20} /> Aktivitas Terbaru ({stats.tahunTerbaru})
@@ -224,7 +233,7 @@ export default function DashboardPage() {
                                         </span>
                                     </td>
                                     <td className="p-4 text-center">
-                                        <span className="inline-block px-3 py-1 bg-blue-50 text-blue-700 border border-blue-100 rounded-full text-[11px] font-bold whitespace-nowrap">
+                                        <span className="inline-block px-3 py-1 bg-blue-50 text-blue-700 border border-blue-100 rounded-full text-[11px] font-bold whitespace-nowrap uppercase tracking-wider">
                                             {doc.statusTerakhir || 'PROSES'}
                                         </span>
                                     </td>
@@ -249,7 +258,7 @@ export default function DashboardPage() {
                     </div>
                     <div className="flex items-center gap-4 bg-white p-1.5 rounded-xl border border-gray-200 shadow-sm">
                         <button onClick={prevMonth} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-600"><ChevronLeft size={20}/></button>
-                        <span className="font-bold text-slate-800 w-32 text-center">{monthName} {year}</span>
+                        <span className="font-bold text-slate-800 w-32 text-center capitalize">{monthName} {year}</span>
                         <button onClick={nextMonth} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-600"><ChevronRight size={20}/></button>
                     </div>
                 </div>
@@ -276,7 +285,10 @@ export default function DashboardPage() {
                             const dayEvents = calendarEvents.filter(e => e.date === currentDateStr);
                             
                             // Highlight hari ini
-                            const isToday = currentDateStr === new Date().toISOString().split('T')[0];
+                            // Kita pakai Date lokal agar timezone tidak offset
+                            const todayLocal = new Date();
+                            const todayStr = `${todayLocal.getFullYear()}-${String(todayLocal.getMonth() + 1).padStart(2, '0')}-${String(todayLocal.getDate()).padStart(2, '0')}`;
+                            const isToday = currentDateStr === todayStr;
 
                             return (
                                 <div key={day} className={`min-h-[100px] border rounded-xl p-2 transition-all hover:border-blue-300 ${isToday ? 'bg-blue-50/50 border-blue-400 shadow-sm ring-1 ring-blue-400' : 'bg-white border-gray-200'}`}>
