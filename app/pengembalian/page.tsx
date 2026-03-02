@@ -1,204 +1,198 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
-import api from '@/lib/api'; 
-import Modal from '@/components/Modal'; 
-import { Search, Save, RotateCcw, FileText, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { ArrowRightCircle, CheckCircle, Clock, Loader2, AlertCircle, Search } from 'lucide-react'; 
 
-// 1. Definisi Tipe Data
-interface RecordData {
-    noUrut: string;
+interface Dokumen {
+    _id: string;
+    noUrut: number;
+    nomorChecklist: string;
     namaPemrakarsa: string;
-    namaKegiatan?: string; 
-    jenisKegiatan: string;
-    alamatKegiatan: string;
+    namaKegiatan: string;
     statusTerakhir: string;
-    tanggalPengembalian?: string;
-    nomorChecklist?: string;
+    jenisDokumen: string;
+    tanggalMasukDokumen: string;
+    tahun?: string | number;
+    tanggalPengembalian?: string; 
 }
 
-// Style tabel
-const tableStyles = `
-    .record-table { width: 100%; border-collapse: collapse; margin-top: 1.5rem; font-size: 0.9rem; }
-    .record-table th, .record-table td { border: 1px solid #e5e7eb; padding: 0.75rem; text-align: left; vertical-align: top; }
-    .record-table th { background-color: #fff7ed; font-weight: 600; width: 30%; color: #9a3412; } 
-    .record-table td span { font-weight: bold; color: #ea580c; }
-`;
+export default function PenyerahanKembaliPage() {
+    const [dataDokumen, setDataDokumen] = useState<Dokumen[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [searchTerm, setSearchTerm] = useState('');
+    
+    // State untuk fitur Tab Tahun
+    const [selectedYear, setSelectedYear] = useState<string>('');
+    const [availableYears, setAvailableYears] = useState<string[]>([]);
 
-export default function FormPengembalian() {
-    // State
-    const [nomorChecklist, setNomorChecklist] = useState<string>('');
-    const [recordData, setRecordData] = useState<RecordData | null>(null);
-    const [loading, setLoading] = useState<boolean>(false);
-    const [error, setError] = useState<string>('');
-    const [tanggalPengembalian, setTanggalPengembalian] = useState<string>('');
+    useEffect(() => {
+        const fetchData = async () => {
+            setLoading(true);
+            try {
+                const res = await fetch('/api/record/list'); 
+                const result = await res.json();
+                
+                if (result.success) {
+                    const docs = result.data;
+                    setDataDokumen(docs);
 
-    // Modal State
-    const [modalInfo, setModalInfo] = useState({ show: false, title: '', message: '' });
-    const closeModal = () => setModalInfo({ ...modalInfo, show: false });
-    const showModal = (title: string, message: string) => setModalInfo({ show: true, title, message });
+                    // Logika ekstrak tahun dari data secara otomatis
+                    const yearsSet = new Set(docs.map((item: Dokumen) => {
+                        return item.tahun?.toString() || (item.tanggalMasukDokumen ? item.tanggalMasukDokumen.substring(0, 4) : new Date().getFullYear().toString());
+                    }));
+                    
+                    const yearsArray = Array.from(yearsSet).sort().reverse() as string[];
+                    setAvailableYears(yearsArray);
+                    
+                    if (yearsArray.length > 0) setSelectedYear(yearsArray[0]);
+                }
+            } catch (error) {
+                console.error("Error fetching data:", error);
+            } finally {
+                setLoading(false);
+            }
+        };
 
-    // Fungsi Cari Data
-    const fetchRecord = useCallback(async (checklist: string) => {
-        if (!checklist) {
-            setRecordData(null);
-            setError('');
-            return;
-        }
-        setLoading(true);
-        setError('');
-        try {
-            const response = await api.post(`/api/record/find`, { keyword: checklist });
-            
-            const resultData = response.data.data;
-            const data = Array.isArray(resultData) ? resultData[0] : resultData;
-
-            if (!data) throw new Error("Data tidak ditemukan");
-
-            setRecordData(data);
-            
-            // Ambil tanggal yang sudah ada di DB (jika ada)
-            const existingDate = data.tanggalPengembalian;
-            setTanggalPengembalian(existingDate ? existingDate.split('T')[0] : '');
-        } catch (err: any) {
-            setRecordData(null);
-            setError(err.response?.data?.message || 'Data tidak ditemukan.');
-        } finally {
-            setLoading(false);
-        }
+        fetchData();
     }, []);
 
-    // Efek ketik otomatis (Debounce)
-    useEffect(() => {
-        const handler = setTimeout(() => {
-            if(nomorChecklist) fetchRecord(nomorChecklist);
-        }, 800);
-        return () => clearTimeout(handler);
-    }, [nomorChecklist, fetchRecord]);
-
-    // Fungsi Simpan Data
-    const handleApiSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!recordData) {
-            showModal("Error", "Pilih dokumen yang valid terlebih dahulu.");
-            return;
-        }
-        try {
-            await api.post(`/api/submit/pengembalian`, { 
-                noUrut: recordData.noUrut,
-                tanggalPengembalian: tanggalPengembalian
-            });
-            
-            showModal("Sukses", 'Status pengembalian dokumen berhasil disimpan!');
-            fetchRecord(nomorChecklist); // Refresh data
-        } catch (err: any) {
-            const errorMessage = err.response?.data?.message || "Terjadi kesalahan saat menyimpan.";
-            showModal("Terjadi Kesalahan", errorMessage);
-        }
-    };
+    // Filter data berdasarkan tahun dan pencarian (Nama/No Checklist)
+    const filteredData = dataDokumen.filter((doc) => {
+        const docYear = doc.tahun?.toString() || (doc.tanggalMasukDokumen ? doc.tanggalMasukDokumen.substring(0, 4) : '');
+        const matchesYear = docYear === selectedYear;
+        const matchesSearch = doc.namaKegiatan?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                             doc.nomorChecklist?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                             doc.namaPemrakarsa?.toLowerCase().includes(searchTerm.toLowerCase());
+        
+        return matchesYear && matchesSearch;
+    });
 
     return (
-        <div className="p-6 max-w-5xl mx-auto bg-white shadow-lg rounded-xl my-8 border border-gray-100">
-            <style jsx>{tableStyles}</style>
-
-            {/* --- HEADER (GARIS HITAM DIHAPUS) --- */}
-            <h1 className="text-2xl font-bold mb-6 text-gray-800 flex items-center gap-2">
-                <RotateCcw className="text-orange-600" />
-                Pengembalian Dokumen (Revisi)
-            </h1>
-            
-            {/* --- SEARCH SECTION --- */}
-            <div className="bg-orange-50 p-5 rounded-xl border border-orange-100 mb-6">
-                <label className="block text-sm font-bold text-orange-800 mb-2">Cari Dokumen (Nomor Checklist)</label>
-                <div className="relative">
-                    <Search className="absolute left-3 top-3.5 text-orange-400 w-5 h-5" />
-                    <input
-                        type="text"
-                        className="w-full pl-10 p-3 rounded-lg border border-orange-200 focus:ring-2 focus:ring-orange-400 outline-none bg-white transition-all"
-                        value={nomorChecklist}
-                        onChange={(e) => setNomorChecklist(e.target.value)}
-                        placeholder="Contoh: 600.4/046.10/..."
-                    />
-                    {loading && <span className="absolute right-3 top-3.5 text-sm text-orange-500 font-medium animate-pulse">Mencari...</span>}
-                </div>
-                {error && (
-                    <div className="flex items-center gap-2 text-red-600 mt-3 text-sm font-medium bg-red-50 p-3 rounded-lg border border-red-100">
-                        <AlertCircle size={16} /> {error}
-                    </div>
-                )}
-            </div>
-            
-            {recordData && (
-                <div className="animate-fade-in">
-                    
-                    {/* --- FORM INPUT --- */}
-                    <form onSubmit={handleApiSubmit} className="mb-8 p-6 rounded-xl bg-white border-2 border-orange-100 shadow-sm">
-                        <h3 className="font-bold text-lg text-gray-800 mb-4 flex items-center gap-2">
-                            <Save className="w-5 h-5 text-green-600" /> Proses Pengembalian
-                        </h3>
-                        
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-end">
-                            <div>
-                                <label htmlFor="tanggalPengembalian" className="block mb-2 font-semibold text-gray-700">
-                                    Tanggal Dokumen Dikembalikan:
-                                </label>
-                                <input 
-                                    id="tanggalPengembalian"
-                                    name="tanggalPengembalian"
-                                    type="date" 
-                                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none"
-                                    value={tanggalPengembalian}
-                                    onChange={(e) => setTanggalPengembalian(e.target.value)}
-                                    required 
-                                />
-                            </div>
-                            
-                            <button 
-                                type="submit" 
-                                className="w-full py-3 bg-orange-600 text-white font-bold rounded-lg hover:bg-orange-700 transition-all shadow-md flex justify-center items-center gap-2 disabled:opacity-50"
-                                disabled={loading}
-                            >
-                                <RotateCcw size={18} />
-                                Simpan Status Pengembalian
-                            </button>
+        <div className="min-h-screen bg-gray-50 p-6 md:p-12">
+            {/* HEADER HALAMAN */}
+            <div className="mb-8 max-w-5xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-3">
+                        <div className="p-2 bg-orange-600 rounded-lg shadow-md">
+                            <ArrowRightCircle className="text-white w-6 h-6" />
                         </div>
-                    </form>
+                        Penyerahan Kembali Dokumen
+                    </h1>
+                    <p className="text-gray-500 mt-2 ml-14">
+                        Daftar dokumen yang diserahkan kembali ke pemrakarsa untuk proses perbaikan/revisi.
+                    </p>
+                </div>
+            </div>
 
-                    {/* --- TABEL DETAIL DOKUMEN --- */}
-                    <div className="mt-8">
-                        <h4 className="font-bold text-lg mb-3 text-gray-800 flex items-center gap-2">
-                            <FileText className="text-gray-500" /> Detail Dokumen
-                        </h4>
-                        <table className="record-table">
-                            <tbody>
-                                <tr><th>Pemrakarsa</th><td>{recordData.namaPemrakarsa}</td></tr>
-                                <tr><th>Nama Kegiatan</th><td>{recordData.namaKegiatan || recordData.jenisKegiatan}</td></tr>
-                                <tr><th>Alamat</th><td>{recordData.alamatKegiatan}</td></tr>
-                                <tr>
-                                    <th>Status Terakhir</th>
-                                    <td>
-                                        <span className={`px-3 py-1 rounded-full text-xs font-bold text-white ${
-                                            recordData.statusTerakhir === 'DIKEMBALIKAN' ? 'bg-orange-500' : 'bg-green-600'
-                                        }`}>
-                                            {recordData.statusTerakhir || 'PROSES'}
-                                        </span>
-                                    </td>
-                                </tr>
-                                {recordData.statusTerakhir === 'DIKEMBALIKAN' && (
-                                    <tr>
-                                        <th>Tanggal Pengembalian</th>
-                                        <td><span className="text-orange-600">{recordData.tanggalPengembalian}</span></td>
-                                    </tr>
-                                )}
-                            </tbody>
-                        </table>
+            <div className="max-w-5xl mx-auto">
+                {/* FILTER BAR: TAB TAHUN & SEARCH */}
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                    <div className="flex gap-2 overflow-x-auto pb-1">
+                        {availableYears.map((year) => (
+                            <button
+                                key={year}
+                                onClick={() => setSelectedYear(year)}
+                                className={`px-6 py-2 rounded-full font-bold text-sm transition-all whitespace-nowrap border-2 ${
+                                    selectedYear === year
+                                        ? 'bg-orange-600 text-white border-orange-600 shadow-md' 
+                                        : 'bg-white text-gray-500 border-gray-200 hover:border-orange-300 hover:text-orange-700'
+                                }`}
+                            >
+                                {year}
+                            </button>
+                        ))}
+                    </div>
+
+                    <div className="relative group min-w-[300px]">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 transition-colors" size={18} />
+                        <input 
+                            type="text" 
+                            placeholder="Cari Nama Kegiatan / No. Checklist..."
+                            className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent transition-all shadow-sm"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
                     </div>
                 </div>
-            )}
 
-            <Modal show={modalInfo.show} title={modalInfo.title} onClose={closeModal}>
-                <p className="text-gray-700">{modalInfo.message}</p>
-            </Modal>
+                {/* TABEL DATA */}
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+                    {loading ? (
+                        <div className="flex flex-col items-center justify-center p-12 text-orange-600">
+                            <Loader2 className="animate-spin w-8 h-8 mb-2" />
+                            <span className="text-sm font-medium">Memuat data pengembalian...</span>
+                        </div>
+                    ) : filteredData.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center p-12 text-gray-400 text-center">
+                            <AlertCircle className="w-12 h-12 mb-3 opacity-20" />
+                            <p className="font-medium">Data tidak ditemukan.</p>
+                            <p className="text-sm">Belum ada dokumen terdaftar atau coba ubah kata kunci pencarian.</p>
+                        </div>
+                    ) : (
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left text-sm">
+                                <thead className="bg-orange-50 text-orange-900 font-bold border-b border-orange-100">
+                                    <tr>
+                                        <th className="p-4 w-16 text-center">No</th>
+                                        <th className="p-4">Jenis & Nama Kegiatan</th>
+                                        <th className="p-4">Pemrakarsa</th>
+                                        <th className="p-4">Status Pengembalian</th>
+                                        <th className="p-4 text-center w-32">Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-100">
+                                    {filteredData.map((doc) => (
+                                        <tr key={doc._id} className="hover:bg-orange-50/30 transition-colors group">
+                                            <td className="p-4 text-center font-mono text-gray-400 group-hover:text-orange-600 transition-colors font-bold">
+                                                {doc.noUrut}
+                                            </td>
+                                            <td className="p-4">
+                                                <div className="inline-block px-2 py-0.5 rounded text-[10px] font-black bg-orange-100 text-orange-700 mb-1.5 uppercase tracking-wider">
+                                                    {doc.jenisDokumen}
+                                                </div>
+                                                <div className="font-bold text-gray-800 line-clamp-1 group-hover:text-orange-900 transition-colors uppercase">
+                                                    {doc.namaKegiatan || "(Tanpa Judul)"}
+                                                </div>
+                                                <div className="font-mono text-[11px] text-gray-400 mt-1">{doc.nomorChecklist}</div>
+                                            </td>
+                                            <td className="p-4 text-gray-600 font-medium italic">
+                                                {doc.namaPemrakarsa || "-"}
+                                            </td>
+                                            <td className="p-4">
+                                                {doc.tanggalPengembalian ? (
+                                                    <div className="flex flex-col">
+                                                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-green-100 text-green-700 border border-green-200 w-fit">
+                                                            <CheckCircle className="w-3.5 h-3.5" /> DIKEMBALIKAN
+                                                        </span>
+                                                        <span className="text-[10px] text-gray-400 mt-1 ml-1 font-medium italic">Tgl: {doc.tanggalPengembalian}</span>
+                                                    </div>
+                                                ) : (
+                                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-orange-100 text-orange-800 border border-orange-200 animate-pulse w-fit">
+                                                        <Clock className="w-3.5 h-3.5" /> MENUNGGU PROSES
+                                                    </span>
+                                                )}
+                                            </td>
+                                            <td className="p-4 text-center">
+                                                <Link 
+                                                    href={`/pengembalian/${doc.noUrut}`} 
+                                                    className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm active:scale-95 ${
+                                                        doc.tanggalPengembalian 
+                                                        ? 'bg-gray-100 text-gray-500 hover:bg-gray-200 border border-gray-300' 
+                                                        : 'bg-orange-600 hover:bg-orange-700 text-white hover:shadow-orange-200'
+                                                    }`}
+                                                >
+                                                    <ArrowRightCircle size={14} /> {doc.tanggalPengembalian ? 'Detail' : 'Input'}
+                                                </Link>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </div>
+            </div>
         </div>
     );
 }

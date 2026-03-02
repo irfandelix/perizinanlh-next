@@ -1,258 +1,230 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
+import { 
+    Printer, Search, ChevronDown, FileText, 
+    ClipboardCheck, FileCheck, Loader2, AlertCircle, CheckCircle
+} from 'lucide-react';
 
-// Import PDF Generator components (needed for client-side generation)
+// --- IMPORT PDF COMPONENTS (Sesuai kodinganmu) ---
 import { PDFDownloadLink } from '@react-pdf/renderer';
 import { ChecklistPrintTemplate } from '@/components/pdf/ChecklistPrintTemplate';
 import { TandaTerimaPDF } from '@/components/pdf/TandaTerimaPDF';
 import { TandaTerimaPDF_PHP } from '@/components/pdf/TandaTerimaPDF_PHP';
 
-// Helper to format filename
-const getFileName = (prefix: string, recordData: any) => {
-    if (!recordData || !recordData.nomorChecklist) return `${prefix}_draft.pdf`;
-    try {
-        const parts = recordData.nomorChecklist.split('/');
-        const noUrut = parts[1] ? parts[1].split('.')[0] : '000';
-        const jenisDok = parts[3] || 'DOK';
-        const tahun = parts[4] || new Date().getFullYear();
-        return `${prefix}_${noUrut}_${jenisDok}_${tahun}.pdf`;
-    } catch (error) {
-        return `${prefix}_${recordData.noUrut}.pdf`;
-    }
-};
+interface Dokumen {
+    _id: string;
+    noUrut: number;
+    nomorChecklist: string;
+    namaPemrakarsa: string;
+    namaKegiatan: string;
+    jenisDokumen: string;
+    tanggalMasukDokumen: string;
+    tahun?: string | number;
+    statusVerifikasi?: string;
+    checklistData?: any;
+    // Data Tahapan
+    nomorUjiBerkas?: string;
+    nomorBAVerlap?: string;
+    nomorBAPemeriksaan?: string;
+    nomorPHP?: string;
+    nomorPHP1?: string;
+}
 
-export default function HalamanCetakUlang() {
-    // --- STATE ---
-    const [nomorChecklist, setNomorChecklist] = useState('');
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState('');
-    const [recordData, setRecordData] = useState<any>(null);
+export default function CetakUlangPage() {
+    const [dataDokumen, setDataDokumen] = useState<Dokumen[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [openDropdown, setOpenDropdown] = useState<string | null>(null);
     const [isClient, setIsClient] = useState(false);
+    
+    const [selectedYear, setSelectedYear] = useState<string>('');
+    const [availableYears, setAvailableYears] = useState<string[]>([]);
 
-    useEffect(() => { setIsClient(true); }, []);
-
-    // --- FETCH DATA (DEBOUNCE) ---
-    const fetchRecord = useCallback(async (checklist: string) => {
-        if (!checklist) {
-            setRecordData(null);
-            setError('');
-            return;
-        }
-        setLoading(true);
-        setError('');
-        
-        try {
-            // FIXED: Changed key from 'nomorChecklist' to 'keyword'
-            const res = await fetch('/api/record/find', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ keyword: checklist }) 
-            });
-
-            const response = await res.json();
-
-            if (response.success) {
-                // Handle array response if backend returns list
-                const data = Array.isArray(response.data) ? response.data[0] : response.data;
-                setRecordData(data);
-            } else {
-                setRecordData(null);
-                if (checklist.length > 5) setError(response.message || 'Dokumen tidak ditemukan.');
-            }
-        } catch (err) {
-            setRecordData(null);
-            setError('Gagal terhubung ke server.');
-        } finally {
-            setLoading(false);
-        }
+    useEffect(() => {
+        setIsClient(true);
+        const fetchData = async () => {
+            setLoading(true);
+            try {
+                const res = await fetch('/api/record/list'); 
+                const result = await res.json();
+                if (result.success) {
+                    const docs = result.data;
+                    setDataDokumen(docs);
+                    const yearsSet = new Set(docs.map((item: Dokumen) => {
+                        return item.tahun?.toString() || (item.tanggalMasukDokumen ? item.tanggalMasukDokumen.substring(0, 4) : new Date().getFullYear().toString());
+                    }));
+                    const yearsArray = Array.from(yearsSet).sort().reverse() as string[];
+                    setAvailableYears(yearsArray);
+                    if (yearsArray.length > 0) setSelectedYear(yearsArray[0]);
+                }
+            } catch (error) { console.error("Error:", error); } 
+            finally { setLoading(false); }
+        };
+        fetchData();
     }, []);
 
-    // Debounce Effect
-    useEffect(() => {
-        const handler = setTimeout(() => {
-            fetchRecord(nomorChecklist);
-        }, 500);
-
-        return () => clearTimeout(handler);
-    }, [nomorChecklist, fetchRecord]);
-
-    // Parse checklist data from JSON string if needed
-    const getChecklistData = () => {
-        if (!recordData) return { status: {}, notes: {} };
+    // --- HELPER FILENAME (Sesuai kodinganmu) ---
+    const getFileName = (prefix: string, recordData: any) => {
+        if (!recordData || !recordData.nomorChecklist) return `${prefix}_draft.pdf`;
         try {
-            // If stored as string in DB, parse it
-            if (typeof recordData.checklistData === 'string') {
-                return JSON.parse(recordData.checklistData);
-            }
-            return recordData.checklistData || { status: {}, notes: {} };
-        } catch (e) {
-            return { status: {}, notes: {} };
-        }
+            const parts = recordData.nomorChecklist.split('/');
+            const noUrut = parts[1] ? parts[1].split('.')[0] : '000';
+            const jenisDok = parts[3] || 'DOK';
+            const tahun = parts[4] || new Date().getFullYear();
+            return `${prefix}_${noUrut}_${jenisDok}_${tahun}.pdf`;
+        } catch (error) { return `${prefix}_${recordData.noUrut}.pdf`; }
     };
-    
-    const checklistData = getChecklistData();
 
-    // Check availability for Stage F (PHP)
-    const isTahapFAvailable = recordData && (recordData.nomorPHP || recordData.nomorPHP1);
+    const filteredData = dataDokumen.filter((doc) => {
+        const docYear = doc.tahun?.toString() || (doc.tanggalMasukDokumen ? doc.tanggalMasukDokumen.substring(0, 4) : '');
+        const matchesYear = docYear === selectedYear;
+        const matchesSearch = doc.namaKegiatan?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                             doc.nomorChecklist?.toLowerCase().includes(searchTerm.toLowerCase());
+        return matchesYear && matchesSearch;
+    });
 
     return (
-        <div className="min-h-screen bg-gray-50 p-8 flex justify-center items-start">
-            <div className="w-full max-w-2xl bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
-                
-                {/* HEADER */}
-                <div className="bg-blue-600 p-6">
-                    <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                        🖨️ Pusat Cetak Ulang Dokumen
-                    </h2>
-                    <p className="text-blue-100 text-sm mt-1">Cari dan download kembali dokumen yang sudah terdaftar.</p>
+        <div className="min-h-screen bg-gray-50 p-6 md:p-12 font-sans">
+            {/* HEADER */}
+            <div className="mb-8 max-w-6xl mx-auto">
+                <h1 className="text-2xl font-black text-gray-800 flex items-center gap-3">
+                    <div className="p-2 bg-cyan-600 rounded-lg shadow-md">
+                        <Printer className="text-white w-6 h-6" />
+                    </div>
+                    Pusat Cetak Ulang Dokumen
+                </h1>
+                <p className="text-gray-500 mt-2 ml-14 font-medium uppercase text-[10px] tracking-[0.2em]">
+                    Cetak kembali dokumen registrasi dan tanda terima yang sudah terdaftar.
+                </p>
+            </div>
+
+            <div className="max-w-6xl mx-auto">
+                {/* TABS & SEARCH */}
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                    <div className="flex gap-2 overflow-x-auto pb-1">
+                        {availableYears.map((year) => (
+                            <button key={year} onClick={() => setSelectedYear(year)}
+                                className={`px-6 py-2.5 rounded-full font-bold text-sm transition-all border-2 ${
+                                    selectedYear === year ? 'bg-cyan-600 text-white border-cyan-600 shadow-md' : 'bg-white text-gray-500 border-gray-200 hover:border-cyan-300'
+                                }`}
+                            > {year} </button>
+                        ))}
+                    </div>
+                    <div className="relative min-w-[350px]">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                        <input type="text" placeholder="Cari Nama Kegiatan atau No. Checklist..."
+                            className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-2xl outline-none focus:ring-4 focus:ring-cyan-100 transition-all font-medium"
+                            value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                    </div>
                 </div>
 
-                {/* CONTENT */}
-                <div className="p-8">
-                    <div className="mb-6">
-                        <label htmlFor="nomorChecklist" className="block text-sm font-bold text-gray-700 mb-2">
-                            Masukkan Nomor Registrasi / Checklist / Nama Pemrakarsa
-                        </label>
-                        <div className="relative">
-                            <input
-                                id="nomorChecklist"
-                                type="text"
-                                className="w-full border-2 border-gray-300 rounded-lg pl-4 pr-10 py-3 focus:border-blue-500 focus:ring-blue-500 focus:outline-none transition-colors text-lg"
-                                value={nomorChecklist}
-                                onChange={(e) => setNomorChecklist(e.target.value)}
-                                placeholder="Contoh: 660/012/REG... atau Nama PT"
-                                autoComplete="off"
-                            />
-                            {loading && (
-                                <div className="absolute right-3 top-3.5">
-                                    <div className="animate-spin h-6 w-6 border-2 border-blue-500 rounded-full border-t-transparent"></div>
-                                </div>
-                            )}
+                {/* TABLE */}
+                <div className="bg-white rounded-3xl shadow-sm border border-gray-200 overflow-hidden">
+                    {loading ? (
+                        <div className="flex flex-col items-center justify-center p-16 text-cyan-600">
+                            <Loader2 className="animate-spin w-10 h-10 mb-2" />
+                            <span className="font-bold text-[10px] uppercase tracking-widest">Menyiapkan Data...</span>
                         </div>
+                    ) : (
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left text-sm">
+                                <thead className="bg-cyan-50 text-cyan-900 font-black border-b border-cyan-100 uppercase tracking-wider text-[10px]">
+                                    <tr>
+                                        <th className="p-5 w-16 text-center">No</th>
+                                        <th className="p-5">Kegiatan</th>
+                                        <th className="p-5">Pemrakarsa</th>
+                                        <th className="p-5 text-center">Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-100">
+                                    {filteredData.map((doc) => {
+                                        const isPHPActive = doc.nomorPHP || doc.nomorPHP1;
+                                        return (
+                                            <tr key={doc._id} className="hover:bg-cyan-50/20 transition-colors group">
+                                                <td className="p-5 text-center font-bold text-gray-400">{doc.noUrut}</td>
+                                                <td className="p-5">
+                                                    <div className="inline-block px-2 py-0.5 rounded text-[9px] font-black bg-cyan-100 text-cyan-700 mb-1.5 uppercase">{doc.jenisDokumen}</div>
+                                                    <div className="font-bold text-gray-800 line-clamp-1 uppercase group-hover:text-cyan-900 transition-colors">{doc.namaKegiatan}</div>
+                                                    <div className="font-mono text-[10px] text-gray-400 mt-1">{doc.nomorChecklist}</div>
+                                                </td>
+                                                <td className="p-5 text-gray-600 font-medium italic">{doc.namaPemrakarsa}</td>
+                                                <td className="p-5 text-center relative">
+                                                    <button onClick={() => setOpenDropdown(openDropdown === doc._id ? null : doc._id)}
+                                                        className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl font-bold text-xs text-gray-700 hover:border-cyan-400 transition-all active:scale-95 shadow-sm"
+                                                    > <Printer size={14} className="text-cyan-600" /> Cetak <ChevronDown size={14} /> </button>
 
-                        {/* Status Message */}
-                        <div className="mt-3 min-h-5">
-                            {error && (
-                                <p className="text-red-500 text-sm font-medium flex items-center gap-1 animate-in slide-in-from-left-2">
-                                    ⚠️ {error}
-                                </p>
-                            )}
-                            {recordData && !loading && (
-                                <div className="bg-green-50 border border-green-200 rounded p-3 text-green-800 text-sm animate-in fade-in">
-                                    <p className="font-bold">✓ Dokumen Ditemukan:</p>
-                                    <p>{recordData.namaKegiatan}</p>
-                                    <p className="text-xs text-gray-500 mt-1">Pemrakarsa: {recordData.namaPemrakarsa} | No: {recordData.nomorChecklist}</p>
-                                </div>
-                            )}
+                                                    {/* DROPDOWN MENU */}
+                                                    {openDropdown === doc._id && isClient && (
+                                                        <div className="absolute right-0 mt-2 w-64 bg-white border border-gray-100 rounded-2xl shadow-xl z-50 py-2 animate-in fade-in slide-in-from-top-2 duration-200 text-left">
+                                                            <p className="px-4 py-2 text-[9px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-50 mb-1">Pilih Dokumen</p>
+                                                            
+                                                            {/* OPSI 1: CHECKLIST */}
+                                                            <PDFDownloadLink
+                                                                document={<ChecklistPrintTemplate data={doc} checklistStatus={doc.checklistData?.status || {}} statusVerifikasi={doc.statusVerifikasi || "Diterima"} />}
+                                                                fileName={getFileName('checklist', doc)}
+                                                                className="w-full"
+                                                            >
+                                                                {({ loading: pdfLoading }) => (
+                                                                    <div className="px-4 py-2.5 text-xs font-bold text-gray-700 hover:bg-cyan-50 flex items-center gap-3 cursor-pointer">
+                                                                        <FileText size={14} className="text-gray-400" /> 
+                                                                        <div className="flex-1">Checklist Kelengkapan</div>
+                                                                        {pdfLoading ? <Loader2 size={12} className="animate-spin text-cyan-500" /> : <ArrowRightCircle size={12} className="text-cyan-500" />}
+                                                                    </div>
+                                                                )}
+                                                            </PDFDownloadLink>
+
+                                                            {/* OPSI 2: TANDA TERIMA A */}
+                                                            <PDFDownloadLink
+                                                                document={<TandaTerimaPDF data={doc} />}
+                                                                fileName={getFileName('tanda_terima', doc)}
+                                                                className="w-full"
+                                                            >
+                                                                {({ loading: pdfLoading }) => (
+                                                                    <div className="px-4 py-2.5 text-xs font-bold text-gray-700 hover:bg-cyan-50 flex items-center gap-3 cursor-pointer">
+                                                                        <ClipboardCheck size={14} className="text-gray-400" /> 
+                                                                        <div className="flex-1">Tanda Terima (A)</div>
+                                                                        {pdfLoading ? <Loader2 size={12} className="animate-spin text-green-500" /> : <ArrowRightCircle size={12} className="text-green-500" />}
+                                                                    </div>
+                                                                )}
+                                                            </PDFDownloadLink>
+
+                                                            {/* OPSI 3: PHP (Jika Ada) */}
+                                                            {isPHPActive && (
+                                                                <PDFDownloadLink
+                                                                    document={<TandaTerimaPDF_PHP data={doc} />}
+                                                                    fileName={getFileName('tanda_terima_php', doc)}
+                                                                    className="w-full"
+                                                                >
+                                                                    {({ loading: pdfLoading }) => (
+                                                                        <div className="px-4 py-2.5 text-xs font-bold text-gray-700 hover:bg-cyan-50 flex items-center gap-3 cursor-pointer">
+                                                                            <FileCheck size={14} className="text-gray-400" /> 
+                                                                            <div className="flex-1">Tanda Terima (F/PHP)</div>
+                                                                            {pdfLoading ? <Loader2 size={12} className="animate-spin text-orange-500" /> : <ArrowRightCircle size={12} className="text-orange-500" />}
+                                                                        </div>
+                                                                    )}
+                                                                </PDFDownloadLink>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
                         </div>
-                    </div>
-
-                    {/* ACTION BUTTONS */}
-                    <div className="border-t pt-6">
-                        <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">
-                            Dokumen Tersedia
-                        </h3>
-                        
-                        <div className="grid gap-3">
-                            {/* TOMBOL 1: CHECKLIST */}
-                            {isClient && (
-                                <PDFDownloadLink
-                                    document={
-                                        <ChecklistPrintTemplate 
-                                            data={recordData || {}} 
-                                            checklistStatus={checklistData.status || {}}
-                                            statusVerifikasi={recordData?.statusVerifikasi || "Diterima"}
-                                        />
-                                    }
-                                    fileName={getFileName('checklist', recordData)}
-                                    className={`w-full no-underline ${!recordData ? 'pointer-events-none' : ''}`}
-                                >
-                                    {({ loading: pdfLoading }) => (
-                                        <div className={`w-full flex items-center justify-between p-4 rounded-lg border transition-all ${
-                                            recordData 
-                                            ? 'border-gray-300 hover:border-blue-500 hover:bg-blue-50 cursor-pointer group' 
-                                            : 'border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed'
-                                        }`}>
-                                            <div className="flex items-center gap-3">
-                                                <span className="text-2xl">📋</span>
-                                                <div className="text-left">
-                                                    <p className={`font-bold ${recordData ? 'text-gray-800 group-hover:text-blue-700' : ''}`}>Checklist Kelengkapan</p>
-                                                    <p className="text-xs">Daftar periksa dokumen tahap awal</p>
-                                                </div>
-                                            </div>
-                                            {recordData && <span className="text-blue-600 font-semibold text-sm">{pdfLoading ? 'Loading...' : 'Download →'}</span>}
-                                        </div>
-                                    )}
-                                </PDFDownloadLink>
-                            )}
-
-                            {/* TOMBOL 2: TANDA TERIMA A */}
-                            {isClient && (
-                                <PDFDownloadLink
-                                    document={<TandaTerimaPDF data={recordData || {}} />}
-                                    fileName={getFileName('tanda_terima', recordData)}
-                                    className={`w-full no-underline ${!recordData ? 'pointer-events-none' : ''}`}
-                                >
-                                    {({ loading: pdfLoading }) => (
-                                        <div className={`w-full flex items-center justify-between p-4 rounded-lg border transition-all ${
-                                            recordData 
-                                            ? 'border-gray-300 hover:border-green-500 hover:bg-green-50 cursor-pointer group' 
-                                            : 'border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed'
-                                        }`}>
-                                            <div className="flex items-center gap-3">
-                                                <span className="text-2xl">🧾</span>
-                                                <div className="text-left">
-                                                    <p className={`font-bold ${recordData ? 'text-gray-800 group-hover:text-green-700' : ''}`}>Tanda Terima Registrasi (A)</p>
-                                                    <p className="text-xs">Bukti serah terima berkas awal</p>
-                                                </div>
-                                            </div>
-                                            {recordData && <span className="text-green-600 font-semibold text-sm">{pdfLoading ? 'Loading...' : 'Download →'}</span>}
-                                        </div>
-                                    )}
-                                </PDFDownloadLink>
-                            )}
-
-                            {/* TOMBOL 3: TANDA TERIMA F (PHP) - SEKARANG SUDAH AKTIF */}
-                            {isClient && (
-                                <PDFDownloadLink
-                                    document={
-                                        <TandaTerimaPDF_PHP 
-                                            data={recordData || {}} 
-                                        />
-                                    }
-                                    fileName={getFileName('tanda_terima_php', recordData)}
-                                    className={`w-full no-underline ${!isTahapFAvailable ? 'pointer-events-none' : ''}`}
-                                >
-                                    {({ loading: pdfLoading }) => (
-                                        <div className={`w-full flex items-center justify-between p-4 rounded-lg border transition-all ${
-                                            isTahapFAvailable 
-                                            ? 'border-orange-300 bg-orange-50 hover:bg-orange-100 cursor-pointer group' 
-                                            : 'border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed opacity-60'
-                                        }`}>
-                                            <div className="flex items-center gap-3">
-                                                <span className="text-2xl">🔄</span>
-                                                <div className="text-left">
-                                                    <p className={`font-bold ${isTahapFAvailable ? 'text-orange-900' : ''}`}>Tanda Terima Perbaikan (F)</p>
-                                                    <p className="text-xs">
-                                                        {isTahapFAvailable ? 'Bukti penyerahan revisi dokumen (PHP)' : 'Belum tersedia (Belum ada revisi)'}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                            {isTahapFAvailable && (
-                                                <span className="text-orange-700 font-semibold text-sm">
-                                                    {pdfLoading ? 'Loading...' : 'Download →'}
-                                                </span>
-                                            )}
-                                        </div>
-                                    )}
-                                </PDFDownloadLink>
-                            )}
-                        </div>
-                    </div>
-
+                    )}
                 </div>
             </div>
+            {/* Overlay untuk nutup dropdown */}
+            {openDropdown && <div className="fixed inset-0 z-40" onClick={() => setOpenDropdown(null)} />}
         </div>
     );
+}
+
+// Icon Tambahan yang belum ter-import di kodinganmu
+function ArrowRightCircle({ size, className }: { size: number, className?: string }) {
+    return <CheckCircle size={size} className={className} />;
 }
