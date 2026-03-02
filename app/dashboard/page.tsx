@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { 
     LayoutDashboard, FileText, MapPin, BookOpen, 
     FileEdit, FileCheck, Loader2, ArrowRight, Activity, Clock, 
-    CalendarDays, ChevronLeft, ChevronRight, X, User, BellRing, AlertTriangle, CheckCircle
+    CalendarDays, ChevronLeft, ChevronRight, X, User, BellRing, CheckCircle
 } from 'lucide-react';
 
 interface Dokumen {
@@ -23,6 +23,11 @@ interface Dokumen {
     nomorBAPemeriksaan?: string; 
     nomorPHP?: string;
     nomorRisalah?: string;
+    // TAMBAHAN: Kita butuh data tanggal dari masing-masing tahap untuk hitung SLA yang akurat
+    tanggalPenerbitanUa?: string;
+    tanggalVerlap?: string;
+    tanggalPemeriksaan?: string;
+    tanggalRevisi?: string;
 }
 
 // --- FUNGSI HELPER: Menambah Hari Kerja (Skip Sabtu & Minggu) ---
@@ -109,7 +114,6 @@ export default function DashboardPage() {
                         const events: any[] = [];
                         const urgents: any[] = [];
                         
-                        // Dapatkan string tanggal hari ini (waktu lokal)
                         const todayLocal = new Date();
                         const todayStr = `${todayLocal.getFullYear()}-${String(todayLocal.getMonth() + 1).padStart(2, '0')}-${String(todayLocal.getDate()).padStart(2, '0')}`;
 
@@ -121,18 +125,27 @@ export default function DashboardPage() {
                             else if (doc.nomorUjiBerkas) verlap++; 
                             else ujiAdmin++;
 
-                            // --- LOGIKA SLA DEADLINE ---
+                            // --- LOGIKA SLA DEADLINE YANG SUDAH DIPERBAIKI ---
                             if (!doc.tanggalMasukDokumen) return;
                             
                             const kegiatan = doc.namaKegiatan || 'Tanpa Judul';
                             const pemrakarsa = doc.namaPemrakarsa || '-';
                             const noUrut = doc.noUrut;
                             
-                            const t1 = addWorkingDays(doc.tanggalMasukDokumen, 3); // Uji Admin
-                            const t2 = addWorkingDays(t1, 5); // Verlap
-                            const t3 = addWorkingDays(t2, 5); // BAP
-                            const t4 = addWorkingDays(t3, 5); // Revisi
-                            const t5 = addWorkingDays(t4, 5); // RPD
+                            // Hitung target tanggal berdasarkan riwayat tanggal yang SEBENARNYA diselesaikan
+                            const tAdmin = addWorkingDays(doc.tanggalMasukDokumen, 3); 
+                            const dateUjiAdmin = doc.tanggalPenerbitanUa || tAdmin;
+                            
+                            const tVerlap = addWorkingDays(dateUjiAdmin, 5); 
+                            const dateVerlap = doc.tanggalVerlap || tVerlap;
+                            
+                            const tBap = addWorkingDays(dateVerlap, 5); 
+                            const dateBap = doc.tanggalPemeriksaan || tBap; // <--- Di sini sistem akan membaca 27 Feb milikmu
+                            
+                            const tRevisi = addWorkingDays(dateBap, 5); 
+                            const dateRevisi = doc.tanggalRevisi || tRevisi;
+                            
+                            const tRpd = addWorkingDays(dateRevisi, 5); 
                             
                             let targetDate = '';
                             let phaseName = '';
@@ -140,15 +153,15 @@ export default function DashboardPage() {
                             if (doc.nomorRisalah) {
                                 return; // Selesai, skip
                             } else if (doc.nomorPHP) {
-                                targetDate = t5; phaseName = 'RPD';
+                                targetDate = tRpd; phaseName = 'RPD';
                             } else if (doc.nomorBAPemeriksaan) {
-                                targetDate = t4; phaseName = 'Revisi';
+                                targetDate = tRevisi; phaseName = 'Revisi';
                             } else if (doc.nomorBAVerlap) {
-                                targetDate = t3; phaseName = 'BAP';
+                                targetDate = tBap; phaseName = 'BAP';
                             } else if (doc.nomorUjiBerkas) {
-                                targetDate = t2; phaseName = 'Verlap';
+                                targetDate = tVerlap; phaseName = 'Verlap';
                             } else {
-                                targetDate = t1; phaseName = 'Uji Admin';
+                                targetDate = tAdmin; phaseName = 'Uji Admin';
                             }
 
                             // 1. MASUKKAN KE KALENDER (Hanya Hari Maksimal / DEADLINE saja)
@@ -189,11 +202,9 @@ export default function DashboardPage() {
                         setStats({ total: latestDocs.length, ujiAdmin, verlap, substansi, revisi, selesai, tahunTerbaru: latestYear });
                         setCalendarEvents(events);
                         
-                        // Urutkan notifikasi dari yang paling gawat (urgencyScore tinggi)
                         const sortedUrgents = urgents.sort((a, b) => b.urgencyScore - a.urgencyScore);
                         setUrgentTasks(sortedUrgents);
                         
-                        // Tampilkan modal notifikasi saat awal buka dashboard jika ada tugas
                         if (sortedUrgents.length > 0) {
                             setShowNotifModal(true);
                         }
@@ -220,7 +231,6 @@ export default function DashboardPage() {
         </Link>
     );
 
-    // --- LOGIKA PEMBUATAN GRID KALENDER ---
     const nextMonth = () => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
     const prevMonth = () => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
     
@@ -271,7 +281,6 @@ export default function DashboardPage() {
                 </div>
                 
                 <div className="flex items-center gap-3">
-                    {/* TOMBOL LONCENG NOTIFIKASI */}
                     <button 
                         onClick={() => setShowNotifModal(true)}
                         className="relative p-3 bg-white rounded-full shadow-sm border border-gray-200 hover:bg-gray-50 transition-colors"
@@ -347,7 +356,7 @@ export default function DashboardPage() {
                 </div>
             </div>
 
-            {/* KALENDER TENGGAT WAKTU (Hanya menampilkan batas maksimal) */}
+            {/* KALENDER TENGGAT WAKTU */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
                 <div className="p-5 border-b border-gray-100 bg-slate-50/80 flex justify-between items-center">
                     <div>
@@ -411,7 +420,7 @@ export default function DashboardPage() {
                 </div>
             </div>
 
-            {/* --- MODAL DAFTAR NOTIFIKASI TUGAS (MUNCUL OTOMATIS SAAT LOGIN / KLIK LONCENG) --- */}
+            {/* --- MODAL DAFTAR NOTIFIKASI TUGAS --- */}
             {showNotifModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-300">
                     <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[85vh] transform transition-all scale-100">
@@ -476,7 +485,7 @@ export default function DashboardPage() {
                 </div>
             )}
 
-            {/* MODAL KLIK TANGGAL KALENDER (TETAP ADA) */}
+            {/* MODAL KLIK TANGGAL KALENDER */}
             {modalCalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
                     <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden transform transition-all">
