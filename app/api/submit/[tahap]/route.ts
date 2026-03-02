@@ -76,14 +76,15 @@ export async function POST(
                 noUrut, tahun: year, nomorChecklist, statusTerakhir: 'PROSES', createdAt: new Date(),
                 nomorUjiBerkas: "", tanggalUjiBerkas: "", nomorBAVerlap: "", tanggalVerlap: "",
                 nomorBAPemeriksaan: "", tanggalPemeriksaan: "", nomorRevisi1: "", tanggalRevisi1: "",
-                nomorPHP: "", tanggalPHP: "", fileTahapB: "", fileTahapC: "", fileTahapD: "", filePKPLH: "" 
+                nomorPHP: "", tanggalPHP: "", fileTahapB: "", fileTahapC: "", fileTahapD: "", filePKPLH: "",
+                tanggalPenerbitanUa: "", tanggalRevisi: "" // Tambahan untuk kepastian di database
             };
             
             await collection.insertOne(newRecord);
             return NextResponse.json({ success: true, message: `Registrasi Berhasil! Data urutan ke-${noUrut}.`, generatedData: { noUrut, nomorChecklist } });
         }
 
-// ==========================================
+        // ==========================================
         // REGISTRASI AMDALNET
         // ==========================================
         else if (tahap === 'amdalnet') {
@@ -94,19 +95,19 @@ export async function POST(
 
             const noUrut = lastDoc.length > 0 ? (lastDoc[0].noUrut || 0) + 1 : 1;
             
-            // INI YANG BENAR: Backend generate nomor DLH (600.4)
             const generatedChecklist = generateNomor(noUrut, body.tanggalMasukDokumen, 'REG', body.jenisDokumen);
             
             const newRecord = {
-                ...body, // nomorRegistrasiAmdalnet ikut masuk dari form
+                ...body, 
                 noUrut: noUrut, 
                 tahun: year, 
-                nomorChecklist: generatedChecklist, // MUTLAK OTOMATIS
+                nomorChecklist: generatedChecklist, 
                 sumberData: 'AMDALNET',            
                 statusTerakhir: 'PROSES', createdAt: new Date(),
                 nomorUjiBerkas: "", tanggalUjiBerkas: "", nomorBAVerlap: "", tanggalVerlap: "",
                 nomorBAPemeriksaan: "", tanggalPemeriksaan: "", nomorRevisi1: "", tanggalRevisi1: "",
-                nomorPHP: "", tanggalPHP: "", fileTahapB: "", fileTahapC: "", fileTahapD: "", filePKPLH: "" 
+                nomorPHP: "", tanggalPHP: "", fileTahapB: "", fileTahapC: "", fileTahapD: "", filePKPLH: "",
+                tanggalPenerbitanUa: "", tanggalRevisi: "" // Tambahan
             };
             
             await collection.insertOne(newRecord);
@@ -130,7 +131,12 @@ export async function POST(
         if (tahap === 'b') {
             const { tanggalPenerbitanUa } = body;
             generatedNomorStr = existingData.nomorUjiBerkas || generateNomor(queryNoUrut, tanggalPenerbitanUa, 'BA.HUA', existingData.jenisDokumen);
-            updateQuery = { nomorUjiBerkas: generatedNomorStr, tanggalUjiBerkas: tanggalPenerbitanUa };
+            // PERBAIKAN: Menyimpan tanggalPenerbitanUa juga agar match dengan frontend
+            updateQuery = { 
+                nomorUjiBerkas: generatedNomorStr, 
+                tanggalUjiBerkas: tanggalPenerbitanUa,
+                tanggalPenerbitanUa: tanggalPenerbitanUa // Pastikan ini tersimpan
+            };
         } 
         else if (tahap === 'c' || tahap === 'verlap') {
             const tanggalVerifikasi = body.tanggalVerifikasi || body.tanggalVerlap;
@@ -165,7 +171,14 @@ export async function POST(
             const fieldNo = revisionMap[nomorRevisi]; const fieldTgl = dateMap[nomorRevisi];
             if (!fieldNo || !fieldTgl) return NextResponse.json({ success: false, message: 'Nomor Revisi tidak valid.' }, { status: 400 });
             generatedNomorStr = generateNomor(queryNoUrut, tanggalRevisi, `BA.P.${nomorRevisi}`, existingData.jenisDokumen);
-            updateQuery = { [fieldNo]: generatedNomorStr, [fieldTgl]: tanggalRevisi, statusTerakhir: 'REVISI' };
+            
+            // PERBAIKAN: Menyimpan tanggalRevisi ke variable utama agar mudah dibaca dashboard
+            updateQuery = { 
+                [fieldNo]: generatedNomorStr, 
+                [fieldTgl]: tanggalRevisi, 
+                tanggalRevisi: tanggalRevisi, // Ditambah untuk mempermudah deteksi dashboard
+                statusTerakhir: 'REVISI' 
+            };
         }
         else if (tahap === 'f' || tahap === 'penerimaan') {
             const { tanggalPenyerahanPerbaikan, petugasPenerimaPerbaikan, nomorRevisi } = body;
