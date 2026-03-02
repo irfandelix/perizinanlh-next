@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { 
     LayoutDashboard, FileText, MapPin, BookOpen, 
     FileEdit, FileCheck, Loader2, ArrowRight, Activity, Clock, 
-    CalendarDays, ChevronLeft, ChevronRight, X, User
+    CalendarDays, ChevronLeft, ChevronRight, X, User, BellRing, AlertTriangle, CheckCircle
 } from 'lucide-react';
 
 interface Dokumen {
@@ -42,7 +42,7 @@ const addWorkingDays = (startDateStr: string, daysToAdd: number) => {
     return `${yyyy}-${mm}-${dd}`;
 };
 
-// --- FUNGSI HELPER BARU: Mengurangi Hari Kerja untuk Hitung Mundur (H-3, H-2, dst) ---
+// --- FUNGSI HELPER: Mengurangi Hari Kerja untuk Hitung Mundur (H-3, H-2, dst) ---
 const subtractWorkingDays = (startDateStr: string, daysToSubtract: number) => {
     let currentDate = new Date(startDateStr);
     let subtractedDays = 0;
@@ -59,7 +59,6 @@ const subtractWorkingDays = (startDateStr: string, daysToSubtract: number) => {
     return `${yyyy}-${mm}-${dd}`;
 };
 
-// --- FUNGSI HELPER: Format Tanggal Indo ---
 const formatDateIndo = (dateStr: string) => {
     const date = new Date(dateStr);
     return date.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
@@ -73,13 +72,16 @@ export default function DashboardPage() {
         total: 0, ujiAdmin: 0, verlap: 0, substansi: 0, revisi: 0, selesai: 0, tahunTerbaru: ''
     });
 
-    // --- STATE KALENDER & MODAL ---
+    // --- STATE KALENDER & MODAL TANGGAL ---
     const [currentMonth, setCurrentMonth] = useState(new Date());
     const [calendarEvents, setCalendarEvents] = useState<any[]>([]);
-    
-    const [modalOpen, setModalOpen] = useState(false);
-    const [modalDate, setModalDate] = useState("");
-    const [modalEvents, setModalEvents] = useState<any[]>([]);
+    const [modalCalOpen, setModalCalOpen] = useState(false);
+    const [modalCalDate, setModalCalDate] = useState("");
+    const [modalCalEvents, setModalCalEvents] = useState<any[]>([]);
+
+    // --- STATE NOTIFIKASI TUGAS (MUNCUL SAAT LOGIN) ---
+    const [urgentTasks, setUrgentTasks] = useState<any[]>([]);
+    const [showNotifModal, setShowNotifModal] = useState(false);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -105,6 +107,11 @@ export default function DashboardPage() {
 
                         let ujiAdmin = 0, verlap = 0, substansi = 0, revisi = 0, selesai = 0;
                         const events: any[] = [];
+                        const urgents: any[] = [];
+                        
+                        // Dapatkan string tanggal hari ini (waktu lokal)
+                        const todayLocal = new Date();
+                        const todayStr = `${todayLocal.getFullYear()}-${String(todayLocal.getMonth() + 1).padStart(2, '0')}-${String(todayLocal.getDate()).padStart(2, '0')}`;
 
                         latestDocs.forEach(doc => {
                             // Hitung Statistik
@@ -114,26 +121,24 @@ export default function DashboardPage() {
                             else if (doc.nomorUjiBerkas) verlap++; 
                             else ujiAdmin++;
 
-                            // --- LOGIKA PERINGATAN H-3 SAMPAI DEADLINE ---
+                            // --- LOGIKA SLA DEADLINE ---
                             if (!doc.tanggalMasukDokumen) return;
                             
                             const kegiatan = doc.namaKegiatan || 'Tanpa Judul';
                             const pemrakarsa = doc.namaPemrakarsa || '-';
                             const noUrut = doc.noUrut;
                             
-                            // Hitung tanggal deadline maksimal tiap tahap
-                            const t1 = addWorkingDays(doc.tanggalMasukDokumen, 3); // Uji Admin (3 Hari)
-                            const t2 = addWorkingDays(t1, 5); // Verlap (5 Hari)
-                            const t3 = addWorkingDays(t2, 5); // BAP (5 Hari)
-                            const t4 = addWorkingDays(t3, 5); // Revisi (5 Hari)
-                            const t5 = addWorkingDays(t4, 5); // RPD (5 Hari)
+                            const t1 = addWorkingDays(doc.tanggalMasukDokumen, 3); // Uji Admin
+                            const t2 = addWorkingDays(t1, 5); // Verlap
+                            const t3 = addWorkingDays(t2, 5); // BAP
+                            const t4 = addWorkingDays(t3, 5); // Revisi
+                            const t5 = addWorkingDays(t4, 5); // RPD
                             
-                            // Cari tahu dokumen ini sedang stuck di tahap mana, lalu tentukan target deadline-nya
                             let targetDate = '';
                             let phaseName = '';
 
                             if (doc.nomorRisalah) {
-                                return; // Jika sudah selesai, tidak usah tampil peringatan di kalender
+                                return; // Selesai, skip
                             } else if (doc.nomorPHP) {
                                 targetDate = t5; phaseName = 'RPD';
                             } else if (doc.nomorBAPemeriksaan) {
@@ -143,31 +148,55 @@ export default function DashboardPage() {
                             } else if (doc.nomorUjiBerkas) {
                                 targetDate = t2; phaseName = 'Verlap';
                             } else {
-                                targetDate = t1; phaseName = 'Admin';
+                                targetDate = t1; phaseName = 'Uji Admin';
                             }
 
-                            // Buat fungsi untuk bikin event pengingat
-                            const pushEvent = (dateStr: string, color: string, prefix: string) => {
-                                events.push({
-                                    date: dateStr, type: phaseName, kegiatan, pemrakarsa, noUrut, color, prefix, 
-                                    title: `${prefix} ${phaseName}: ${kegiatan}`
+                            // 1. MASUKKAN KE KALENDER (Hanya Hari Maksimal / DEADLINE saja)
+                            events.push({
+                                date: targetDate, type: phaseName, kegiatan, pemrakarsa, noUrut, 
+                                color: 'bg-red-50 text-red-700 border-red-200 font-bold', prefix: 'BATAS MAKS', 
+                                title: `Batas ${phaseName}: ${kegiatan}`
+                            });
+
+                            // 2. MASUKKAN KE DAFTAR NOTIFIKASI TUGAS (H-3 sampai Deadline)
+                            const h1 = subtractWorkingDays(targetDate, 1);
+                            const h2 = subtractWorkingDays(targetDate, 2);
+                            const h3 = subtractWorkingDays(targetDate, 3);
+
+                            let notifLevel = '';
+                            let notifColor = '';
+                            let urgencyScore = 0;
+
+                            if (todayStr > targetDate) {
+                                notifLevel = 'TERLEWAT / OVERDUE'; notifColor = 'bg-red-600 text-white'; urgencyScore = 5;
+                            } else if (todayStr === targetDate) {
+                                notifLevel = 'DEADLINE HARI INI'; notifColor = 'bg-red-500 text-white animate-pulse'; urgencyScore = 4;
+                            } else if (todayStr === h1) {
+                                notifLevel = 'H-1 (Besok Maksimal)'; notifColor = 'bg-orange-100 text-orange-800 border-orange-300'; urgencyScore = 3;
+                            } else if (todayStr === h2) {
+                                notifLevel = 'H-2 (Awas)'; notifColor = 'bg-yellow-100 text-yellow-800 border-yellow-300'; urgencyScore = 2;
+                            } else if (todayStr === h3) {
+                                notifLevel = 'H-3 (Mulai Kerjakan)'; notifColor = 'bg-emerald-100 text-emerald-800 border-emerald-300'; urgencyScore = 1;
+                            }
+
+                            if (notifLevel !== '') {
+                                urgents.push({
+                                    noUrut, kegiatan, pemrakarsa, phaseName, notifLevel, notifColor, urgencyScore, targetDate
                                 });
-                            };
-
-                            // Menambahkan 4 Event Alarm ke Kalender!
-                            // Hijau (H-3)
-                            pushEvent(subtractWorkingDays(targetDate, 3), 'bg-emerald-100 text-emerald-800 border-emerald-300', 'H-3');
-                            // Kuning (H-2)
-                            pushEvent(subtractWorkingDays(targetDate, 2), 'bg-yellow-100 text-yellow-800 border-yellow-300', 'H-2');
-                            // Merah Muda (H-1)
-                            pushEvent(subtractWorkingDays(targetDate, 1), 'bg-red-100 text-red-800 border-red-300', 'H-1');
-                            // Merah Solid (DEADLINE)
-                            pushEvent(targetDate, 'bg-red-600 text-white font-bold shadow-md border-red-700', 'DEADLINE');
-
+                            }
                         });
 
                         setStats({ total: latestDocs.length, ujiAdmin, verlap, substansi, revisi, selesai, tahunTerbaru: latestYear });
                         setCalendarEvents(events);
+                        
+                        // Urutkan notifikasi dari yang paling gawat (urgencyScore tinggi)
+                        const sortedUrgents = urgents.sort((a, b) => b.urgencyScore - a.urgencyScore);
+                        setUrgentTasks(sortedUrgents);
+                        
+                        // Tampilkan modal notifikasi saat awal buka dashboard jika ada tugas
+                        if (sortedUrgents.length > 0) {
+                            setShowNotifModal(true);
+                        }
                     }
                 }
             } catch (error) {
@@ -209,9 +238,9 @@ export default function DashboardPage() {
 
     const handleDayClick = (dateStr: string, dayEvents: any[]) => {
         if (dayEvents.length > 0) {
-            setModalDate(dateStr);
-            setModalEvents(dayEvents);
-            setModalOpen(true);
+            setModalCalDate(dateStr);
+            setModalCalEvents(dayEvents);
+            setModalCalOpen(true);
         }
     };
 
@@ -240,9 +269,24 @@ export default function DashboardPage() {
                         Ringkasan aktivitas dan status dokumen lingkungan hidup terkini.
                     </p>
                 </div>
-                <div className="bg-white px-5 py-2.5 rounded-full shadow-sm border border-gray-200 flex items-center gap-3 text-sm font-bold text-gray-600">
-                    <Activity size={18} className="text-blue-500" />
-                    Total {stats.total} Dokumen di Tahun {stats.tahunTerbaru}
+                
+                <div className="flex items-center gap-3">
+                    {/* TOMBOL LONCENG NOTIFIKASI */}
+                    <button 
+                        onClick={() => setShowNotifModal(true)}
+                        className="relative p-3 bg-white rounded-full shadow-sm border border-gray-200 hover:bg-gray-50 transition-colors"
+                        title="Lihat Tugas Harian"
+                    >
+                        <BellRing size={20} className={urgentTasks.length > 0 ? "text-red-500" : "text-gray-400"} />
+                        {urgentTasks.length > 0 && (
+                            <span className="absolute top-0 right-0 w-3.5 h-3.5 bg-red-500 border-2 border-white rounded-full animate-pulse"></span>
+                        )}
+                    </button>
+
+                    <div className="bg-white px-5 py-2.5 rounded-full shadow-sm border border-gray-200 flex items-center gap-3 text-sm font-bold text-gray-600">
+                        <Activity size={18} className="text-blue-500" />
+                        Total {stats.total} Dokumen ({stats.tahunTerbaru})
+                    </div>
                 </div>
             </div>
 
@@ -259,7 +303,7 @@ export default function DashboardPage() {
             <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden mb-8">
                 <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-white">
                     <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-                        <Clock className="text-blue-500" size={20} /> Aktivitas Terbaru ({stats.tahunTerbaru})
+                        <Clock className="text-blue-500" size={20} /> Aktivitas Terbaru
                     </h3>
                     <Link href="/rekap" className="text-sm font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 transition-colors">
                         Lihat Semua <ArrowRight size={16} />
@@ -298,22 +342,19 @@ export default function DashboardPage() {
                                     </td>
                                 </tr>
                             ))}
-                            {dataDokumen.length === 0 && (
-                                <tr><td colSpan={5} className="p-8 text-center text-gray-400 font-medium">Belum ada dokumen yang terdaftar.</td></tr>
-                            )}
                         </tbody>
                     </table>
                 </div>
             </div>
 
-            {/* KALENDER PENGINGAT DEADLINE (SLA GRID) */}
+            {/* KALENDER TENGGAT WAKTU (Hanya menampilkan batas maksimal) */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
                 <div className="p-5 border-b border-gray-100 bg-slate-50/80 flex justify-between items-center">
                     <div>
                         <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-                            <CalendarDays className="text-blue-600" size={22} /> Kalender Pengingat SLA
+                            <CalendarDays className="text-blue-600" size={22} /> Kalender Batas Maksimal SLA
                         </h3>
-                        <p className="text-sm text-gray-500 mt-1">Hitung mundur batas waktu dokumen aktif (Hijau: H-3, Kuning: H-2, Merah Muda: H-1, Merah Solid: Deadline).</p>
+                        <p className="text-sm text-gray-500 mt-1">Hanya menampilkan hari terakhir batas penyelesaian dokumen aktif.</p>
                     </div>
                     <div className="flex items-center gap-4 bg-white p-1.5 rounded-xl border border-gray-200 shadow-sm">
                         <button onClick={prevMonth} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-600"><ChevronLeft size={20}/></button>
@@ -338,15 +379,7 @@ export default function DashboardPage() {
                             }
 
                             const currentDateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                            
-                            // Urutkan event di hari tersebut agar DEADLINE (H-0) selalu tampil di atas
-                            const dayEvents = calendarEvents
-                                .filter(e => e.date === currentDateStr)
-                                .sort((a, b) => {
-                                    if (a.prefix === 'DEADLINE') return -1;
-                                    if (b.prefix === 'DEADLINE') return 1;
-                                    return a.prefix > b.prefix ? -1 : 1; 
-                                });
+                            const dayEvents = calendarEvents.filter(e => e.date === currentDateStr);
                             
                             const todayLocal = new Date();
                             const todayStr = `${todayLocal.getFullYear()}-${String(todayLocal.getMonth() + 1).padStart(2, '0')}-${String(todayLocal.getDate()).padStart(2, '0')}`;
@@ -356,7 +389,7 @@ export default function DashboardPage() {
                                 <div 
                                     key={day} 
                                     onClick={() => handleDayClick(currentDateStr, dayEvents)}
-                                    className={`min-h-[110px] border rounded-xl p-2 transition-all duration-200 ${isToday ? 'bg-blue-50/30 border-blue-400 shadow-sm ring-1 ring-blue-400' : 'bg-white border-gray-200'} ${dayEvents.length > 0 ? 'cursor-pointer hover:shadow-md hover:border-blue-400 hover:-translate-y-0.5' : ''}`}
+                                    className={`min-h-[110px] border rounded-xl p-2 transition-all duration-200 ${isToday ? 'bg-blue-50/30 border-blue-400 shadow-sm ring-1 ring-blue-400' : 'bg-white border-gray-200'} ${dayEvents.length > 0 ? 'cursor-pointer hover:shadow-md hover:border-red-300 hover:-translate-y-0.5' : ''}`}
                                 >
                                     <div className={`text-xs font-bold w-6 h-6 flex items-center justify-center rounded-full mb-1 ${isToday ? 'bg-blue-600 text-white' : 'text-slate-700'}`}>
                                         {day}
@@ -378,51 +411,111 @@ export default function DashboardPage() {
                 </div>
             </div>
 
-            {/* MODAL NOTIFIKASI DETAIL KALENDER */}
-            {modalOpen && (
+            {/* --- MODAL DAFTAR NOTIFIKASI TUGAS (MUNCUL OTOMATIS SAAT LOGIN / KLIK LONCENG) --- */}
+            {showNotifModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-300">
+                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[85vh] transform transition-all scale-100">
+                        
+                        <div className="p-6 border-b border-gray-100 flex justify-between items-start bg-slate-50/80">
+                            <div>
+                                <h3 className="font-extrabold text-gray-800 text-xl flex items-center gap-2">
+                                    <BellRing className="text-red-500" size={24} /> Peringatan Tugas Harian
+                                </h3>
+                                <p className="text-sm text-gray-500 mt-1">
+                                    Daftar dokumen yang mendekati batas SLA dan harus segera dikerjakan.
+                                </p>
+                            </div>
+                            <button onClick={() => setShowNotifModal(false)} className="text-gray-400 hover:text-red-500 hover:bg-red-50 p-2 rounded-full transition-colors bg-white shadow-sm border border-gray-200">
+                                <X size={20} />
+                            </button>
+                        </div>
+                        
+                        <div className="p-6 overflow-y-auto flex-1 bg-slate-50/50 space-y-4">
+                            {urgentTasks.length === 0 ? (
+                                <div className="text-center py-10">
+                                    <CheckCircle size={40} className="text-emerald-500 mx-auto mb-3" />
+                                    <h4 className="text-lg font-bold text-gray-700">Tidak ada tugas mendesak!</h4>
+                                    <p className="text-gray-500 text-sm mt-1">Semua dokumen aman dan masih jauh dari batas SLA.</p>
+                                </div>
+                            ) : (
+                                urgentTasks.map((task, idx) => (
+                                    <div key={idx} className="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all hover:shadow-md">
+                                        <div className="flex-1">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <span className={`px-2.5 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider ${task.notifColor} border ${task.notifColor.includes('text-white') ? 'border-red-700' : ''}`}>
+                                                    {task.notifLevel}
+                                                </span>
+                                                <span className="text-[10px] font-bold text-gray-500 bg-gray-100 px-2 py-0.5 rounded border border-gray-200">
+                                                    Tahap {task.phaseName}
+                                                </span>
+                                            </div>
+                                            <h4 className="font-bold text-gray-800 text-sm leading-snug">{task.kegiatan}</h4>
+                                            <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
+                                                <User size={12} /> {task.pemrakarsa}
+                                            </p>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="text-[10px] font-bold text-gray-400 uppercase">No Urut: {task.noUrut}</p>
+                                            <p className="text-xs font-bold text-gray-800 mt-1">Target Maksimal:</p>
+                                            <p className={`text-sm font-extrabold ${task.urgencyScore >= 4 ? 'text-red-600' : 'text-gray-600'}`}>
+                                                {formatDateIndo(task.targetDate)}
+                                            </p>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                        
+                        <div className="p-5 border-t border-gray-100 bg-white flex justify-end">
+                            <button onClick={() => setShowNotifModal(false)} className="px-8 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-sm transition-colors shadow-md shadow-blue-200">
+                                Mengerti, Tutup Notifikasi
+                            </button>
+                        </div>
+
+                    </div>
+                </div>
+            )}
+
+            {/* MODAL KLIK TANGGAL KALENDER (TETAP ADA) */}
+            {modalCalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
                     <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden transform transition-all">
                         <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-slate-50">
                             <div>
                                 <h3 className="font-extrabold text-gray-800 text-lg flex items-center gap-2">
                                     <CalendarDays className="text-blue-600" size={22}/>
-                                    Notifikasi Tenggat Waktu
+                                    Batas SLA Dokumen
                                 </h3>
                                 <p className="text-sm text-gray-500 font-medium mt-0.5 ml-8">
-                                    {formatDateIndo(modalDate)}
+                                    {formatDateIndo(modalCalDate)}
                                 </p>
                             </div>
-                            <button onClick={() => setModalOpen(false)} className="text-gray-400 hover:text-red-500 hover:bg-red-50 p-2 rounded-full transition-colors">
+                            <button onClick={() => setModalCalOpen(false)} className="text-gray-400 hover:text-red-500 hover:bg-red-50 p-2 rounded-full transition-colors">
                                 <X size={20} />
                             </button>
                         </div>
                         
                         <div className="p-5 max-h-[60vh] overflow-y-auto space-y-3 bg-slate-50/50">
-                            {modalEvents.map((ev, idx) => (
-                                <div key={idx} className={`p-4 rounded-xl border flex flex-col gap-2 shadow-sm ${ev.prefix === 'DEADLINE' ? 'bg-red-50 border-red-200' : 'bg-white border-gray-200'}`}>
+                            {modalCalEvents.map((ev, idx) => (
+                                <div key={idx} className="p-4 rounded-xl border border-red-200 bg-red-50 flex flex-col gap-2 shadow-sm">
                                     <div className="flex justify-between items-start">
                                         <div className="flex gap-2 items-center">
-                                            <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md ${ev.prefix === 'DEADLINE' ? 'bg-red-600 text-white' : ev.color}`}>
+                                            <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-red-600 text-white">
                                                 {ev.prefix}
                                             </span>
-                                            <span className="text-xs font-black text-gray-600 uppercase tracking-wider px-2 py-0.5 rounded-md bg-slate-100 border border-slate-200">
+                                            <span className="text-xs font-black text-gray-600 uppercase tracking-wider px-2 py-0.5 rounded-md bg-white border border-gray-200">
                                                 Tahap {ev.type}
                                             </span>
                                         </div>
-                                        <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">No. {ev.noUrut}</span>
+                                        <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-white text-slate-600 border border-slate-200">No. {ev.noUrut}</span>
                                     </div>
                                     <p className="font-bold text-sm text-gray-800 leading-snug mt-1">{ev.kegiatan}</p>
-                                    <div className="pt-2 mt-1 border-t border-black/5">
-                                        <p className="text-xs font-medium text-gray-600 flex items-center gap-1.5">
-                                            <User size={12}/> {ev.pemrakarsa}
-                                        </p>
-                                    </div>
                                 </div>
                             ))}
                         </div>
                         
                         <div className="p-4 border-t border-gray-100 bg-white flex justify-end">
-                            <button onClick={() => setModalOpen(false)} className="px-6 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-bold text-sm transition-colors">
+                            <button onClick={() => setModalCalOpen(false)} className="px-6 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-bold text-sm transition-colors">
                                 Tutup
                             </button>
                         </div>
