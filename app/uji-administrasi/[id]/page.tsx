@@ -20,21 +20,32 @@ export default function FormUjiAdministrasi() {
         tanggalPenerbitanUa: '',
     });
 
+    // PERBAIKAN: Menggunakan fetch yang terbukti cepat dan stabil di halaman tabel
     useEffect(() => {
         const fetchDocData = async () => {
             try {
-                const response = await api.get('/api/rekap');
-                const allDocs = response.data.data;
-                const currentDoc = allDocs.find((d: any) => d.noUrut === parseInt(noUrut));
+                const res = await fetch('/api/record/list'); 
+                const result = await res.json();
 
-                if (currentDoc) setDocInfo(currentDoc);
-                else setModalInfo({ show: true, title: 'Data Tidak Ditemukan', message: 'Dokumen ini tidak ada.', isSuccess: false });
+                if (result.success) {
+                    const allDocs = result.data;
+                    const currentDoc = allDocs.find((d: any) => d.noUrut === parseInt(noUrut));
+
+                    if (currentDoc) {
+                        setDocInfo(currentDoc);
+                    } else {
+                        setModalInfo({ show: true, title: 'Data Tidak Ditemukan', message: 'Dokumen ini tidak ada di database.', isSuccess: false });
+                    }
+                } else {
+                    console.error(result.message);
+                }
             } catch (error) {
                 console.error("Gagal mengambil data:", error);
             } finally {
                 setLoadingData(false);
             }
         };
+        
         if (noUrut) fetchDocData();
     }, [noUrut]);
 
@@ -107,7 +118,7 @@ export default function FormUjiAdministrasi() {
                         </div>
 
                         <div className="flex justify-end pt-6 border-t border-gray-100">
-                            <button type="submit" disabled={submitLoading} className="bg-orange-600 hover:bg-orange-700 text-white px-8 py-3 rounded-xl font-bold text-lg shadow-lg flex items-center gap-2 transition-all disabled:opacity-50">
+                            <button type="submit" disabled={submitLoading} className="bg-orange-600 hover:bg-orange-700 text-white px-8 py-3 rounded-xl font-bold text-lg shadow-lg flex items-center gap-2 transition-all disabled:opacity-50 disabled:cursor-wait">
                                 {submitLoading ? 'Menyimpan...' : <><Save size={20} /> Simpan BA Administrasi</>}
                             </button>
                         </div>
