@@ -5,17 +5,17 @@ import Link from 'next/link';
 import { FileEdit, Loader2, Eye, AlertCircle } from 'lucide-react';
 
 // --- TYPE DEFINITION ---
-// Sesuaikan dengan data yang dikembalikan oleh API /api/record/list
+// SUDAH DISESUAIKAN DENGAN NAMA KOLOM TERBARU DI DATABASE
 interface DokumenData {
   _id: string;
   noUrut: number;
-  judul_kegiatan?: string;   
-  nama_pemrakarsa?: string;
+  namaKegiatan?: string;   // <-- PERBAIKAN: Dulu judul_kegiatan
+  namaPemrakarsa?: string; // <-- PERBAIKAN: Dulu nama_pemrakarsa
   jenisDokumen: string;
   tanggalMasukDokumen: string;
   statusTerakhir: string;
-  nomorBAPemeriksaan?: string; // Field indikator sudah diperiksa
-  nomorPHP?: string;           // Field indikator ada PHP
+  nomorBAPemeriksaan?: string; 
+  nomorPHP?: string;           
   updatedAt?: string;
 }
 
@@ -32,8 +32,6 @@ export default function PemeriksaanRevisiPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // PANGGIL API DENGAN MODE REVISI
-        // Ini akan memicu filter: Sudah BAP + Ada PHP + Belum Risalah
         const res = await fetch('/api/record/list?mode=revisi'); 
         const json: ApiResponse = await res.json();
         
@@ -107,11 +105,13 @@ export default function PemeriksaanRevisiPage() {
                         {item.jenisDokumen}
                       </div>
                       <div className="font-medium text-gray-800 line-clamp-2">
-                        {item.judul_kegiatan || "(Tanpa Judul)"}
+                        {/* PERBAIKAN: Memanggil item.namaKegiatan */}
+                        {item.namaKegiatan || "(Tanpa Judul)"} 
                       </div>
                     </td>
-                    <td className="p-4 text-gray-600">
-                      {item.nama_pemrakarsa || "-"}
+                    <td className="p-4 text-gray-600 font-medium">
+                      {/* PERBAIKAN: Memanggil item.namaPemrakarsa */}
+                      {item.namaPemrakarsa || "-"}
                     </td>
                     <td className="p-4">
                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
@@ -119,9 +119,6 @@ export default function PemeriksaanRevisiPage() {
                        </span>
                     </td>
                     <td className="p-4 text-center">
-                      {/* Pastikan link ini mengarah ke folder detail yang benar.
-                          Misalnya: /pemeriksaan-revisi/[noUrut]
-                      */}
                       <Link 
                         href={`/pemeriksaan-revisi/${item.noUrut}`} 
                         className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-xs font-medium transition-all shadow-sm"
