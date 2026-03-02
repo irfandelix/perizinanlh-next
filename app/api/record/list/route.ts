@@ -9,26 +9,12 @@ export async function GET() {
         const client = await clientPromise;
         const db = client.db();
         
-        // Ambil semua dokumen, urutkan dari yang terbaru (createdAt desc)
-        // Limit 100 agar tidak terlalu berat jika data sudah ribuan
+        // PERBAIKAN: Ambil semua dokumen tanpa membatasi kolom (.project dihapus)
+        // Agar semua variabel tanggal (tanggalPemeriksaan, tanggalVerlap, dll) terkirim ke Dashboard
         const documents = await db.collection('dokumen')
             .find({})
-            .project({
-                noUrut: 1, // <--- TAMBAHKAN INI (PENTING!)
-                nomorChecklist: 1, 
-                namaPemrakarsa: 1, 
-                namaKegiatan: 1, 
-                tanggalMasukDokumen: 1,
-                statusVerifikasi: 1, 
-                statusTerakhir: 1,   
-                jenisDokumen: 1,
-                nomorUjiBerkas: 1, // <--- (Hasil Tahap B)
-                nomorBAVerlap: 1,  // <--- (Hasil Tahap C)
-                nomorBAPemeriksaan: 1, // <--- (Hasil Tahap D)
-                createdAt: 1
-            })
-            .sort({ createdAt: -1 }) 
-            .limit(100)
+            .sort({ noUrut: -1 }) // Urutkan berdasarkan nomor urut terbaru
+            .limit(500) // Naikkan limit sedikit agar data tahunan tertampung semua
             .toArray();
 
         return NextResponse.json({ success: true, data: documents });
