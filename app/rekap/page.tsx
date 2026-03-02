@@ -8,7 +8,8 @@ import dynamic from 'next/dynamic';
 interface Dokumen {
     _id: string;
     noUrut: number;
-    nomorChecklist: string; 
+    nomorChecklist: string; // Nomor DLH
+    nomorRegistrasiAmdalnet?: string; // Nomor Inputan Manual
     nomorSuratPermohonan?: string; 
     tanggalSuratPermohonan?: string; 
     perihalSuratPermohonan?: string; 
@@ -20,18 +21,13 @@ interface Dokumen {
     namaKonsultan?: string; 
     tanggalMasukDokumen: string;
     tahun?: string | number; 
-    nomorUjiBerkas?: string; tanggalUjiBerkas?: string;
-    nomorBAVerlap?: string; tanggalVerlap?: string;
-    nomorBAPemeriksaan?: string; tanggalPemeriksaan?: string;
-    nomorRevisi1?: string; tanggalRevisi1?: string;
-    nomorRevisi2?: string; tanggalRevisi2?: string;
-    nomorRevisi3?: string; tanggalRevisi3?: string;
-    nomorRevisi4?: string; tanggalRevisi4?: string;
-    nomorRevisi5?: string; tanggalRevisi5?: string;
-    nomorPHP?: string; tanggalPHP?: string; petugasPenerimaPerbaikan?: string;
-    tanggalPengembalian?: string;
-    nomorIzinTerbit?: string;
-    nomorRisalah?: string; tanggalRisalah?: string;
+    // ... (sisa field sama seperti sebelumnya)
+    nomorUjiBerkas?: string; tanggalUjiBerkas?: string; nomorBAVerlap?: string; tanggalVerlap?: string;
+    nomorBAPemeriksaan?: string; tanggalPemeriksaan?: string; nomorRevisi1?: string; tanggalRevisi1?: string;
+    nomorRevisi2?: string; tanggalRevisi2?: string; nomorRevisi3?: string; tanggalRevisi3?: string;
+    nomorRevisi4?: string; tanggalRevisi4?: string; nomorRevisi5?: string; tanggalRevisi5?: string;
+    nomorPHP?: string; tanggalPHP?: string; petugasPenerimaPerbaikan?: string; tanggalPengembalian?: string;
+    nomorIzinTerbit?: string; nomorRisalah?: string; tanggalRisalah?: string;
 }
 
 function TableContent({ rekapData }: { rekapData: Dokumen[] }) {
@@ -41,7 +37,8 @@ function TableContent({ rekapData }: { rekapData: Dokumen[] }) {
                 <thead>
                     <tr>
                         <th className="freeze col-no">No</th>
-                        <th className="freeze col-checklist">No. Checklist / Amdalnet</th>
+                        <th className="freeze col-checklist">No. Checklist (DLH)</th>
+                        <th className="freeze col-checklist">No. Reg Amdalnet</th>
                         <th className="freeze col-kegiatan wrap-text">Nama Kegiatan</th>
                         <th>Jenis Kegiatan</th>
                         <th>Lokasi Kegiatan</th>
@@ -49,11 +46,9 @@ function TableContent({ rekapData }: { rekapData: Dokumen[] }) {
                         <th>Pemrakarsa</th>
                         <th>Nama Konsultan</th>
                         <th>Tgl Masuk</th>
-                        {/* PENAMBAHAN KOLOM SURAT */}
                         <th>No. Surat Permohonan</th>
                         <th>Tgl. Surat</th>
                         <th>Perihal Surat</th>
-                        {/* ---------------------- */}
                         <th>No. BA Uji Admin</th><th>Tgl. Uji Admin</th><th>No. BA Verlap</th><th>Tgl. Verlap</th><th>No. BA Pemeriksaan</th><th>Tgl. Pemeriksaan</th>
                         <th>No. Revisi 1</th><th>Tgl. Revisi 1</th><th>No. Revisi 2</th><th>Tgl. Revisi 2</th><th>No. Revisi 3</th><th>Tgl. Revisi 3</th><th>No. Revisi 4</th><th>Tgl. Revisi 4</th><th>No. Revisi 5</th><th>Tgl. Revisi 5</th>
                         <th>No. PHP</th><th>Tgl. PHP</th><th>Petugas Penerima</th>
@@ -65,6 +60,7 @@ function TableContent({ rekapData }: { rekapData: Dokumen[] }) {
                         <tr key={doc._id}>
                             <td className="freeze col-no font-bold">{doc.noUrut}</td>
                             <td className="freeze col-checklist text-emerald-700 font-bold">{doc.nomorChecklist || '-'}</td>
+                            <td className="freeze col-checklist text-blue-600 font-medium">{doc.nomorRegistrasiAmdalnet || '-'}</td>
                             <td className="freeze col-kegiatan wrap-text">{doc.namaKegiatan}</td>
                             <td>{doc.jenisKegiatan || '-'}</td>
                             <td>{doc.lokasiKegiatan || '-'}</td>
@@ -73,7 +69,6 @@ function TableContent({ rekapData }: { rekapData: Dokumen[] }) {
                             <td>{doc.namaKonsultan || '-'}</td>
                             <td>{doc.tanggalMasukDokumen}</td>
                             
-                            {/* PENAMBAHAN DATA SURAT */}
                             <td>{doc.nomorSuratPermohonan || '-'}</td>
                             <td>{doc.tanggalSuratPermohonan || '-'}</td>
                             <td>{doc.perihalSuratPermohonan || '-'}</td>
@@ -112,14 +107,8 @@ export default function RekapTabelPage() {
                 const yearsSet = new Set(docs.map((item: Dokumen) => item.tahun?.toString() || (item.tanggalMasukDokumen ? item.tanggalMasukDokumen.substring(0, 4) : new Date().getFullYear().toString())));
                 const yearsArray = Array.from(yearsSet).sort().reverse() as string[];
                 setAvailableYears(yearsArray);
-                
                 if (yearsArray.length > 0) setSelectedYear(yearsArray[0]);
-
-            } catch (err) {
-                setError('Gagal memuat data rekapitulasi.');
-            } finally {
-                setLoading(false);
-            }
+            } catch (err) { setError('Gagal memuat data.'); } finally { setLoading(false); }
         };
         fetchRekapData();
     }, []);
@@ -134,7 +123,8 @@ export default function RekapTabelPage() {
 
         const dataToExport = filteredData.map(doc => ({
             "No. Urut": doc.noUrut, 
-            "No. Checklist / Amdalnet": doc.nomorChecklist || '-', 
+            "No. Checklist (DLH)": doc.nomorChecklist || '-', 
+            "No. Reg Amdalnet": doc.nomorRegistrasiAmdalnet || '-', 
             "Nama Kegiatan": doc.namaKegiatan, 
             "Jenis Kegiatan": doc.jenisKegiatan || '-',
             "Lokasi Kegiatan": doc.lokasiKegiatan || '-',
@@ -145,6 +135,7 @@ export default function RekapTabelPage() {
             "No. Surat Permohonan": doc.nomorSuratPermohonan || '-',
             "Tgl. Surat": doc.tanggalSuratPermohonan || '-',
             "Perihal Surat": doc.perihalSuratPermohonan || '-',
+            // ... (lanjutkan copy paste header excel tahap B dst yang sudah ada sebelumnya)
             "No. BA Uji Administrasi": doc.nomorUjiBerkas, "Tgl. BA Uji Administrasi": doc.tanggalUjiBerkas, 
             "No. BA Verifikasi Lapangan": doc.nomorBAVerlap, "Tgl. Verifikasi Lapangan": doc.tanggalVerlap, 
             "No. BA Pemeriksaan Berkas": doc.nomorBAPemeriksaan, "Tgl. Pemeriksaan Berkas": doc.tanggalPemeriksaan, 
@@ -160,7 +151,7 @@ export default function RekapTabelPage() {
 
         const worksheet = XLSX.utils.json_to_sheet(dataToExport);
         const wscols = Object.keys(dataToExport[0]).map(() => ({ wch: 20 }));
-        wscols[0] = { wch: 8 }; wscols[2] = { wch: 40 }; wscols[4] = { wch: 50 }; worksheet['!cols'] = wscols;
+        wscols[0] = { wch: 8 }; wscols[3] = { wch: 40 }; wscols[5] = { wch: 50 }; worksheet['!cols'] = wscols;
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, `Rekap ${selectedYear}`);
         XLSX.writeFile(workbook, `Rekapitulasi_Dokumen_DLH_${selectedYear}.xlsx`);

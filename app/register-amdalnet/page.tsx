@@ -10,10 +10,10 @@ export default function RegisterAmdalnet() {
     const [modalInfo, setModalInfo] = useState({ show: false, title: '', message: '', isSuccess: false });
 
     const [formData, setFormData] = useState({
-        nomorChecklist: '', 
-        nomorSuratPermohonan: '', // Kolom baru
-        tanggalSuratPermohonan: '', // Kolom baru
-        perihalSuratPermohonan: '', // Kolom baru
+        nomorRegistrasiAmdalnet: '', // Untuk nampung ID dari web amdalnet
+        nomorSuratPermohonan: '', 
+        tanggalSuratPermohonan: '', 
+        perihalSuratPermohonan: '', 
         namaKegiatan: '',
         jenisKegiatan: '',
         lokasiKegiatan: '', 
@@ -42,12 +42,12 @@ export default function RegisterAmdalnet() {
             setModalInfo({
                 show: true,
                 title: 'Registrasi Berhasil',
-                message: `Dokumen berhasil diregistrasi! Nomor tersimpan: ${response.data.nomorRegistrasiLH}`,
+                message: `Dokumen berhasil diregistrasi! Nomor Checklist (DLH): ${response.data.nomorChecklist}`,
                 isSuccess: true
             });
 
             setFormData({
-                nomorChecklist: '', nomorSuratPermohonan: '', tanggalSuratPermohonan: '', perihalSuratPermohonan: '',
+                nomorRegistrasiAmdalnet: '', nomorSuratPermohonan: '', tanggalSuratPermohonan: '', perihalSuratPermohonan: '',
                 namaKegiatan: '', jenisKegiatan: '', lokasiKegiatan: '', tanggalMasukDokumen: '', jenisDokumen: 'UKL-UPL', 
                 besaranLuasan: '', satuanLuasan: 'm2', namaPemrakarsa: '', alamatPemrakarsa: '', teleponPemrakarsa: '', namaKonsultan: '',
             });
@@ -81,32 +81,37 @@ export default function RegisterAmdalnet() {
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                         <div className="md:col-span-2">
-                            <label className="block text-sm font-semibold mb-1 text-gray-700">1. Nomor Checklist / Registrasi Amdalnet <span className="text-red-500">*</span></label>
-                            <input type="text" name="nomorChecklist" className="w-full p-2.5 border border-emerald-300 rounded-lg focus:ring-2 focus:ring-emerald-400 outline-none" value={formData.nomorChecklist} onChange={handleChange} placeholder="Ketik nomor dokumen dari Amdalnet..." required />
+                            {/* KEMBALI OTOMATIS */}
+                            <label className="block text-sm font-semibold mb-1 text-gray-700">1. Nomor Checklist (Sistem DLH)</label>
+                            <input type="text" className="w-full p-2.5 border rounded-lg bg-gray-200 text-gray-500 cursor-not-allowed font-medium italic" value="Otomatis dibuat saat disimpan (Format: 600.4/...)" disabled />
                         </div>
                         <div>
-                            <label className="block text-sm font-semibold mb-1 text-gray-700">2. Tanggal Masuk Dokumen <span className="text-red-500">*</span></label>
+                            <label className="block text-sm font-semibold mb-1 text-gray-700">2. Nomor Registrasi Amdalnet <span className="text-red-500">*</span></label>
+                            <input type="text" name="nomorRegistrasiAmdalnet" className="w-full p-2.5 border border-emerald-300 rounded-lg focus:ring-2 focus:ring-emerald-400 outline-none" value={formData.nomorRegistrasiAmdalnet} onChange={handleChange} placeholder="Ketik nomor dokumen dari Amdalnet..." required />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-semibold mb-1 text-gray-700">3. Tanggal Masuk Dokumen <span className="text-red-500">*</span></label>
                             <input type="date" name="tanggalMasukDokumen" className="w-full p-2.5 border border-emerald-300 rounded-lg focus:ring-2 focus:ring-emerald-400 outline-none" value={formData.tanggalMasukDokumen} onChange={handleChange} required />
                         </div>
-                        <div>
-                            <label className="block text-sm font-semibold mb-1 text-gray-700">3. Jenis Dokumen <span className="text-red-500">*</span></label>
+                        <div className="md:col-span-2">
+                            <label className="block text-sm font-semibold mb-1 text-gray-700">4. Jenis Dokumen <span className="text-red-500">*</span></label>
                             <select name="jenisDokumen" className="w-full p-2.5 border border-emerald-300 rounded-lg bg-white focus:ring-2 focus:ring-emerald-400 outline-none" value={formData.jenisDokumen} onChange={handleChange}>
                                 <option value="UKL-UPL">UKL-UPL</option>
                                 <option value="AMDAL">AMDAL</option>
                                 <option value="SPPL">SPPL</option>
                             </select>
                         </div>
-                        {/* PENAMBAHAN 3 INPUT BARU */}
+                        
                         <div className="md:col-span-2">
-                            <label className="block text-sm font-semibold mb-1 text-gray-700">4. Nomor Surat Permohonan <span className="text-red-500">*</span></label>
+                            <label className="block text-sm font-semibold mb-1 text-gray-700">5. Nomor Surat Permohonan <span className="text-red-500">*</span></label>
                             <input type="text" name="nomorSuratPermohonan" className="w-full p-2.5 border border-emerald-300 rounded-lg focus:ring-2 focus:ring-emerald-400 outline-none" value={formData.nomorSuratPermohonan} onChange={handleChange} placeholder="Contoh: 660.1/123/2026..." required />
                         </div>
                         <div>
-                            <label className="block text-sm font-semibold mb-1 text-gray-700">5. Tanggal Surat Permohonan <span className="text-red-500">*</span></label>
+                            <label className="block text-sm font-semibold mb-1 text-gray-700">6. Tanggal Surat Permohonan <span className="text-red-500">*</span></label>
                             <input type="date" name="tanggalSuratPermohonan" className="w-full p-2.5 border border-emerald-300 rounded-lg focus:ring-2 focus:ring-emerald-400 outline-none" value={formData.tanggalSuratPermohonan} onChange={handleChange} required />
                         </div>
                         <div>
-                            <label className="block text-sm font-semibold mb-1 text-gray-700">6. Perihal Surat Permohonan <span className="text-red-500">*</span></label>
+                            <label className="block text-sm font-semibold mb-1 text-gray-700">7. Perihal Surat Permohonan <span className="text-red-500">*</span></label>
                             <input type="text" name="perihalSuratPermohonan" className="w-full p-2.5 border border-emerald-300 rounded-lg focus:ring-2 focus:ring-emerald-400 outline-none" value={formData.perihalSuratPermohonan} onChange={handleChange} placeholder="Contoh: Permohonan Arahan Lingkungan..." required />
                         </div>
                     </div>
@@ -119,15 +124,15 @@ export default function RegisterAmdalnet() {
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                         <div className="md:col-span-2">
-                            <label className="block text-sm font-semibold mb-1 text-gray-700">7. Nama Kegiatan <span className="text-red-500">*</span></label>
+                            <label className="block text-sm font-semibold mb-1 text-gray-700">8. Nama Kegiatan <span className="text-red-500">*</span></label>
                             <input type="text" name="namaKegiatan" className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-blue-400 outline-none" value={formData.namaKegiatan} onChange={handleChange} placeholder="Nama rencana usaha/kegiatan..." required />
                         </div>
                         <div>
-                            <label className="block text-sm font-semibold mb-1 text-gray-700">8. Jenis Kegiatan (Bidang Usaha) <span className="text-red-500">*</span></label>
+                            <label className="block text-sm font-semibold mb-1 text-gray-700">9. Jenis Kegiatan (Bidang Usaha) <span className="text-red-500">*</span></label>
                             <input type="text" name="jenisKegiatan" className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-blue-400 outline-none" value={formData.jenisKegiatan} onChange={handleChange} placeholder="Contoh: Kesehatan / Industri..." required />
                         </div>
                         <div>
-                            <label className="block text-sm font-semibold mb-1 text-gray-700">9. Besaran Luasan <span className="text-red-500">*</span></label>
+                            <label className="block text-sm font-semibold mb-1 text-gray-700">10. Besaran Luasan <span className="text-red-500">*</span></label>
                             <div className="flex">
                                 <input type="number" name="besaranLuasan" className="w-2/3 p-2.5 border rounded-l-lg focus:ring-2 focus:ring-blue-400 outline-none" value={formData.besaranLuasan} onChange={handleChange} placeholder="Angka luasan..." required />
                                 <select name="satuanLuasan" className="w-1/3 p-2.5 border-t border-b border-r rounded-r-lg bg-gray-100 outline-none font-bold text-gray-700" value={formData.satuanLuasan} onChange={handleChange}>
@@ -137,7 +142,7 @@ export default function RegisterAmdalnet() {
                             </div>
                         </div>
                         <div className="md:col-span-2">
-                            <label className="block text-sm font-semibold mb-1 text-gray-700">10. Lokasi Kegiatan (Alamat) <span className="text-red-500">*</span></label>
+                            <label className="block text-sm font-semibold mb-1 text-gray-700">11. Lokasi Kegiatan (Alamat) <span className="text-red-500">*</span></label>
                             <textarea name="lokasiKegiatan" className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-blue-400 outline-none" rows={2} value={formData.lokasiKegiatan} onChange={handleChange} placeholder="Alamat lengkap lokasi kegiatan..." required />
                         </div>
                     </div>
@@ -150,22 +155,22 @@ export default function RegisterAmdalnet() {
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                         <div>
-                            <label className="block text-sm font-semibold mb-1 text-gray-700">11. Pemrakarsa / Penanggungjawab <span className="text-red-500">*</span></label>
+                            <label className="block text-sm font-semibold mb-1 text-gray-700">12. Pemrakarsa / Penanggungjawab <span className="text-red-500">*</span></label>
                             <input type="text" name="namaPemrakarsa" className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-orange-400 outline-none" value={formData.namaPemrakarsa} onChange={handleChange} placeholder="Nama Instansi / Perusahaan / Pribadi..." required />
                         </div>
                         <div>
-                            <label className="block text-sm font-semibold mb-1 text-gray-700">12. Nomor Telepon Pemrakarsa <span className="text-red-500">*</span></label>
+                            <label className="block text-sm font-semibold mb-1 text-gray-700">13. Nomor Telepon Pemrakarsa <span className="text-red-500">*</span></label>
                             <div className="relative">
                                 <Phone size={16} className="absolute left-3 top-3.5 text-gray-400" />
                                 <input type="text" name="teleponPemrakarsa" className="w-full pl-9 p-2.5 border rounded-lg focus:ring-2 focus:ring-orange-400 outline-none" value={formData.teleponPemrakarsa} onChange={handleChange} placeholder="0812xxxx..." required />
                             </div>
                         </div>
                         <div className="md:col-span-2">
-                            <label className="block text-sm font-semibold mb-1 text-gray-700">13. Alamat Penanggungjawab <span className="text-red-500">*</span></label>
+                            <label className="block text-sm font-semibold mb-1 text-gray-700">14. Alamat Penanggungjawab <span className="text-red-500">*</span></label>
                             <textarea name="alamatPemrakarsa" className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-orange-400 outline-none" rows={2} value={formData.alamatPemrakarsa} onChange={handleChange} placeholder="Alamat domisili atau kantor pusat..." required />
                         </div>
                         <div className="md:col-span-2">
-                            <label className="block text-sm font-semibold mb-1 text-gray-700">14. Nama Konsultan Penyusun (Opsional)</label>
+                            <label className="block text-sm font-semibold mb-1 text-gray-700">15. Nama Konsultan Penyusun (Opsional)</label>
                             <input type="text" name="namaKonsultan" className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-orange-400 outline-none" value={formData.namaKonsultan} onChange={handleChange} placeholder="Nama PT / CV Konsultan (jika ada)..." />
                         </div>
                     </div>

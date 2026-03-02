@@ -83,8 +83,8 @@ export async function POST(
             return NextResponse.json({ success: true, message: `Registrasi Berhasil! Data urutan ke-${noUrut}.`, generatedData: { noUrut, nomorChecklist } });
         }
 
-        // ==========================================
-        // REGISTRASI AMDALNET (SABUNGAN NO URUT DENGAN MPP)
+// ==========================================
+        // REGISTRASI AMDALNET
         // ==========================================
         else if (tahap === 'amdalnet') {
             const { year } = getDateParts(body.tanggalMasukDokumen);
@@ -93,14 +93,15 @@ export async function POST(
             .sort({ noUrut: -1 }).limit(1).toArray();
 
             const noUrut = lastDoc.length > 0 ? (lastDoc[0].noUrut || 0) + 1 : 1;
+            
+            // INI YANG BENAR: Backend generate nomor DLH (600.4)
             const generatedChecklist = generateNomor(noUrut, body.tanggalMasukDokumen, 'REG', body.jenisDokumen);
             
             const newRecord = {
-                ...body, 
+                ...body, // nomorRegistrasiAmdalnet ikut masuk dari form
                 noUrut: noUrut, 
                 tahun: year, 
-                // PENTING: Gunakan inputan form JIKA ADA. Jika kosong, baru buat nomor 600.4 otomatis.
-                nomorChecklist: body.nomorChecklist || generatedChecklist, 
+                nomorChecklist: generatedChecklist, // MUTLAK OTOMATIS
                 sumberData: 'AMDALNET',            
                 statusTerakhir: 'PROSES', createdAt: new Date(),
                 nomorUjiBerkas: "", tanggalUjiBerkas: "", nomorBAVerlap: "", tanggalVerlap: "",
@@ -109,7 +110,7 @@ export async function POST(
             };
             
             await collection.insertOne(newRecord);
-            return NextResponse.json({ success: true, message: `Registrasi Amdalnet Berhasil! Mendapat urutan ke-${noUrut}.`, nomorRegistrasiLH: newRecord.nomorChecklist });
+            return NextResponse.json({ success: true, message: `Registrasi Amdalnet Berhasil!`, nomorChecklist: generatedChecklist });
         }
 
         // ==========================================
