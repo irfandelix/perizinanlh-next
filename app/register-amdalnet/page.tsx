@@ -9,7 +9,7 @@ export default function RegisterAmdalnet() {
     const [loading, setLoading] = useState(false);
     const [modalInfo, setModalInfo] = useState({ show: false, title: '', message: '', isSuccess: false });
 
-    // 12 State Form sesuai permintaan
+    // State Form dengan namaPemrakarsa
     const [formData, setFormData] = useState({
         nomorRegistrasiAmdalnet: '',
         namaKegiatan: '',
@@ -19,7 +19,7 @@ export default function RegisterAmdalnet() {
         jenisDokumen: 'UKL-UPL', 
         besaranLuasan: '',
         satuanLuasan: 'm2', 
-        pemrakarsa: '',
+        namaPemrakarsa: '', 
         alamatPemrakarsa: '',
         teleponPemrakarsa: '',
         konsultan: '',
@@ -36,10 +36,9 @@ export default function RegisterAmdalnet() {
         try {
             const payload = {
                 ...formData,
-                sumberData: 'AMDALNET' // Penanda bahwa ini inputan DLH
+                sumberData: 'AMDALNET' 
             };
 
-            // Menembak ke API tahap amdalnet
             const response = await api.post('/api/submit/amdalnet', payload);
             
             setModalInfo({
@@ -49,11 +48,11 @@ export default function RegisterAmdalnet() {
                 isSuccess: true
             });
 
-            // Reset form
+            // Reset form dengan namaPemrakarsa
             setFormData({
                 nomorRegistrasiAmdalnet: '', namaKegiatan: '', bidangUsaha: '', alamatKegiatan: '',
                 tanggalMasukDokumen: '', jenisDokumen: 'UKL-UPL', besaranLuasan: '', satuanLuasan: 'm2',
-                pemrakarsa: '', alamatPemrakarsa: '', teleponPemrakarsa: '', konsultan: '',
+                namaPemrakarsa: '', alamatPemrakarsa: '', teleponPemrakarsa: '', konsultan: '',
             });
 
         } catch (error: any) {
@@ -151,7 +150,8 @@ export default function RegisterAmdalnet() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                         <div>
                             <label className="block text-sm font-semibold mb-1 text-gray-700">9. Pemrakarsa / Penanggungjawab <span className="text-red-500">*</span></label>
-                            <input type="text" name="pemrakarsa" className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-orange-400 outline-none" value={formData.pemrakarsa} onChange={handleChange} placeholder="Nama Instansi / Perusahaan / Pribadi..." required />
+                            {/* Input dengan name dan value namaPemrakarsa */}
+                            <input type="text" name="namaPemrakarsa" className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-orange-400 outline-none" value={formData.namaPemrakarsa} onChange={handleChange} placeholder="Nama Instansi / Perusahaan / Pribadi..." required />
                         </div>
                         <div>
                             <label className="block text-sm font-semibold mb-1 text-gray-700">11. Nomor Telepon Pemrakarsa <span className="text-red-500">*</span></label>

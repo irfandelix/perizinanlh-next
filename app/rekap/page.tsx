@@ -10,11 +10,12 @@ interface Dokumen {
     _id: string;
     noUrut: number;
     nomorChecklist: string;
+    nomorRegistrasiAmdalnet?: string; // Tambahan field amdalnet
     namaKegiatan: string;
     jenisDokumen: string;
     namaPemrakarsa: string;
     tanggalMasukDokumen: string;
-    tahun?: string | number; // Tambahan properti tahun jika ada di DB
+    tahun?: string | number; 
     nomorUjiBerkas?: string; tanggalUjiBerkas?: string;
     nomorBAVerlap?: string; tanggalVerlap?: string;
     nomorBAPemeriksaan?: string; tanggalPemeriksaan?: string;
@@ -39,7 +40,13 @@ function TableContent({ rekapData }: { rekapData: Dokumen[] }) {
             <table className="rekap-table">
                 <thead>
                     <tr>
-                        <th className="freeze col-no">No</th><th className="freeze col-checklist">No. Checklist</th><th className="freeze col-kegiatan wrap-text">Nama Kegiatan</th><th>Jenis Dok</th><th>Pemrakarsa</th><th>Tgl Masuk</th>
+                        <th className="freeze col-no">No</th>
+                        <th className="freeze col-checklist">No. Checklist</th>
+                        <th className="freeze col-checklist">No. Reg Amdalnet</th>
+                        <th className="freeze col-kegiatan wrap-text">Nama Kegiatan</th>
+                        <th>Jenis Dok</th>
+                        <th>Pemrakarsa</th>
+                        <th>Tgl Masuk</th>
                         {/* Tahap B, C, D */}
                         <th>No. BA Uji Admin</th><th>Tgl. Uji Admin</th><th>No. BA Verlap</th><th>Tgl. Verlap</th><th>No. BA Pemeriksaan</th><th>Tgl. Pemeriksaan</th>
                         {/* Revisi 1-5 */}
@@ -53,7 +60,13 @@ function TableContent({ rekapData }: { rekapData: Dokumen[] }) {
                 <tbody>
                     {rekapData.map((doc) => (
                         <tr key={doc._id}>
-                            <td className="freeze col-no font-bold">{doc.noUrut}</td><td className="freeze col-checklist">{doc.nomorChecklist}</td><td className="freeze col-kegiatan wrap-text">{doc.namaKegiatan}</td><td><span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-bold">{doc.jenisDokumen}</span></td><td>{doc.namaPemrakarsa}</td><td>{doc.tanggalMasukDokumen}</td>
+                            <td className="freeze col-no font-bold">{doc.noUrut}</td>
+                            <td className="freeze col-checklist">{doc.nomorChecklist}</td>
+                            <td className="freeze col-checklist text-emerald-700 font-semibold">{doc.nomorRegistrasiAmdalnet || '-'}</td>
+                            <td className="freeze col-kegiatan wrap-text">{doc.namaKegiatan}</td>
+                            <td><span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-bold">{doc.jenisDokumen}</span></td>
+                            <td>{doc.namaPemrakarsa}</td>
+                            <td>{doc.tanggalMasukDokumen}</td>
                             
                             <td>{doc.nomorUjiBerkas || '-'}</td><td>{doc.tanggalUjiBerkas}</td><td>{doc.nomorBAVerlap || '-'}</td><td>{doc.tanggalVerlap}</td><td>{doc.nomorBAPemeriksaan || '-'}</td><td>{doc.tanggalPemeriksaan}</td>
 
@@ -107,15 +120,12 @@ export default function RekapTabelPage() {
 
                 // --- LOGIKA MENCARI TAHUN YANG TERSEDIA ---
                 const yearsSet = new Set(docs.map((item: Dokumen) => {
-                    // Ambil dari field 'tahun' jika ada, atau ekstrak dari tanggalMasukDokumen (YYYY-MM-DD)
                     return item.tahun?.toString() || (item.tanggalMasukDokumen ? item.tanggalMasukDokumen.substring(0, 4) : new Date().getFullYear().toString());
                 }));
                 
-                // Ubah Set ke Array dan urutkan menurun (Contoh: 2026, 2025)
                 const yearsArray = Array.from(yearsSet).sort().reverse() as string[];
                 setAvailableYears(yearsArray);
                 
-                // Jadikan tahun terbaru sebagai tab aktif pertama (jika belum ada yang dipilih)
                 if (yearsArray.length > 0) {
                     setSelectedYear(yearsArray[0]);
                 }
@@ -131,7 +141,6 @@ export default function RekapTabelPage() {
         fetchRekapData();
     }, []);
 
-    // --- LOGIKA FILTER DATA BERDASARKAN TAB TAHUN ---
     const filteredData = rekapData.filter((doc) => {
         const docYear = doc.tahun?.toString() || (doc.tanggalMasukDokumen ? doc.tanggalMasukDokumen.substring(0, 4) : '');
         return docYear === selectedYear;
@@ -145,12 +154,41 @@ export default function RekapTabelPage() {
 
         // --- EXPORT HANYA DATA TAHUN YANG SEDANG AKTIF ---
         const dataToExport = filteredData.map(doc => ({
-            "No. Urut": doc.noUrut, "No. Checklist": doc.nomorChecklist, "Nama Kegiatan": doc.namaKegiatan, "Jenis Dokumen": doc.jenisDokumen, "Nama Pemrakarsa": doc.namaPemrakarsa, "Tanggal Masuk": doc.tanggalMasukDokumen, "No. BA Uji Administrasi": doc.nomorUjiBerkas, "Tgl. BA Uji Administrasi": doc.tanggalUjiBerkas, "No. BA Verifikasi Lapangan": doc.nomorBAVerlap, "Tgl. Verifikasi Lapangan": doc.tanggalVerlap, "No. BA Pemeriksaan Berkas": doc.nomorBAPemeriksaan, "Tgl. Pemeriksaan Berkas": doc.tanggalPemeriksaan, "No. BA Revisi 1": doc.nomorRevisi1, "Tgl. Revisi 1": doc.tanggalRevisi1, "No. BA Revisi 2": doc.nomorRevisi2, "Tgl. Revisi 2": doc.tanggalRevisi2, "No. BA Revisi 3": doc.nomorRevisi3, "Tgl. Revisi 3": doc.tanggalRevisi3, "No. BA Revisi 4": doc.nomorRevisi4, "Tgl. Revisi 4": doc.tanggalRevisi4, "No. BA Revisi 5": doc.nomorRevisi5, "Tgl. Revisi 5": doc.tanggalRevisi5, "No. Penerimaan Perbaikan": doc.nomorPHP, "Tgl. Penerimaan Perbaikan": doc.tanggalPHP, "Petugas Penerima": doc.petugasPenerimaPerbaikan, "Tgl. Pengembalian": doc.tanggalPengembalian, "No. Izin Terbit": doc.nomorIzinTerbit, "No. Risalah": doc.nomorRisalah, "Tgl. Risalah": doc.tanggalRisalah
+            "No. Urut": doc.noUrut, 
+            "No. Checklist": doc.nomorChecklist, 
+            "No. Reg Amdalnet": doc.nomorRegistrasiAmdalnet || '-',
+            "Nama Kegiatan": doc.namaKegiatan, 
+            "Jenis Dokumen": doc.jenisDokumen, 
+            "Nama Pemrakarsa": doc.namaPemrakarsa, 
+            "Tanggal Masuk": doc.tanggalMasukDokumen, 
+            "No. BA Uji Administrasi": doc.nomorUjiBerkas, 
+            "Tgl. BA Uji Administrasi": doc.tanggalUjiBerkas, 
+            "No. BA Verifikasi Lapangan": doc.nomorBAVerlap, 
+            "Tgl. Verifikasi Lapangan": doc.tanggalVerlap, 
+            "No. BA Pemeriksaan Berkas": doc.nomorBAPemeriksaan, 
+            "Tgl. Pemeriksaan Berkas": doc.tanggalPemeriksaan, 
+            "No. BA Revisi 1": doc.nomorRevisi1, 
+            "Tgl. Revisi 1": doc.tanggalRevisi1, 
+            "No. BA Revisi 2": doc.nomorRevisi2, 
+            "Tgl. Revisi 2": doc.tanggalRevisi2, 
+            "No. BA Revisi 3": doc.nomorRevisi3, 
+            "Tgl. Revisi 3": doc.tanggalRevisi3, 
+            "No. BA Revisi 4": doc.nomorRevisi4, 
+            "Tgl. Revisi 4": doc.tanggalRevisi4, 
+            "No. BA Revisi 5": doc.nomorRevisi5, 
+            "Tgl. Revisi 5": doc.tanggalRevisi5, 
+            "No. Penerimaan Perbaikan": doc.nomorPHP, 
+            "Tgl. Penerimaan Perbaikan": doc.tanggalPHP, 
+            "Petugas Penerima": doc.petugasPenerimaPerbaikan, 
+            "Tgl. Pengembalian": doc.tanggalPengembalian, 
+            "No. Izin Terbit": doc.nomorIzinTerbit, 
+            "No. Risalah": doc.nomorRisalah, 
+            "Tgl. Risalah": doc.tanggalRisalah
         }));
 
         const worksheet = XLSX.utils.json_to_sheet(dataToExport);
         const wscols = Object.keys(dataToExport[0]).map(() => ({ wch: 25 }));
-        wscols[0] = { wch: 8 }; wscols[2] = { wch: 50 }; worksheet['!cols'] = wscols;
+        wscols[0] = { wch: 8 }; wscols[3] = { wch: 50 }; worksheet['!cols'] = wscols;
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, `Rekap ${selectedYear}`);
         XLSX.writeFile(workbook, `Rekapitulasi_Dokumen_DLH_${selectedYear}.xlsx`);
