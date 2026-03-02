@@ -1,192 +1,130 @@
-import { getDb } from '@/lib/db';
-import { ObjectId } from 'mongodb';
-import { redirect } from 'next/navigation';
-import { revalidatePath } from 'next/cache';
-import Link from 'next/link';
-import { CheckCircle, FileText, ArrowLeft, User, Calendar } from 'lucide-react';
+'use client';
 
-// --- SERVER ACTION (Hanya Update Status) ---
-async function submitVerifikasi(formData: FormData) {
-  "use server";
-  
-  const id = formData.get('id') as string;
-  const catatan = formData.get('catatan') as string;
-  const tanggal = formData.get('tanggal') as string; // Tanggal Risalah/Verifikasi
+import React, { useState, useEffect } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { Save, ArrowLeft, FileCheck, CheckCircle, Loader2, Info } from 'lucide-react';
+import Modal from '@/components/Modal';
+import api from '@/lib/api';
 
-  if (!id) return;
+export default function FormRisalahPengolah() {
+    const params = useParams();
+    const router = useRouter();
+    const id = params.id as string; 
 
-  const db = await getDb();
-  const objectId = new ObjectId(id);
+    const [loadingData, setLoadingData] = useState(true);
+    const [submitLoading, setSubmitLoading] = useState(false);
+    const [docInfo, setDocInfo] = useState<any>(null);
+    const [modalInfo, setModalInfo] = useState({ show: false, title: '', message: '', isSuccess: false });
 
-  try {
-    // Update Status menjadi SIAP_PENOMORAN / MENUNGGU_ARSIP
-    // Tidak menginput Nomor SK di sini
-    await db.collection('dokumen').updateOne(
-        { _id: objectId },
-        { 
-            $set: { 
-                status: 'SIAP_PENOMORAN', // Status baru agar muncul di menu Pengarsipan
-                posisi_dokumen: 'Pengarsipan/Tata Usaha',
-                tanggal_risalah: tanggal,
-                catatan_verifikasi: catatan
+    // Sesuai dengan route.ts kamu (Tahap G)
+    const [formData, setFormData] = useState({
+        tanggalPembuatanRisalah: '',
+    });
+
+    useEffect(() => {
+        const fetchDocData = async () => {
+            try {
+                const res = await fetch('/api/record/list'); 
+                const result = await res.json();
+
+                if (result.success) {
+                    const currentDoc = result.data.find((d: any) => d.noUrut === parseInt(id));
+                    if (currentDoc) setDocInfo(currentDoc);
+                    else setModalInfo({ show: true, title: 'Data Tidak Ditemukan', message: 'Dokumen ini tidak ada di database.', isSuccess: false });
+                }
+            } catch (error) {
+                console.error("Gagal mengambil data:", error);
+            } finally {
+                setLoadingData(false);
             }
-        }
-    );
+        };
+        if (id) fetchDocData();
+    }, [id]);
 
-  } catch (error) {
-    console.error("Gagal verifikasi:", error);
-    throw new Error("Database error");
-  }
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setFormData({ ...formData, [e.target.name]: e.target.value });
+    };
 
-  // Refresh dan kembali ke tabel antrian
-  revalidatePath('/verifikasi');
-  redirect('/verifikasi');
-}
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setSubmitLoading(true);
 
-// --- DATA FETCHING ---
-async function getDocById(id: string) {
-  const db = await getDb();
-  try {
-    if (!ObjectId.isValid(id)) return null;
-    const doc = await db.collection('dokumen').findOne({ _id: new ObjectId(id) });
-    return doc;
-  } catch (e) {
-    return null;
-  }
-}
+        try {
+            const payload = {
+                noUrut: parseInt(id),
+                tanggalPembuatanRisalah: formData.tanggalPembuatanRisalah,
+            };
 
-// --- HALAMAN UTAMA ---
-export default async function HalamanDetailVerifikasi({ params }: { params: { id: string } }) {
-  const doc = await getDocById(params.id);
-
-  if (!doc) {
-    return (
-      <div className="p-10 text-center text-red-500">
-        Dokumen tidak ditemukan. <Link href="/verifikasi" className="underline">Kembali</Link>
-      </div>
-    );
-  }
-
-  return (
-    <div className="min-h-screen bg-gray-50 p-8 font-sans">
-      <div className="max-w-4xl mx-auto">
-        
-        {/* Tombol Kembali */}
-        <Link href="/verifikasi" className="flex items-center text-gray-500 hover:text-blue-600 mb-6 w-fit transition">
-          <ArrowLeft size={18} className="mr-2" /> Kembali ke Antrian
-        </Link>
-
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-800">Verifikasi Akhir (Risalah)</h1>
-          <p className="text-gray-500 text-sm mt-1">
-            Verifikasi kelengkapan pasca perbaikan sebelum dokumen diteruskan ke bagian Arsip untuk penomoran SK.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            // Menembak endpoint tahap 'g' untuk Risalah
+            const response = await api.post('/api/submit/g', payload);
             
-            {/* KOLOM KIRI: INFO DOKUMEN (READ ONLY) */}
-            <div className="md:col-span-2 space-y-6">
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                    <h3 className="font-bold text-gray-700 border-b pb-3 mb-4 flex items-center gap-2">
-                        <FileText size={18}/> Informasi Dokumen
-                    </h3>
-                    
-                    <div className="space-y-4">
-                        <div>
-                            <label className="text-xs font-bold text-gray-400 uppercase">Pemrakarsa</label>
-                            <div className="font-medium text-gray-800 text-lg">{doc.pemrakarsa}</div>
-                        </div>
-                        <div>
-                            <label className="text-xs font-bold text-gray-400 uppercase">Kegiatan</label>
-                            <div className="text-gray-700">{doc.kegiatan}</div>
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <label className="text-xs font-bold text-gray-400 uppercase">No. Registrasi</label>
-                                <div className="font-mono text-blue-600 bg-blue-50 px-2 py-1 rounded w-fit text-sm">
-                                    {doc.no_registrasi}
-                                </div>
-                            </div>
-                            <div>
-                                <label className="text-xs font-bold text-gray-400 uppercase">Tanggal Masuk</label>
-                                <div className="text-gray-600 text-sm">
-                                    {doc.tanggal_masuk ? new Date(doc.tanggal_masuk).toLocaleDateString('id-ID') : '-'}
-                                </div>
-                            </div>
-                        </div>
+            setModalInfo({
+                show: true,
+                title: 'Berhasil Disimpan',
+                message: `Berita Acara Risalah (RPD) berhasil diterbitkan! Nomor: ${response.data.generatedNomor}`,
+                isSuccess: true
+            });
+
+            setTimeout(() => { router.push('/risalah-pengolah'); }, 2500);
+        } catch (error: any) {
+            setModalInfo({ show: true, title: 'Gagal Menyimpan', message: error.response?.data?.message || 'Error server.', isSuccess: false });
+        } finally {
+            setSubmitLoading(false);
+        }
+    };
+
+    if (loadingData) return <div className="min-h-screen flex items-center justify-center bg-gray-50"><Loader2 className="animate-spin w-10 h-10 text-rose-600 mb-3" /></div>;
+
+    return (
+        <div className="p-6 max-w-4xl mx-auto my-8">
+            <button onClick={() => router.back()} className="flex items-center gap-2 text-gray-500 hover:text-rose-600 font-medium mb-6 transition-colors">
+                <ArrowLeft size={20} /> Kembali ke Daftar Risalah
+            </button>
+
+            <div className="bg-white shadow-lg rounded-xl border border-gray-100 overflow-hidden">
+                <div className="bg-rose-600 p-6 text-white flex items-center gap-4">
+                    <div className="p-3 bg-white/20 rounded-lg"><FileCheck size={28} /></div>
+                    <div>
+                        <h1 className="text-2xl font-bold">Input Risalah Pengolah</h1>
+                        <p className="text-rose-100 text-sm mt-1">Tahap G: Penerbitan Berita Acara Risalah Pengolahan Dokumen (RPD)</p>
                     </div>
                 </div>
 
-                {/* Info Riwayat Perbaikan (Opsional, visual saja) */}
-                <div className="bg-blue-50 rounded-xl border border-blue-100 p-6">
-                    <div className="flex items-start gap-3">
-                        <CheckCircle className="text-blue-600 mt-1" size={20} />
-                        <div>
-                            <h4 className="font-bold text-blue-800">Status: Perbaikan Selesai</h4>
-                            <p className="text-sm text-blue-600 mt-1">
-                                Dokumen ini telah melalui proses perbaikan dan dinyatakan lengkap secara substansi. 
-                                Lanjutkan untuk memberikan persetujuan penerbitan SK.
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* KOLOM KANAN: FORM PERSETUJUAN */}
-            <div className="md:col-span-1">
-                <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6 sticky top-8">
-                    <h3 className="font-bold text-gray-800 mb-4">Form Persetujuan</h3>
-                    
-                    <form action={submitVerifikasi} className="space-y-4">
-                        <input type="hidden" name="id" value={params.id} />
-
-                        <div>
-                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">
-                                Tanggal Verifikasi/Risalah
-                            </label>
-                            <div className="relative">
-                                <input 
-                                    type="date" 
-                                    name="tanggal"
-                                    required
-                                    className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
-                                />
-                                <Calendar className="absolute right-3 top-2.5 text-gray-400 pointer-events-none" size={16}/>
+                <div className="p-8">
+                    {docInfo && (
+                        <div className="bg-rose-50/50 border border-rose-100 rounded-xl p-5 mb-8 flex gap-4 items-start">
+                            <Info className="text-rose-500 shrink-0 mt-1" />
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-y-3 gap-x-8 w-full">
+                                <div><span className="text-xs font-bold text-gray-500 uppercase">Nama Kegiatan</span><p className="font-semibold text-gray-800">{docInfo.namaKegiatan}</p></div>
+                                <div><span className="text-xs font-bold text-gray-500 uppercase">Pemrakarsa</span><p className="font-semibold text-gray-800">{docInfo.namaPemrakarsa}</p></div>
+                                <div><span className="text-xs font-bold text-gray-500 uppercase">No. Checklist DLH</span><p className="font-mono text-sm text-gray-700 font-medium">{docInfo.nomorChecklist || '-'}</p></div>
+                                <div><span className="text-xs font-bold text-gray-500 uppercase">Status Saat Ini</span><p><span className="inline-block mt-1 px-2 py-1 bg-yellow-100 text-yellow-800 text-xs font-bold rounded">{docInfo.statusTerakhir || 'PROSES'}</span></p></div>
                             </div>
                         </div>
+                    )}
 
-                        <div>
-                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">
-                                Catatan (Opsional)
-                            </label>
-                            <textarea 
-                                name="catatan"
-                                rows={3}
-                                placeholder="Catatan untuk bagian pengarsipan..."
-                                className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
-                            ></textarea>
+                    <form onSubmit={handleSubmit} className="space-y-6 animate-fade-in">
+                        <div className="w-full md:w-1/2">
+                            <label className="block text-sm font-bold mb-2 text-gray-700">Tanggal Pembuatan Risalah <span className="text-red-500">*</span></label>
+                            <input type="date" name="tanggalPembuatanRisalah" className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-400 outline-none transition-all" value={formData.tanggalPembuatanRisalah} onChange={handleChange} required />
+                            <p className="text-xs text-gray-500 mt-2">Nomor urut surat Risalah (RPD) akan otomatis di-generate.</p>
                         </div>
 
-                        <div className="pt-2">
-                            <button 
-                                type="submit"
-                                className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg shadow transition flex justify-center items-center gap-2"
-                            >
-                                <CheckCircle size={18} />
-                                Setujui & Kirim ke Arsip
+                        <div className="flex justify-end pt-6 border-t border-gray-100">
+                            <button type="submit" disabled={submitLoading} className="bg-rose-600 hover:bg-rose-700 text-white px-8 py-3 rounded-xl font-bold text-lg shadow-lg flex items-center gap-2 transition-all disabled:opacity-50">
+                                {submitLoading ? 'Menyimpan...' : <><Save size={20} /> Simpan BA Risalah</>}
                             </button>
-                            <p className="text-xs text-gray-400 text-center mt-3">
-                                Dokumen akan berpindah ke menu Pengarsipan untuk penomoran SK.
-                            </p>
                         </div>
                     </form>
                 </div>
             </div>
 
+            <Modal show={modalInfo.show} title={modalInfo.title} onClose={() => setModalInfo({ ...modalInfo, show: false })}>
+                <div className="flex flex-col items-center justify-center p-4">
+                    {modalInfo.isSuccess ? <CheckCircle size={50} className="text-green-500 mb-4 animate-bounce" /> : <div className="text-red-500 mb-4 text-4xl">⚠️</div>}
+                    <p className="text-center text-gray-700 font-medium">{modalInfo.message}</p>
+                </div>
+            </Modal>
         </div>
-      </div>
-    </div>
-  );
+    );
 }

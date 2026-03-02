@@ -1,136 +1,143 @@
+'use client';
+
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { getDb } from '@/lib/db';
-import { FileText } from 'lucide-react';
+import { FileCheck, CheckCircle, Clock, Loader2, AlertCircle } from 'lucide-react'; 
 
-// Agar halaman selalu refresh data terbaru
-export const dynamic = 'force-dynamic';
+interface Dokumen {
+    _id: string;
+    noUrut: number;
+    nomorChecklist: string;
+    namaPemrakarsa: string;
+    namaKegiatan: string;
+    jenisDokumen: string;
+    tanggalMasukDokumen: string;
+    tahun?: string | number;
+    nomorRisalah?: string; 
+}
 
-export default async function VerifikasiPage() {
-  const db = await getDb();
+export default function RisalahPengolahPage() {
+    const [dataDokumen, setDataDokumen] = useState<Dokumen[]>([]);
+    const [loading, setLoading] = useState(true);
+    
+    const [selectedYear, setSelectedYear] = useState<string>('');
+    const [availableYears, setAvailableYears] = useState<string[]>([]);
 
-  // --- QUERY DATABASE ---
-  const dataDokumen = await db.collection('dokumen')
-    .find({}) 
-    .sort({ noUrut: -1 }) 
-    .limit(100) 
-    .toArray();
-
-  return (
-    <div className="bg-gray-50 min-h-screen p-8">
-      <div className="max-w-7xl mx-auto">
-        
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-800">Verifikasi Akhir</h1>
-          <p className="text-gray-500 text-sm">
-            Menampilkan data dari yang terbaru ke yang lama.
-          </p>
-        </div>
-
-        <div className="bg-white rounded-xl shadow border border-gray-200 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm text-gray-600">
-              <thead className="bg-gray-50 text-gray-700 uppercase text-xs font-bold">
-                <tr>
-                  <th className="px-6 py-3 min-w-[180px]">No. Registrasi</th>
-                  <th className="px-6 py-3 min-w-[250px]">Pemrakarsa / Kegiatan</th>
-                  <th className="px-6 py-3">No. Risalah (RPD)</th>
-                  <th className="px-6 py-3">Status Saat Ini</th>
-                  <th className="px-6 py-3 text-center">Aksi</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
+    useEffect(() => {
+        const fetchData = async () => {
+            setLoading(true);
+            try {
+                const res = await fetch('/api/record/list'); 
+                const result = await res.json();
                 
-                {dataDokumen.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="px-6 py-10 text-center text-gray-400">
-                      Database Kosong.
-                    </td>
-                  </tr>
-                ) : (
-                  dataDokumen.map((doc: any) => {
-                    // --- 1. DATA DASAR ---
-                    const nama = doc.namaPemrakarsa || doc.pemrakarsa || doc.nama_pemrakarsa || "Tanpa Nama";
-                    const kegiatan = doc.namaKegiatan || doc.judul_kegiatan || doc.kegiatan || "-";
-                    const noReg = doc.nomorChecklist || doc.no_registrasi || doc.nomor_registrasi || ("Urut: " + doc.noUrut);
+                if (result.success) {
+                    const docs = result.data;
+                    setDataDokumen(docs);
+
+                    const yearsSet = new Set(docs.map((item: Dokumen) => {
+                        return item.tahun?.toString() || (item.tanggalMasukDokumen ? item.tanggalMasukDokumen.substring(0, 4) : new Date().getFullYear().toString());
+                    }));
                     
-                    // --- 2. DATA RPD ---
-                    const nomorRPD = doc.nomorRisalah || doc.no_risalah || doc.nomor_risalah || null;
-                    const isAdaRPD = !!nomorRPD; 
+                    const yearsArray = Array.from(yearsSet).sort().reverse() as string[];
+                    setAvailableYears(yearsArray);
+                    if (yearsArray.length > 0) setSelectedYear(yearsArray[0]);
+                }
+            } catch (error) {
+                console.error("Error fetching data:", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchData();
+    }, []);
 
-                    // --- 3. LOGIKA STATUS ---
-                    const isSelesai = !!doc.status || isAdaRPD;
-                    
-                    let statusText = doc.status;
-                    if (!statusText) {
-                        statusText = isAdaRPD ? "RPD TERBIT" : "BELUM DIPROSES";
-                    }
+    const filteredData = dataDokumen.filter((doc) => {
+        const docYear = doc.tahun?.toString() || (doc.tanggalMasukDokumen ? doc.tanggalMasukDokumen.substring(0, 4) : '');
+        return docYear === selectedYear;
+    });
 
-                    const statusClass = isSelesai
-                        ? "bg-green-100 text-green-800 border-green-300"
-                        : "bg-yellow-100 text-yellow-800 border-yellow-300";
+    return (
+        <div className="min-h-screen bg-gray-50 p-6 md:p-12">
+            <div className="mb-8 max-w-5xl mx-auto">
+                <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-3">
+                    <div className="p-2 bg-rose-600 rounded-lg shadow-md"><FileCheck className="text-white w-6 h-6" /></div>
+                    Risalah Pengolah (Tahap Akhir)
+                </h1>
+                <p className="text-gray-500 mt-2 ml-14">Tahap finalisasi dan penerbitan Berita Acara Risalah Pengolahan Dokumen.</p>
+            </div>
 
-                    return (
-                      <tr key={doc._id.toString()} className={`hover:bg-gray-50 transition-colors ${isSelesai ? 'bg-green-50/20' : ''}`}>
-                        
-                        {/* NO REGISTRASI - Align Middle */}
-                        <td className="px-6 py-4 align-middle">
-                            <div className="font-mono text-blue-700 font-bold text-xs">
-                                {noReg}
-                            </div>
-                            <div className="text-[10px] text-gray-400 mt-1">
-                                ID: {doc.noUrut}
-                            </div>
-                        </td>
-
-                        {/* PEMRAKARSA - Align Middle */}
-                        <td className="px-6 py-4 align-middle">
-                          <div className="font-bold text-gray-800 text-sm">{nama}</div>
-                          <div className="text-xs text-gray-500 mt-1">{kegiatan}</div>
-                        </td>
-
-                        {/* RPD (RISALAH) - Align Middle */}
-                        <td className="px-6 py-4 align-middle">
-                          {isAdaRPD ? (
-                            <div className="flex items-center gap-2 text-gray-700">
-                                <FileText className="w-4 h-4 text-purple-600 flex-shrink-0" />
-                                <span className="font-mono text-xs font-bold whitespace-nowrap text-purple-700">
-                                    {nomorRPD}
-                                </span>
-                            </div>
-                          ) : (
-                            <span className="text-gray-400 text-xs italic">- Belum Terbit -</span>
-                          )}
-                        </td>
-                        
-                        {/* STATUS - Align Middle */}
-                        <td className="px-6 py-4 align-middle">
-                          <span className={`px-2 py-1 rounded font-bold text-[10px] border inline-block whitespace-nowrap ${statusClass}`}>
-                            {statusText}
-                          </span>
-                        </td>
-
-                        {/* AKSI - Align Middle */}
-                        <td className="px-6 py-4 text-center align-middle">
-                          <Link 
-                            href={`/verifikasi-lapangan/${doc.noUrut}`} 
-                            className={`inline-block text-xs font-bold py-2 px-4 rounded transition-colors shadow-sm whitespace-nowrap ${
-                                isSelesai 
-                                ? "bg-white text-gray-700 border border-gray-300 hover:bg-gray-100" 
-                                : "bg-blue-600 text-white hover:bg-blue-700 border border-blue-600"
-                            }`}
-                          >
-                            {isSelesai ? 'Lihat Detail' : 'Proses'}
-                          </Link>
-                        </td>
-                      </tr>
-                    );
-                  })
+            <div className="max-w-5xl mx-auto">
+                {availableYears.length > 0 && !loading && (
+                    <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
+                        {availableYears.map((year) => (
+                            <button
+                                key={year}
+                                onClick={() => setSelectedYear(year)}
+                                className={`px-6 py-2.5 rounded-full font-bold text-sm transition-all whitespace-nowrap border-2 ${
+                                    selectedYear === year ? 'bg-rose-600 text-white border-rose-600 shadow-md' : 'bg-white text-gray-500 border-gray-200 hover:border-rose-300 hover:text-rose-700'
+                                }`}
+                            >
+                                Tahun {year}
+                            </button>
+                        ))}
+                    </div>
                 )}
-              </tbody>
-            </table>
-          </div>
+
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                    {loading ? (
+                        <div className="flex flex-col items-center justify-center p-12 text-rose-600">
+                            <Loader2 className="animate-spin w-8 h-8 mb-2" /><span className="text-sm">Memuat daftar risalah...</span>
+                        </div>
+                    ) : filteredData.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center p-12 text-gray-400">
+                            <AlertCircle className="w-10 h-10 mb-3 opacity-50" /><p>Tidak ada dokumen terdaftar pada tahun {selectedYear}.</p>
+                        </div>
+                    ) : (
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left text-sm">
+                                <thead className="bg-rose-50 text-rose-900 font-semibold border-b border-rose-100">
+                                    <tr>
+                                        <th className="p-4 w-16 text-center">No Urut</th>
+                                        <th className="p-4">Jenis & Judul</th>
+                                        <th className="p-4">Pemrakarsa</th>
+                                        <th className="p-4">Status Risalah</th>
+                                        <th className="p-4 text-center w-32">Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-100">
+                                    {filteredData.map((doc) => (
+                                        <tr key={doc._id} className="hover:bg-rose-50/30 transition-colors">
+                                            <td className="p-4 text-center font-mono text-gray-500 bg-gray-50/50">{doc.noUrut}</td>
+                                            <td className="p-4">
+                                                <div className="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-700 mb-1">{doc.jenisDokumen}</div>
+                                                <div className="font-medium text-gray-800 line-clamp-2">{doc.namaKegiatan || "(Tanpa Judul)"}</div>
+                                                <div className="font-mono text-xs text-gray-400 mt-1">{doc.nomorChecklist}</div>
+                                            </td>
+                                            <td className="p-4 text-gray-600 font-medium">{doc.namaPemrakarsa || "-"}</td>
+                                            <td className="p-4">
+                                                {doc.nomorRisalah ? (
+                                                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">
+                                                        <CheckCircle className="w-3 h-3" /> Risalah Selesai
+                                                    </span>
+                                                ) : (
+                                                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800 border border-orange-200 animate-pulse">
+                                                        <Clock className="w-3 h-3" /> Menunggu Input
+                                                    </span>
+                                                )}
+                                            </td>
+                                            <td className="p-4 text-center">
+                                                <Link href={`/risalah-pengolah/${doc.noUrut}`} className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all shadow-sm ${doc.nomorRisalah ? 'bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-300' : 'bg-rose-600 hover:bg-rose-700 text-white'}`}>
+                                                    <FileCheck size={14} /> {doc.nomorRisalah ? 'Detail' : 'Input Risalah'}
+                                                </Link>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </div>
+            </div>
         </div>
-      </div>
-    </div>
-  );
+    );
 }
