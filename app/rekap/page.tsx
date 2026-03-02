@@ -8,7 +8,10 @@ import dynamic from 'next/dynamic';
 interface Dokumen {
     _id: string;
     noUrut: number;
-    nomorChecklist: string; // SEKARANG MURNI UNIVERSAL
+    nomorChecklist: string; 
+    nomorSuratPermohonan?: string; 
+    tanggalSuratPermohonan?: string; 
+    perihalSuratPermohonan?: string; 
     namaKegiatan: string;
     jenisKegiatan?: string; 
     lokasiKegiatan?: string; 
@@ -46,6 +49,11 @@ function TableContent({ rekapData }: { rekapData: Dokumen[] }) {
                         <th>Pemrakarsa</th>
                         <th>Nama Konsultan</th>
                         <th>Tgl Masuk</th>
+                        {/* PENAMBAHAN KOLOM SURAT */}
+                        <th>No. Surat Permohonan</th>
+                        <th>Tgl. Surat</th>
+                        <th>Perihal Surat</th>
+                        {/* ---------------------- */}
                         <th>No. BA Uji Admin</th><th>Tgl. Uji Admin</th><th>No. BA Verlap</th><th>Tgl. Verlap</th><th>No. BA Pemeriksaan</th><th>Tgl. Pemeriksaan</th>
                         <th>No. Revisi 1</th><th>Tgl. Revisi 1</th><th>No. Revisi 2</th><th>Tgl. Revisi 2</th><th>No. Revisi 3</th><th>Tgl. Revisi 3</th><th>No. Revisi 4</th><th>Tgl. Revisi 4</th><th>No. Revisi 5</th><th>Tgl. Revisi 5</th>
                         <th>No. PHP</th><th>Tgl. PHP</th><th>Petugas Penerima</th>
@@ -64,6 +72,11 @@ function TableContent({ rekapData }: { rekapData: Dokumen[] }) {
                             <td>{doc.namaPemrakarsa}</td>
                             <td>{doc.namaKonsultan || '-'}</td>
                             <td>{doc.tanggalMasukDokumen}</td>
+                            
+                            {/* PENAMBAHAN DATA SURAT */}
+                            <td>{doc.nomorSuratPermohonan || '-'}</td>
+                            <td>{doc.tanggalSuratPermohonan || '-'}</td>
+                            <td>{doc.perihalSuratPermohonan || '-'}</td>
                             
                             <td>{doc.nomorUjiBerkas || '-'}</td><td>{doc.tanggalUjiBerkas}</td><td>{doc.nomorBAVerlap || '-'}</td><td>{doc.tanggalVerlap}</td><td>{doc.nomorBAPemeriksaan || '-'}</td><td>{doc.tanggalPemeriksaan}</td>
                             <td>{doc.nomorRevisi1 || '-'}</td><td>{doc.tanggalRevisi1}</td><td>{doc.nomorRevisi2 || '-'}</td><td>{doc.tanggalRevisi2}</td><td>{doc.nomorRevisi3 || '-'}</td><td>{doc.tanggalRevisi3}</td><td>{doc.nomorRevisi4 || '-'}</td><td>{doc.tanggalRevisi4}</td><td>{doc.nomorRevisi5 || '-'}</td><td>{doc.tanggalRevisi5}</td>
@@ -121,7 +134,7 @@ export default function RekapTabelPage() {
 
         const dataToExport = filteredData.map(doc => ({
             "No. Urut": doc.noUrut, 
-            "No. Checklist": doc.nomorChecklist, 
+            "No. Checklist / Amdalnet": doc.nomorChecklist || '-', 
             "Nama Kegiatan": doc.namaKegiatan, 
             "Jenis Kegiatan": doc.jenisKegiatan || '-',
             "Lokasi Kegiatan": doc.lokasiKegiatan || '-',
@@ -129,6 +142,9 @@ export default function RekapTabelPage() {
             "Nama Pemrakarsa": doc.namaPemrakarsa, 
             "Nama Konsultan": doc.namaKonsultan || '-',
             "Tanggal Masuk": doc.tanggalMasukDokumen, 
+            "No. Surat Permohonan": doc.nomorSuratPermohonan || '-',
+            "Tgl. Surat": doc.tanggalSuratPermohonan || '-',
+            "Perihal Surat": doc.perihalSuratPermohonan || '-',
             "No. BA Uji Administrasi": doc.nomorUjiBerkas, "Tgl. BA Uji Administrasi": doc.tanggalUjiBerkas, 
             "No. BA Verifikasi Lapangan": doc.nomorBAVerlap, "Tgl. Verifikasi Lapangan": doc.tanggalVerlap, 
             "No. BA Pemeriksaan Berkas": doc.nomorBAPemeriksaan, "Tgl. Pemeriksaan Berkas": doc.tanggalPemeriksaan, 
