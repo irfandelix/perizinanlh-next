@@ -9,7 +9,7 @@ import api from '@/lib/api';
 export default function FormPemeriksaanSubstansi() {
     const params = useParams();
     const router = useRouter();
-    const noUrut = params.noUrut as string;
+    const id = params.id as string;
 
     const [loadingData, setLoadingData] = useState(true);
     const [submitLoading, setSubmitLoading] = useState(false);
@@ -23,20 +23,22 @@ export default function FormPemeriksaanSubstansi() {
     useEffect(() => {
         const fetchDocData = async () => {
             try {
-                const response = await api.get('/api/rekap');
-                const allDocs = response.data.data;
-                const currentDoc = allDocs.find((d: any) => d.noUrut === parseInt(noUrut));
+                const res = await fetch('/api/record/list'); 
+                const result = await res.json();
 
-                if (currentDoc) setDocInfo(currentDoc);
-                else setModalInfo({ show: true, title: 'Data Tidak Ditemukan', message: 'Dokumen ini tidak ada.', isSuccess: false });
+                if (result.success) {
+                    const currentDoc = result.data.find((d: any) => d.noUrut === parseInt(id));
+                    if (currentDoc) setDocInfo(currentDoc);
+                    else setModalInfo({ show: true, title: 'Data Tidak Ditemukan', message: 'Dokumen ini tidak ada di database.', isSuccess: false });
+                }
             } catch (error) {
                 console.error("Gagal mengambil data:", error);
             } finally {
                 setLoadingData(false);
             }
         };
-        if (noUrut) fetchDocData();
-    }, [noUrut]);
+        if (id) fetchDocData();
+    }, [id]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -48,7 +50,7 @@ export default function FormPemeriksaanSubstansi() {
 
         try {
             const payload = {
-                noUrut: parseInt(noUrut),
+                noUrut: parseInt(id),
                 tanggalPemeriksaan: formData.tanggalPemeriksaan,
             };
 
@@ -93,7 +95,7 @@ export default function FormPemeriksaanSubstansi() {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-y-3 gap-x-8 w-full">
                                 <div><span className="text-xs font-bold text-gray-500 uppercase">Nama Kegiatan</span><p className="font-semibold text-gray-800">{docInfo.namaKegiatan}</p></div>
                                 <div><span className="text-xs font-bold text-gray-500 uppercase">Pemrakarsa</span><p className="font-semibold text-gray-800">{docInfo.namaPemrakarsa}</p></div>
-                                <div><span className="text-xs font-bold text-gray-500 uppercase">Tgl & No. BA Verlap (Selesai)</span><p className="font-semibold text-green-700">{docInfo.nomorBAVerlap} {docInfo.tanggalVerlap ? `(${docInfo.tanggalVerlap})` : ''}</p></div>
+                                <div><span className="text-xs font-bold text-gray-500 uppercase">Tgl & No. BA Verlap</span><p className="font-semibold text-green-700">{docInfo.nomorBAVerlap} {docInfo.tanggalVerlap ? `(${docInfo.tanggalVerlap})` : ''}</p></div>
                                 <div><span className="text-xs font-bold text-gray-500 uppercase">Status Saat Ini</span><p><span className="inline-block mt-1 px-2 py-1 bg-yellow-100 text-yellow-800 text-xs font-bold rounded">{docInfo.statusTerakhir || 'PROSES'}</span></p></div>
                             </div>
                         </div>

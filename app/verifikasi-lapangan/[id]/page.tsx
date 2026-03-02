@@ -9,7 +9,7 @@ import api from '@/lib/api';
 export default function FormVerifikasiLapangan() {
     const params = useParams();
     const router = useRouter();
-    const noUrut = params.noUrut as string;
+    const id = params.id as string; // Menangkap [id] dari URL
 
     const [loadingData, setLoadingData] = useState(true);
     const [submitLoading, setSubmitLoading] = useState(false);
@@ -23,20 +23,22 @@ export default function FormVerifikasiLapangan() {
     useEffect(() => {
         const fetchDocData = async () => {
             try {
-                const response = await api.get('/api/rekap');
-                const allDocs = response.data.data;
-                const currentDoc = allDocs.find((d: any) => d.noUrut === parseInt(noUrut));
+                const res = await fetch('/api/record/list'); 
+                const result = await res.json();
 
-                if (currentDoc) setDocInfo(currentDoc);
-                else setModalInfo({ show: true, title: 'Data Tidak Ditemukan', message: 'Dokumen ini tidak ada.', isSuccess: false });
+                if (result.success) {
+                    const currentDoc = result.data.find((d: any) => d.noUrut === parseInt(id));
+                    if (currentDoc) setDocInfo(currentDoc);
+                    else setModalInfo({ show: true, title: 'Data Tidak Ditemukan', message: 'Dokumen ini tidak ada di database.', isSuccess: false });
+                }
             } catch (error) {
                 console.error("Gagal mengambil data:", error);
             } finally {
                 setLoadingData(false);
             }
         };
-        if (noUrut) fetchDocData();
-    }, [noUrut]);
+        if (id) fetchDocData();
+    }, [id]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -48,7 +50,7 @@ export default function FormVerifikasiLapangan() {
 
         try {
             const payload = {
-                noUrut: parseInt(noUrut),
+                noUrut: parseInt(id),
                 tanggalVerlap: formData.tanggalVerlap,
             };
 
