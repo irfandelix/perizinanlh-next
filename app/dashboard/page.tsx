@@ -1,231 +1,236 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Search, Bell, Calendar, FileText, CheckCircle, Clock, AlertTriangle, Download, ArrowRight, Leaf } from 'lucide-react';
+import { 
+    LayoutDashboard, FileText, MapPin, BookOpen, 
+    FileEdit, FileCheck, Loader2, ArrowRight, Activity, Clock, CalendarDays
+} from 'lucide-react';
 
-export default function DashboardUIPreview() {
-  const [selectedYear, setSelectedYear] = useState('2025');
+interface Dokumen {
+    _id: string;
+    noUrut: number;
+    nomorChecklist: string;
+    namaPemrakarsa: string;
+    namaKegiatan: string;
+    jenisDokumen: string;
+    tanggalMasukDokumen: string;
+    statusTerakhir: string;
+    nomorUjiBerkas?: string; 
+    nomorBAVerlap?: string;     
+    nomorBAPemeriksaan?: string; 
+    nomorPHP?: string;
+    nomorRisalah?: string;
+}
 
-  // --- DATA DUMMY (WARNA SUDAH DISERAGAMKAN: HIJAU & ORANYE) ---
-  const stats = [
-    // Dokumen Masuk: Ganti Blue -> Emerald (Hijau Segar)
-    { label: "Dokumen Masuk", value: 150, icon: FileText, bg: "bg-emerald-50", text: "text-emerald-600", border: "border-emerald-200" },
-    // Sedang Proses: Tetap Oranye
-    { label: "Sedang Proses", value: 45, icon: Clock, bg: "bg-orange-50", text: "text-orange-600", border: "border-orange-200" },
-    // Selesai: Tetap Hijau
-    { label: "Selesai (Izin Terbit)", value: 85, icon: CheckCircle, bg: "bg-green-50", text: "text-green-600", border: "border-green-200" },
-    // Dikembalikan: Merah (Standar Error/Warning)
-    { label: "Dikembalikan", value: 20, icon: AlertTriangle, bg: "bg-red-50", text: "text-red-600", border: "border-red-200" },
-  ];
+export default function DashboardPage() {
+    const [dataDokumen, setDataDokumen] = useState<Dokumen[]>([]);
+    const [loading, setLoading] = useState(true);
 
-  const docTypes = [
-    { label: 'SPPL', count: 80, percent: 60, color: 'bg-green-500' }, // Hijau
-    { label: 'UKL-UPL', count: 45, percent: 35, color: 'bg-orange-500' }, // Oranye
-    { label: 'AMDAL', count: 5, percent: 10, color: 'bg-emerald-600' }, // Ganti Blue -> Emerald
-    { label: 'DELH', count: 10, percent: 15, color: 'bg-lime-500' }, // Lime (Hijau Muda)
-  ];
+    const [stats, setStats] = useState({
+        total: 0,
+        ujiAdmin: 0,
+        verlap: 0,
+        substansi: 0,
+        revisi: 0,
+        selesai: 0
+    });
 
-  return (
-    <div className="min-h-screen bg-[#f8fafc] text-slate-800 font-sans p-6 md:p-8">
-      
-      {/* --- HEADER --- */}
-      <header className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
-        <div>
-          <h1 className="text-3xl font-extrabold text-green-800 tracking-tight flex items-center gap-2">
-            <Leaf className="text-orange-500" size={28} />
-            Dashboard Monitoring
-          </h1>
-          <p className="text-slate-500 text-sm mt-1">Sistem Informasi Pelayanan Dokumen Lingkungan Hidup Kab. Sragen</p>
-        </div>
-
-        <div className="flex items-center gap-4 bg-white p-2 rounded-xl border border-slate-200 shadow-sm">
-            {/* Filter Tahun */}
-            <div className="relative inline-block text-left">
-                <select 
-                    className="
-                        bg-white 
-                        border border-slate-200 
-                        text-slate-700 
-                        font-semibold 
-                        py-1.5 
-                        pl-3 pr-8 // Ruang untuk panah
-                        rounded-xl 
-                        shadow-sm 
-                        appearance-none // Hapus panah default browser
-                        focus:outline-none 
-                        focus:ring-2 
-                        focus:ring-green-500/50 
-                        transition duration-150
-                        cursor-pointer
-                    "
-                    defaultValue="2025" // Atau state yang sesuai
-                >
-                    <option value="2025">2025</option>
-                    <option value="2024">2024</option>
-                    <option value="2023">2023</option>
-                </select>
+    useEffect(() => {
+        const fetchData = async () => {
+            setLoading(true);
+            try {
+                const res = await fetch('/api/record/list'); 
+                const result = await res.json();
                 
-                {/* Ikon Panah Kustom (Penting karena kita menghilangkan appearance-none) */}
-                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
-                    <svg className="h-4 w-4 text-slate-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                    </svg>
-                </div>
-            </div>
+                if (result.success) {
+                    const docs: Dokumen[] = result.data;
+                    
+                    const sortedDocs = docs.sort((a, b) => b.noUrut - a.noUrut);
+                    setDataDokumen(sortedDocs);
 
-            {/* Notifikasi */}
-            <div className="p-2 bg-orange-50 rounded-lg relative cursor-pointer hover:bg-orange-100 transition text-orange-600">
-                <Bell size={20} />
-                <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full animate-pulse border border-white"></span>
+                    let ujiAdmin = 0, verlap = 0, substansi = 0, revisi = 0, selesai = 0;
+
+                    docs.forEach(doc => {
+                        if (doc.nomorRisalah) selesai++;
+                        else if (doc.nomorBAPemeriksaan && !doc.nomorPHP) revisi++;
+                        else if (doc.nomorBAVerlap && !doc.nomorBAPemeriksaan) substansi++;
+                        else if (doc.nomorUjiBerkas && !doc.nomorBAVerlap) verlap++;
+                        else if (!doc.nomorUjiBerkas) ujiAdmin++;
+                    });
+
+                    setStats({ total: docs.length, ujiAdmin, verlap, substansi, revisi, selesai });
+                }
+            } catch (error) {
+                console.error("Error fetching data:", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchData();
+    }, []);
+
+    const StatCard = ({ title, count, icon: Icon, colorClass, bgIconClass, link }: any) => (
+        <Link href={link} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md hover:border-gray-300 transition-all group flex items-center justify-between">
+            <div>
+                <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">{title}</p>
+                <h3 className="text-3xl font-extrabold text-gray-800 group-hover:scale-105 transition-transform transform origin-left">{count}</h3>
             </div>
+            <div className={`p-4 rounded-full ${bgIconClass} ${colorClass} transition-colors`}>
+                <Icon size={26} strokeWidth={2.5} />
+            </div>
+        </Link>
+    );
+
+    // Data SOP / Batas Waktu Pelayanan
+    const slaSteps = [
+        { label: "Uji Administrasi", days: "3 Hari Kerja", color: "bg-orange-500", border: "border-orange-500" },
+        { label: "Penjadwalan Rapat/Verlap", days: "5 Hari Kerja", color: "bg-green-500", border: "border-green-500" },
+        { label: "Perbaikan oleh Pemrakarsa", days: "5 Hari Kerja", color: "bg-yellow-500", border: "border-yellow-500" },
+        { label: "Pasca Sidang & Masukan", days: "5 Hari Kerja", color: "bg-indigo-500", border: "border-indigo-500" },
+        { label: "Penyusunan RPD", days: "5 Hari Kerja", color: "bg-blue-500", border: "border-blue-500" },
+        { label: "Penerbitan PKPLH", days: "5 Hari Kerja", color: "bg-emerald-500", border: "border-emerald-500" },
+    ];
+
+    if (loading) {
+        return (
+            <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50/50">
+                <Loader2 className="animate-spin w-12 h-12 text-blue-600 mb-4" />
+                <p className="text-gray-500 font-medium">Menyiapkan Dashboard...</p>
+            </div>
+        );
+    }
+
+    return (
+        <div className="min-h-screen bg-[#f8fafc] p-6 md:p-10 font-sans">
             
-            {/* Search */}
-            <div className="p-2 text-slate-400 hover:text-green-600 cursor-pointer">
-                <Search size={20} />
-            </div>
-        </div>
-      </header>
-
-      {/* --- QUICK STATS GRID --- */}
-      <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-        {stats.map((item, index) => (
-            <div key={index} className={`bg-white p-6 rounded-2xl border ${item.border} shadow-sm hover:shadow-md transition-all duration-300 group`}>
-                <div className="flex justify-between items-start mb-4">
-                    <div className={`p-3 rounded-xl ${item.bg}`}>
-                        <item.icon className={`w-6 h-6 ${item.text}`} />
-                    </div>
-                </div>
-                <h3 className="text-4xl font-extrabold text-slate-800 mb-1">{item.value}</h3>
-                <p className="text-slate-500 text-sm font-medium">{item.label}</p>
-            </div>
-        ))}
-      </section>
-
-      {/* --- MAIN CONTENT GRID --- */}
-      <section className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        
-        {/* KOLOM KIRI: MENU CEPAT (2/3 Lebar) */}
-        <div className="lg:col-span-2 space-y-8">
-            
-            {/* Action Cards */}
-            <div className="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm">
-                <h3 className="text-xl font-bold text-slate-800 mb-6 flex items-center">
-                    <span className="w-1 h-6 bg-orange-500 rounded-full mr-3"></span>
-                    Menu Cepat
-                </h3>
-                
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {/* 1. PENYERAHAN KEMBALI (Ganti Blue -> Orange/Green) */}
-                    <Link href="/pengembalian" className="group">
-                        <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 hover:border-orange-500 hover:bg-orange-50 transition-all cursor-pointer h-full flex flex-col justify-between">
-                            <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center mb-4 shadow-sm border border-slate-100 group-hover:scale-110 transition">
-                                <ArrowRight className="text-orange-500 w-6 h-6" />
-                            </div>
-                            <div>
-                                <h4 className="font-bold text-slate-800 mb-1 group-hover:text-orange-700">Penyerahan Kembali</h4>
-                                <p className="text-xs text-slate-500">Kembalikan ke Pemrakarsa</p>
-                            </div>
+            {/* HEADER */}
+            <div className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-4">
+                <div>
+                    <h1 className="text-3xl font-extrabold text-gray-800 tracking-tight flex items-center gap-3">
+                        <div className="p-2 bg-blue-600 rounded-xl shadow-md shadow-blue-200">
+                            <LayoutDashboard className="text-white w-6 h-6" />
                         </div>
-                    </Link>
-
-                    {/* 2. INPUT PHP (Green) */}
-                    <Link href="/penerimaan" className="group">
-                        <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 hover:border-green-500 hover:bg-green-50 transition-all cursor-pointer h-full flex flex-col justify-between">
-                            <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center mb-4 shadow-sm border border-slate-100 group-hover:scale-110 transition">
-                                <FileText className="text-green-600 w-6 h-6" />
-                            </div>
-                            <div>
-                                <h4 className="font-bold text-slate-800 mb-1 group-hover:text-green-700">Input PHP</h4>
-                                <p className="text-xs text-slate-500">Penerimaan Hasil Perbaikan</p>
-                            </div>
-                        </div>
-                    </Link>
-
-                    {/* 3. REKAP DATA (Ganti Blue -> Emerald) */}
-                    <Link href="/rekap" className="group">
-                        <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 hover:border-emerald-500 hover:bg-emerald-50 transition-all cursor-pointer h-full flex flex-col justify-between">
-                            <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center mb-4 shadow-sm border border-slate-100 group-hover:scale-110 transition">
-                                <Download className="text-emerald-600 w-6 h-6" />
-                            </div>
-                            <div>
-                                <h4 className="font-bold text-slate-800 mb-1 group-hover:text-emerald-700">Rekap Data</h4>
-                                <p className="text-xs text-slate-500">Download Laporan Excel</p>
-                            </div>
-                        </div>
-                    </Link>
-                </div>
-            </div>
-
-            {/* Statistik Bulanan */}
-            <div className="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm">
-                 <h3 className="text-xl font-bold text-slate-800 mb-6 flex items-center justify-between">
-                    <div className="flex items-center">
-                        <span className="w-1 h-6 bg-green-600 rounded-full mr-3"></span>
-                        Statistik Bulanan
-                    </div>
-                </h3>
-                
-                <div className="flex items-end justify-between gap-4 h-48 pt-4 border-b border-slate-100 pb-2">
-                    {[40, 65, 30, 80, 55, 90, 45, 70].map((h, i) => (
-                        <div key={i} className="w-full flex flex-col items-center gap-2 group">
-                             <div className="w-full bg-slate-100 rounded-t-lg h-full relative overflow-hidden">
-                                <div 
-                                    style={{ height: `${h}%` }} 
-                                    className={`absolute bottom-0 w-full rounded-t-lg transition-all duration-1000 ${
-                                        i % 2 === 0 ? 'bg-gradient-to-t from-green-600 to-green-400' : 'bg-orange-400'
-                                    } group-hover:opacity-80`}
-                                ></div>
-                             </div>
-                             <span className="text-xs text-slate-400">M{i+1}</span>
-                        </div>
-                    ))}
-                </div>
-            </div>
-
-        </div>
-
-        {/* KOLOM KANAN: JENIS DOKUMEN */}
-        <div className="lg:col-span-1">
-             <div className="bg-white rounded-3xl p-8 border border-slate-200 h-full shadow-sm">
-                <h3 className="text-xl font-bold text-slate-800 mb-6">Jenis Dokumen</h3>
-                
-                <div className="space-y-6">
-                    {docTypes.map((type, idx) => (
-                        <div key={idx}>
-                            <div className="flex justify-between text-sm mb-2">
-                                <span className="font-semibold text-slate-600">{type.label}</span>
-                                <span className="font-bold text-slate-800">{type.count} Dok</span>
-                            </div>
-                            <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
-                                <div 
-                                    className={`h-full rounded-full ${type.color}`} 
-                                    style={{ width: `${type.percent}%` }}
-                                ></div>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-
-                {/* Banner Bantuan */}
-                <div className="mt-10 p-6 bg-linear-to-br from-green-700 to-emerald-900 rounded-2xl relative overflow-hidden text-white shadow-lg">
-                    <Leaf className="absolute -bottom-4 -right-4 text-green-500/30 w-32 h-32" />
-                    <h4 className="text-lg font-bold mb-2 relative z-10">Butuh Bantuan?</h4>
-                    <p className="text-xs text-green-100 mb-4 relative z-10">
-                        Hubungi tim IT DLH jika terdapat kendala sistem.
+                        Dashboard Perizinan
+                    </h1>
+                    <p className="text-gray-500 mt-2 ml-14 font-medium">
+                        Ringkasan aktivitas dan status dokumen lingkungan hidup terkini.
                     </p>
-                    <button className="w-full py-2 bg-white text-green-800 font-bold text-sm rounded-xl hover:bg-orange-100 transition relative z-10">
-                        Hubungi Support
-                    </button>
+                </div>
+                <div className="bg-white px-5 py-2.5 rounded-full shadow-sm border border-gray-200 flex items-center gap-3 text-sm font-bold text-gray-600">
+                    <Activity size={18} className="text-blue-500" />
+                    Total {stats.total} Dokumen Terdaftar
                 </div>
             </div>
+
+            {/* METRIK STATISTIK GRID */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-5 mb-8">
+                <StatCard title="Uji Admin" count={stats.ujiAdmin} icon={FileText} link="/uji-administrasi" colorClass="text-orange-600" bgIconClass="bg-orange-50 group-hover:bg-orange-100" />
+                <StatCard title="Verifikasi Lpg" count={stats.verlap} icon={MapPin} link="/verifikasi-lapangan" colorClass="text-green-600" bgIconClass="bg-green-50 group-hover:bg-green-100" />
+                <StatCard title="Pemeriksaan" count={stats.substansi} icon={BookOpen} link="/pemeriksaan-substansi" colorClass="text-indigo-600" bgIconClass="bg-indigo-50 group-hover:bg-indigo-100" />
+                <StatCard title="Revisi" count={stats.revisi} icon={FileEdit} link="/pemeriksaan-revisi" colorClass="text-blue-600" bgIconClass="bg-blue-50 group-hover:bg-blue-100" />
+                <StatCard title="Selesai / RPD" count={stats.selesai} icon={FileCheck} link="/risalah-pengolah" colorClass="text-rose-600" bgIconClass="bg-rose-50 group-hover:bg-rose-100" />
+            </div>
+
+            {/* BAGIAN BAWAH: TABEL & TIMELINE */}
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+                
+                {/* KIRI: TABEL DOKUMEN TERBARU (Porsi lebih lebar) */}
+                <div className="xl:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden flex flex-col">
+                    <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-white">
+                        <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                            <Clock className="text-blue-500" size={20} /> Aktivitas Dokumen Terbaru
+                        </h3>
+                        <Link href="/rekap" className="text-sm font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 transition-colors">
+                            Lihat Semua <ArrowRight size={16} />
+                        </Link>
+                    </div>
+                    
+                    <div className="overflow-x-auto flex-1">
+                        <table className="w-full text-left text-sm">
+                            <thead className="bg-slate-50 text-slate-600 font-bold border-b border-gray-100">
+                                <tr>
+                                    <th className="p-4 w-16 text-center">No</th>
+                                    <th className="p-4">Tanggal Masuk</th>
+                                    <th className="p-4">Nama Kegiatan</th>
+                                    <th className="p-4">Jenis</th>
+                                    <th className="p-4 text-center">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100">
+                                {dataDokumen.slice(0, 6).map((doc) => (
+                                    <tr key={doc._id} className="hover:bg-blue-50/30 transition-colors">
+                                        <td className="p-4 text-center font-bold text-gray-600">{doc.noUrut}</td>
+                                        <td className="p-4 text-gray-500 font-medium whitespace-nowrap">{doc.tanggalMasukDokumen}</td>
+                                        <td className="p-4">
+                                            <div className="font-bold text-gray-800 line-clamp-1">{doc.namaKegiatan || "(Tanpa Judul)"}</div>
+                                            <div className="font-mono text-[11px] text-gray-400 mt-0.5">{doc.namaPemrakarsa}</div>
+                                        </td>
+                                        <td className="p-4">
+                                            <span className="px-2.5 py-1 bg-slate-100 text-slate-700 rounded-md text-[10px] font-extrabold tracking-wide whitespace-nowrap">
+                                                {doc.jenisDokumen}
+                                            </span>
+                                        </td>
+                                        <td className="p-4 text-center">
+                                            <span className="inline-block px-3 py-1 bg-blue-50 text-blue-700 border border-blue-100 rounded-full text-[11px] font-bold whitespace-nowrap">
+                                                {doc.statusTerakhir || 'PROSES'}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                ))}
+                                {dataDokumen.length === 0 && (
+                                    <tr>
+                                        <td colSpan={5} className="p-8 text-center text-gray-400 font-medium">
+                                            Belum ada dokumen yang terdaftar.
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                {/* KANAN: TIMELINE SOP BATAS WAKTU */}
+                <div className="xl:col-span-1 bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden flex flex-col">
+                    <div className="p-5 border-b border-gray-100 bg-slate-50 flex items-center gap-2">
+                        <CalendarDays className="text-indigo-600" size={20} />
+                        <h3 className="text-lg font-bold text-gray-800">SOP Batas Waktu</h3>
+                    </div>
+                    
+                    <div className="p-6 flex-1 bg-white">
+                        <p className="text-xs text-gray-500 font-medium mb-6">
+                            Pengingat alur dan batas maksimal penyelesaian dokumen lingkungan sesuai regulasi.
+                        </p>
+
+                        <div className="relative pl-3">
+                            {/* Garis Vertikal Timeline */}
+                            <div className="absolute top-2 bottom-2 left-[19px] w-[2px] bg-gray-100"></div>
+
+                            <ul className="space-y-5 relative">
+                                {slaSteps.map((step, index) => (
+                                    <li key={index} className="flex gap-4 items-start relative">
+                                        {/* Dot Indikator */}
+                                        <div className={`w-3 h-3 mt-1.5 rounded-full z-10 ring-4 ring-white shrink-0 ${step.color}`}></div>
+                                        
+                                        {/* Konten Timeline */}
+                                        <div className={`flex-1 border border-gray-100 bg-white p-3 rounded-xl shadow-sm border-l-4 ${step.border} hover:shadow-md transition-shadow`}>
+                                            <h4 className="text-sm font-bold text-gray-800">{step.label}</h4>
+                                            <div className="mt-1 flex items-center gap-1.5">
+                                                <Clock size={12} className="text-red-500" />
+                                                <span className="text-xs font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded">
+                                                    {step.days}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
         </div>
-
-      </section>
-
-      <footer className="mt-12 text-center text-slate-400 text-xs pb-6">
-        &copy; {new Date().getFullYear()} Dinas Lingkungan Hidup Kab. Sragen
-      </footer>
-    </div>
-  );
+    );
 }
