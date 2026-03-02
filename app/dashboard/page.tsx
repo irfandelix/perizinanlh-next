@@ -16,6 +16,7 @@ interface Dokumen {
     jenisDokumen: string;
     tanggalMasukDokumen: string;
     statusTerakhir: string;
+    tahun?: string | number;
     nomorUjiBerkas?: string; 
     nomorBAVerlap?: string;     
     nomorBAPemeriksaan?: string; 
@@ -33,7 +34,8 @@ export default function DashboardPage() {
         verlap: 0,
         substansi: 0,
         revisi: 0,
-        selesai: 0
+        selesai: 0,
+        tahunTerbaru: ''
     });
 
     useEffect(() => {
@@ -46,20 +48,36 @@ export default function DashboardPage() {
                 if (result.success) {
                     const docs: Dokumen[] = result.data;
                     
-                    const sortedDocs = docs.sort((a, b) => b.noUrut - a.noUrut);
-                    setDataDokumen(sortedDocs);
+                    if (docs.length > 0) {
+                        // 1. Deteksi otomatis tahun paling baru dari seluruh data
+                        const allYears = docs.map(doc => {
+                            return parseInt(doc.tahun?.toString() || (doc.tanggalMasukDokumen ? doc.tanggalMasukDokumen.substring(0, 4) : new Date().getFullYear().toString()));
+                        });
+                        const latestYear = Math.max(...allYears.filter(y => !isNaN(y))).toString();
 
-                    let ujiAdmin = 0, verlap = 0, substansi = 0, revisi = 0, selesai = 0;
+                        // 2. Filter SEMUA data di dashboard hanya untuk tahun terbaru tersebut
+                        const latestDocs = docs.filter(doc => {
+                            const docYear = doc.tahun?.toString() || (doc.tanggalMasukDokumen ? doc.tanggalMasukDokumen.substring(0, 4) : '');
+                            return docYear === latestYear;
+                        });
 
-                    docs.forEach(doc => {
-                        if (doc.nomorRisalah) selesai++;
-                        else if (doc.nomorBAPemeriksaan && !doc.nomorPHP) revisi++;
-                        else if (doc.nomorBAVerlap && !doc.nomorBAPemeriksaan) substansi++;
-                        else if (doc.nomorUjiBerkas && !doc.nomorBAVerlap) verlap++;
-                        else if (!doc.nomorUjiBerkas) ujiAdmin++;
-                    });
+                        // 3. Urutkan dari no urut terbesar (terbaru)
+                        const sortedDocs = latestDocs.sort((a, b) => b.noUrut - a.noUrut);
+                        setDataDokumen(sortedDocs);
 
-                    setStats({ total: docs.length, ujiAdmin, verlap, substansi, revisi, selesai });
+                        // 4. Hitung statistik HANYA untuk tahun terbaru
+                        let ujiAdmin = 0, verlap = 0, substansi = 0, revisi = 0, selesai = 0;
+
+                        latestDocs.forEach(doc => {
+                            if (doc.nomorRisalah) selesai++;
+                            else if (doc.nomorBAPemeriksaan && !doc.nomorPHP) revisi++;
+                            else if (doc.nomorBAVerlap && !doc.nomorBAPemeriksaan) substansi++;
+                            else if (doc.nomorUjiBerkas && !doc.nomorBAVerlap) verlap++;
+                            else if (!doc.nomorUjiBerkas) ujiAdmin++;
+                        });
+
+                        setStats({ total: latestDocs.length, ujiAdmin, verlap, substansi, revisi, selesai, tahunTerbaru: latestYear });
+                    }
                 }
             } catch (error) {
                 console.error("Error fetching data:", error);
@@ -82,7 +100,6 @@ export default function DashboardPage() {
         </Link>
     );
 
-    // Data SOP / Batas Waktu Pelayanan
     const slaSteps = [
         { label: "Uji Administrasi", days: "3 Hari Kerja", color: "bg-orange-500", border: "border-orange-500" },
         { label: "Penjadwalan Rapat/Verlap", days: "5 Hari Kerja", color: "bg-green-500", border: "border-green-500" },
@@ -119,7 +136,7 @@ export default function DashboardPage() {
                 </div>
                 <div className="bg-white px-5 py-2.5 rounded-full shadow-sm border border-gray-200 flex items-center gap-3 text-sm font-bold text-gray-600">
                     <Activity size={18} className="text-blue-500" />
-                    Total {stats.total} Dokumen Terdaftar
+                    Total {stats.total} Dokumen di Tahun {stats.tahunTerbaru}
                 </div>
             </div>
 
@@ -135,11 +152,11 @@ export default function DashboardPage() {
             {/* BAGIAN BAWAH: TABEL & TIMELINE */}
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
                 
-                {/* KIRI: TABEL DOKUMEN TERBARU (Porsi lebih lebar) */}
+                {/* KIRI: TABEL DOKUMEN TERBARU */}
                 <div className="xl:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden flex flex-col">
                     <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-white">
                         <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-                            <Clock className="text-blue-500" size={20} /> Aktivitas Dokumen Terbaru
+                            <Clock className="text-blue-500" size={20} /> Aktivitas Terbaru ({stats.tahunTerbaru})
                         </h3>
                         <Link href="/rekap" className="text-sm font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 transition-colors">
                             Lihat Semua <ArrowRight size={16} />
@@ -167,7 +184,7 @@ export default function DashboardPage() {
                                             <div className="font-mono text-[11px] text-gray-400 mt-0.5">{doc.namaPemrakarsa}</div>
                                         </td>
                                         <td className="p-4">
-                                            <span className="px-2.5 py-1 bg-slate-100 text-slate-700 rounded-md text-[10px] font-extrabold tracking-wide whitespace-nowrap">
+                                            <span className="px-2.5 py-1 bg-slate-100 text-slate-700 rounded-md text-[11px] font-extrabold tracking-wide whitespace-nowrap">
                                                 {doc.jenisDokumen}
                                             </span>
                                         </td>
@@ -203,16 +220,11 @@ export default function DashboardPage() {
                         </p>
 
                         <div className="relative pl-3">
-                            {/* Garis Vertikal Timeline */}
                             <div className="absolute top-2 bottom-2 left-[19px] w-[2px] bg-gray-100"></div>
-
                             <ul className="space-y-5 relative">
                                 {slaSteps.map((step, index) => (
                                     <li key={index} className="flex gap-4 items-start relative">
-                                        {/* Dot Indikator */}
                                         <div className={`w-3 h-3 mt-1.5 rounded-full z-10 ring-4 ring-white shrink-0 ${step.color}`}></div>
-                                        
-                                        {/* Konten Timeline */}
                                         <div className={`flex-1 border border-gray-100 bg-white p-3 rounded-xl shadow-sm border-l-4 ${step.border} hover:shadow-md transition-shadow`}>
                                             <h4 className="text-sm font-bold text-gray-800">{step.label}</h4>
                                             <div className="mt-1 flex items-center gap-1.5">
@@ -230,7 +242,6 @@ export default function DashboardPage() {
                 </div>
 
             </div>
-
         </div>
     );
 }
