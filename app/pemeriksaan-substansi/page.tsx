@@ -30,9 +30,8 @@ export default function PemeriksaanSubstansiPage() {
             const result = await res.json();
             
             if (result.success) {
-                // FILTER: Hanya yang sudah Verifikasi Lapangan (Punya No BA Verlap)
-                const filtered = result.data.filter((doc: any) => doc.nomorBAVerlap);
-                setDataDokumen(filtered);
+                // PERBAIKAN: Menghapus filter (doc.nomorBAVerlap). Menampilkan SEMUA dokumen.
+                setDataDokumen(result.data);
             }
         } catch (error) {
             console.error("Error fetching data:", error);

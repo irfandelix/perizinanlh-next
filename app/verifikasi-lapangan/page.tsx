@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 export default async function VerifikasiLapanganPage() {
     const db = await getDb();
     
-    // Ambil data (Filter hanya data yang sudah masuk)
+    // PERBAIKAN: Query kosong {} berarti mengambil semua dokumen tanpa terkecuali
     const dataDokumen = await db.collection('dokumen')
         .find({}) 
         .project({

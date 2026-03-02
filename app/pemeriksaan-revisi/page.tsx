@@ -4,13 +4,11 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { FileEdit, Loader2, Eye, AlertCircle } from 'lucide-react';
 
-// --- TYPE DEFINITION ---
-// SUDAH DISESUAIKAN DENGAN NAMA KOLOM TERBARU DI DATABASE
 interface DokumenData {
   _id: string;
   noUrut: number;
-  namaKegiatan?: string;   // <-- PERBAIKAN: Dulu judul_kegiatan
-  namaPemrakarsa?: string; // <-- PERBAIKAN: Dulu nama_pemrakarsa
+  namaKegiatan?: string;   
+  namaPemrakarsa?: string; 
   jenisDokumen: string;
   tanggalMasukDokumen: string;
   statusTerakhir: string;
@@ -32,10 +30,12 @@ export default function PemeriksaanRevisiPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const res = await fetch('/api/record/list?mode=revisi'); 
+        // PERBAIKAN: Menghapus '?mode=revisi' dari URL API agar tidak difilter oleh backend
+        const res = await fetch('/api/record/list'); 
         const json: ApiResponse = await res.json();
         
         if (json.success) {
+           // Menampilkan SEMUA dokumen tanpa filter
           setDataRevisi(json.data);
         } else {
           console.error(json.message);
