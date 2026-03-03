@@ -200,7 +200,14 @@ export async function POST(
             const { tanggalPengembalian } = body;
             if (!tanggalPengembalian) return NextResponse.json({ success: false, message: 'Tanggal Pengembalian wajib diisi.' }, { status: 400 });
             updateQuery = { tanggalPengembalian: tanggalPengembalian, statusTerakhir: 'DIKEMBALIKAN', updatedAt: new Date() };
-        } else {
+        } 
+        else if (tahap === 'arsip') {
+            updateQuery = { 
+                arsipFisik: body.arsipFisik, 
+                updatedAt: new Date() 
+            };
+        }
+        else {
             return NextResponse.json({ success: false, message: 'Tahap tidak valid atau URL salah.' }, { status: 400 });
         }
 
