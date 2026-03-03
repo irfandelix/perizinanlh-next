@@ -70,6 +70,10 @@ export default function Sidebar() {
             name: 'Risalah Pengolah', href: '/risalah-pengolah', icon: FileCheck, roles: ['dlh'],
             color: 'text-rose-600', bgColor: 'bg-rose-100' // Tema Merah Muda/Rose
         },
+        { 
+            name: 'Arsip Dokumen', href: '/arsip', icon: Archive, roles: ['dlh'],
+            color: 'text-slate-700', bgColor: 'bg-slate-100' // Tema warna abu-abu gelap/slate untuk kesan formal
+        },
 
         // 4. REKAP DATA
         { 
