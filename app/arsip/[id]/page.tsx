@@ -2,16 +2,45 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-// Tambahkan Printer & Hash di import lucide-react
 import { Save, ArrowLeft, Archive, CheckCircle2, XCircle, Loader2, Info, Hash, Printer } from 'lucide-react';
 import Modal from '@/components/Modal';
 import api from '@/lib/api';
-
-// Import untuk PDF Generator
 import { PDFDownloadLink } from '@react-pdf/renderer';
 import { ArsipPrintTemplate } from '@/components/pdf/ArsipPrintTemplate';
 
-export default function FormChecklistArsip() {
+// --- PINDAHKAN KE LUAR: Agar input tidak kehilangan fokus saat mengetik ---
+const ItemRow = ({ label, exists, value, manualKey, noKey, onToggle, onInputChange }: any) => (
+    <div className={`p-5 rounded-3xl border transition-all flex flex-col md:flex-row md:items-center justify-between gap-4 ${exists ? 'bg-emerald-50 border-emerald-200' : 'bg-white border-slate-200 shadow-sm hover:border-slate-300'}`}>
+        <div className="flex items-center gap-4 flex-1">
+            <div onClick={() => manualKey && onToggle(manualKey)} className={`cursor-pointer transition-transform active:scale-90`}>
+                {exists ? <CheckCircle2 className="text-emerald-500" size={28} /> : <XCircle className="text-slate-200" size={28} />}
+            </div>
+            <div className="flex-1">
+                <p className={`text-xs font-black uppercase tracking-wider ${exists ? 'text-emerald-900' : 'text-slate-400'}`}>{label}</p>
+                
+                {manualKey ? (
+                    <div className="mt-2 relative">
+                        <Hash className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300" size={14} />
+                        <input 
+                            type="text" 
+                            name={noKey}
+                            value={value || ''}
+                            onChange={onInputChange}
+                            placeholder="Input nomor dokumen fisik..."
+                            className="w-full pl-9 pr-4 py-2 bg-white/50 border border-slate-200 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-emerald-400 focus:bg-white transition-all shadow-inner"
+                        />
+                    </div>
+                ) : (
+                    <p className={`text-[11px] font-mono mt-1 px-3 py-1.5 rounded-lg inline-block ${exists ? 'bg-emerald-100 text-emerald-700 font-bold border border-emerald-200' : 'text-slate-300 bg-slate-50 border border-slate-100'}`}>
+                        {value || 'Belum tersedia di sistem'}
+                    </p>
+                )}
+            </div>
+        </div>
+    </div>
+);
+
+export default function FormDetailArsip() {
     const { id } = useParams();
     const router = useRouter();
     const [loading, setLoading] = useState(true);
@@ -19,7 +48,6 @@ export default function FormChecklistArsip() {
     const [doc, setDoc] = useState<any>(null);
     const [modal, setModal] = useState({ show: false, title: '', message: '', isSuccess: false });
 
-    // State lengkap dengan nomor manual
     const [arsipFisik, setArsipFisik] = useState({
         dokumenCetak: false, noDokumenCetak: '',
         pkplhArsip: false, noPkplhArsip: '',
@@ -40,7 +68,7 @@ export default function FormChecklistArsip() {
                     }
                 }
             } catch (err) {
-                console.error("Gagal fetch:", err);
+                console.error("Gagal mengambil data:", err);
             } finally {
                 setLoading(false);
             }
@@ -49,12 +77,12 @@ export default function FormChecklistArsip() {
     }, [id]);
 
     const handleToggle = (key: keyof typeof arsipFisik) => {
-        // @ts-ignore - Menghindari error type pada boolean toggle
         setArsipFisik(prev => ({ ...prev, [key]: !prev[key] }));
     };
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setArsipFisik(prev => ({ ...prev, [e.target.name]: e.target.value }));
+        const { name, value } = e.target;
+        setArsipFisik(prev => ({ ...prev, [name]: value }));
     };
 
     const handleSave = async () => {
@@ -69,38 +97,6 @@ export default function FormChecklistArsip() {
     };
 
     if (loading) return <div className="min-h-screen flex items-center justify-center bg-slate-50"><Loader2 className="animate-spin text-slate-800 w-10 h-10" /></div>;
-
-    // --- KOMPONEN BARIS ITEM (Reusable) ---
-    const ItemRow = ({ label, exists, value, manualKey, noKey }: any) => (
-        <div className={`p-5 rounded-3xl border transition-all flex flex-col md:flex-row md:items-center justify-between gap-4 ${exists ? 'bg-emerald-50 border-emerald-200' : 'bg-white border-slate-200 shadow-sm hover:border-slate-300'}`}>
-            <div className="flex items-center gap-4 flex-1">
-                <div onClick={() => manualKey && handleToggle(manualKey)} className={`cursor-pointer transition-transform active:scale-90`}>
-                    {exists ? <CheckCircle2 className="text-emerald-500" size={28} /> : <XCircle className="text-slate-200" size={28} />}
-                </div>
-                <div className="flex-1">
-                    <p className={`text-xs font-black uppercase tracking-wider ${exists ? 'text-emerald-900' : 'text-slate-400'}`}>{label}</p>
-                    
-                    {manualKey ? (
-                        <div className="mt-2 relative">
-                            <Hash className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300" size={14} />
-                            <input 
-                                type="text" 
-                                name={noKey}
-                                value={value || ''}
-                                onChange={handleInputChange}
-                                placeholder="Input nomor dokumen fisik..."
-                                className="w-full pl-9 pr-4 py-2 bg-white/50 border border-slate-200 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-emerald-400 focus:bg-white transition-all shadow-inner"
-                            />
-                        </div>
-                    ) : (
-                        <p className={`text-[11px] font-mono mt-1 px-3 py-1.5 rounded-lg inline-block ${exists ? 'bg-emerald-100 text-emerald-700 font-bold border border-emerald-200' : 'text-slate-300 bg-slate-50 border border-slate-100'}`}>
-                            {value || 'Belum tersedia di sistem'}
-                        </p>
-                    )}
-                </div>
-            </div>
-        </div>
-    );
 
     return (
         <div className="p-6 max-w-5xl mx-auto my-8 font-sans">
@@ -118,7 +114,6 @@ export default function FormChecklistArsip() {
                 </div>
 
                 <div className="p-8">
-                    {/* INFO HEADER BOX */}
                     {doc && (
                         <div className="bg-slate-50 rounded-3xl p-6 mb-8 border border-slate-100 flex items-start gap-4 relative overflow-hidden">
                             <div className="absolute right-0 top-0 p-4 opacity-5"><Archive size={80} className="text-slate-900" /></div>
@@ -131,22 +126,20 @@ export default function FormChecklistArsip() {
                         </div>
                     )}
 
-                    {/* GRID 11 ITEM ARSIP */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                        <ItemRow label="1. Dokumen Lingkungan Cetak" exists={arsipFisik.dokumenCetak} value={arsipFisik.noDokumenCetak} manualKey="dokumenCetak" noKey="noDokumenCetak" />
-                        <ItemRow label="2. PKPLH Arsip" exists={arsipFisik.pkplhArsip} value={arsipFisik.noPkplhArsip} manualKey="pkplhArsip" noKey="noPkplhArsip" />
+                        <ItemRow label="1. Dokumen Lingkungan Cetak" exists={arsipFisik.dokumenCetak} value={arsipFisik.noDokumenCetak} manualKey="dokumenCetak" noKey="noDokumenCetak" onToggle={handleToggle} onInputChange={handleInputChange} />
+                        <ItemRow label="2. PKPLH Arsip" exists={arsipFisik.pkplhArsip} value={arsipFisik.noPkplhArsip} manualKey="pkplhArsip" noKey="noPkplhArsip" onToggle={handleToggle} onInputChange={handleInputChange} />
                         <ItemRow label="3. Uji Administrasi" exists={doc?.nomorUjiBerkas} value={doc?.nomorUjiBerkas} />
                         <ItemRow label="4. BA Verlap" exists={doc?.nomorBAVerlap} value={doc?.nomorBAVerlap} />
                         <ItemRow label="5. BA Pemeriksa / Sidang" exists={doc?.nomorBAPemeriksaan} value={doc?.nomorBAPemeriksaan} />
-                        <ItemRow label="6. Surat Permohonan (Awal)" exists={arsipFisik.suratPermohonan} value={arsipFisik.noSuratPermohonan} manualKey="suratPermohonan" noKey="noSuratPermohonan" />
+                        <ItemRow label="6. Surat Permohonan (Awal)" exists={arsipFisik.suratPermohonan} value={arsipFisik.noSuratPermohonan} manualKey="suratPermohonan" noKey="noSuratPermohonan" onToggle={handleToggle} onInputChange={handleInputChange} />
                         <ItemRow label="7. Lembar Registrasi" exists={doc?.nomorChecklist} value={doc?.nomorChecklist} />
                         <ItemRow label="8. Lembar Pengembalian" exists={doc?.tanggalPengembalian} value={doc?.tanggalPengembalian ? `Tgl: ${doc.tanggalPengembalian}` : ''} />
                         <ItemRow label="9. Penerimaan Perbaikan (PHP)" exists={doc?.nomorPHP} value={doc?.nomorPHP} />
-                        <ItemRow label="10. Undangan Sidang" exists={arsipFisik.undanganSidang} value={arsipFisik.noUndanganSidang} manualKey="undanganSidang" noKey="noUndanganSidang" />
+                        <ItemRow label="10. Undangan Sidang" exists={arsipFisik.undanganSidang} value={arsipFisik.noUndanganSidang} manualKey="undanganSidang" noKey="noUndanganSidang" onToggle={handleToggle} onInputChange={handleInputChange} />
                         <ItemRow label="11. Penyusunan RPD" exists={doc?.nomorRisalah} value={doc?.nomorRisalah} />
                     </div>
 
-                    {/* FOOTER ACTION: CETAK & SIMPAN */}
                     <div className="pt-10 mt-10 border-t border-slate-100 flex justify-end gap-4">
                         {doc && (
                             <PDFDownloadLink
