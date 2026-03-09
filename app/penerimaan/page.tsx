@@ -1,164 +1,109 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import Link from 'next/link';
-import { ClipboardList, CheckCircle, Clock, Loader2, AlertCircle, Search } from 'lucide-react'; 
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import { Save, ArrowLeft, FileCheck, CheckCircle, Loader2, Info } from 'lucide-react';
+import Modal from '@/components/Modal';
+import api from '@/lib/api';
 
-interface Dokumen {
-    _id: string;
-    noUrut: number;
-    nomorChecklist: string;
-    namaPemrakarsa: string;
-    namaKegiatan: string;
-    statusTerakhir: string;
-    jenisDokumen: string;
-    tanggalMasukDokumen: string;
-    tahun?: string | number;
-    nomorPHP?: string; 
-}
+export default function FormPenerimaanPHP() {
+    const params = useParams();
+    const router = useRouter();
+    const searchParams = useSearchParams();
+    const id = params.id as string; 
+    const thn = searchParams.get('thn');
 
-export default function PenerimaanHasilPerbaikanPage() {
-    const [dataDokumen, setDataDokumen] = useState<Dokumen[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [searchTerm, setSearchTerm] = useState('');
-    
-    const [selectedYear, setSelectedYear] = useState<string>('');
-    const [availableYears, setAvailableYears] = useState<string[]>([]);
+    const [loadingData, setLoadingData] = useState(true);
+    const [submitLoading, setSubmitLoading] = useState(false);
+    const [docInfo, setDocInfo] = useState<any>(null);
+    const [modalInfo, setModalInfo] = useState({ show: false, title: '', message: '', isSuccess: false });
+    const [revisiKe, setRevisiKe] = useState('1');
+    const [tanggal, setTanggal] = useState('');
 
     useEffect(() => {
-        const fetchData = async () => {
-            setLoading(true);
+        const fetchDocData = async () => {
+            if (!id) return;
             try {
                 const res = await fetch('/api/record/list'); 
                 const result = await res.json();
-                
                 if (result.success) {
-                    const docs = result.data;
-                    setDataDokumen(docs);
-
-                    const yearsSet = new Set(docs.map((item: Dokumen) => {
-                        return item.tahun?.toString() || (item.tanggalMasukDokumen ? item.tanggalMasukDokumen.substring(0, 4) : new Date().getFullYear().toString());
-                    }));
-                    
-                    const yearsArray = Array.from(yearsSet).sort().reverse() as string[];
-                    setAvailableYears(yearsArray);
-                    if (yearsArray.length > 0) setSelectedYear(yearsArray[0]);
+                    const currentDoc = result.data.find((d: any) => d._id === id);
+                    if (currentDoc) setDocInfo(currentDoc);
                 }
-            } catch (error) {
-                console.error("Error fetching data:", error);
-            } finally {
-                setLoading(false);
-            }
+            } catch (error) { console.error(error); } 
+            finally { setLoadingData(false); }
         };
-        fetchData();
-    }, []);
+        fetchDocData();
+    }, [id]);
 
-    const filteredData = dataDokumen.filter((doc) => {
-        const docYear = doc.tahun?.toString() || (doc.tanggalMasukDokumen ? doc.tanggalMasukDokumen.substring(0, 4) : '');
-        const matchesYear = docYear === selectedYear;
-        const matchesSearch = doc.namaKegiatan?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                             doc.nomorChecklist?.toLowerCase().includes(searchTerm.toLowerCase());
-        
-        return matchesYear && matchesSearch;
-    });
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setSubmitLoading(true);
+        try {
+            await api.post('/api/submit/f', { 
+                noUrut: docInfo.noUrut, 
+                tahun: docInfo.tahun, 
+                nomorRevisi: revisiKe,
+                tanggalPenyerahanPerbaikan: tanggal 
+            });
+            setModalInfo({ show: true, title: 'Berhasil', message: `Tanda Terima Perbaikan ${revisiKe} Berhasil Dicatat!`, isSuccess: true });
+            setTimeout(() => router.push('/penerimaan'), 2000);
+        } catch (error) { setModalInfo({ show: true, title: 'Gagal', message: 'Gagal simpan data.', isSuccess: false }); } 
+        finally { setSubmitLoading(false); }
+    };
+
+    if (loadingData) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin text-emerald-600 w-10 h-10" /></div>;
 
     return (
-        <div className="min-h-screen bg-gray-50 p-6 md:p-12">
-            <div className="mb-8 max-w-5xl mx-auto">
-                <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-3">
-                    <div className="p-2 bg-purple-600 rounded-lg shadow-md">
-                        <ClipboardList className="text-white w-6 h-6" />
-                    </div>
-                    Penerimaan Hasil Perbaikan
-                </h1>
-                <p className="text-gray-500 mt-2 ml-14">Mencatat dokumen revisi yang telah diperbaiki dan diserahkan kembali oleh pemrakarsa.</p>
-            </div>
-
-            <div className="max-w-5xl mx-auto">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-                    <div className="flex gap-2 overflow-x-auto pb-1">
-                        {availableYears.map((year) => (
-                            <button
-                                key={year}
-                                onClick={() => setSelectedYear(year)}
-                                className={`px-6 py-2 rounded-full font-bold text-sm transition-all whitespace-nowrap border-2 ${
-                                    selectedYear === year ? 'bg-purple-600 text-white border-purple-600 shadow-md' : 'bg-white text-gray-500 border-gray-200 hover:border-purple-300 hover:text-purple-700'
-                                }`}
-                            >
-                                {year}
-                            </button>
-                        ))}
-                    </div>
-
-                    <div className="relative min-w-[300px]">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                        <input 
-                            type="text" 
-                            placeholder="Cari Dokumen..."
-                            className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-purple-400 transition-all shadow-sm"
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                        />
+        <div className="p-6 max-w-4xl mx-auto my-8 font-sans">
+            <button onClick={() => router.back()} className="flex items-center gap-2 text-gray-500 hover:text-emerald-600 font-bold mb-6 group transition-all">
+                <ArrowLeft size={20} className="group-hover:-translate-x-1" /> Kembali ke Daftar
+            </button>
+            <div className="bg-white shadow-xl rounded-[2.5rem] border border-gray-100 overflow-hidden">
+                <div className="bg-emerald-600 p-8 text-white flex items-center gap-5">
+                    <div className="p-4 bg-white/20 rounded-2xl backdrop-blur-md"><FileCheck size={28} /></div>
+                    <div>
+                        <h1 className="text-2xl font-black uppercase tracking-tight">Penerimaan Perbaikan</h1>
+                        <p className="text-emerald-100 text-xs font-medium uppercase tracking-widest mt-1">TAHUN {thn} | TAHAP F: PHP</p>
                     </div>
                 </div>
-
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-                    {loading ? (
-                        <div className="flex flex-col items-center justify-center p-12 text-purple-600">
-                            <Loader2 className="animate-spin w-8 h-8 mb-2" />
-                            <span className="text-sm font-medium">Memuat data perbaikan...</span>
-                        </div>
-                    ) : (
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-left text-sm">
-                                <thead className="bg-purple-50 text-purple-900 font-bold border-b border-purple-100">
-                                    <tr>
-                                        <th className="p-4 w-16 text-center">No</th>
-                                        <th className="p-4">Nama Kegiatan</th>
-                                        <th className="p-4">Pemrakarsa</th>
-                                        <th className="p-4">Status PHP</th>
-                                        <th className="p-4 text-center w-32">Aksi</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-100">
-                                    {filteredData.map((doc) => (
-                                        <tr key={doc._id} className="hover:bg-purple-50/30 transition-colors">
-                                            <td className="p-4 text-center font-mono text-gray-400 font-bold">{doc.noUrut}</td>
-                                            <td className="p-4">
-                                                <div className="inline-block px-2 py-0.5 rounded text-[10px] font-black bg-purple-100 text-purple-700 mb-1.5 uppercase">{doc.jenisDokumen}</div>
-                                                <div className="font-bold text-gray-800 line-clamp-1 uppercase">{doc.namaKegiatan || "(Tanpa Judul)"}</div>
-                                                <div className="font-mono text-[11px] text-gray-400 mt-1">{doc.nomorChecklist}</div>
-                                            </td>
-                                            <td className="p-4 text-gray-600 font-medium">{doc.namaPemrakarsa || "-"}</td>
-                                            <td className="p-4">
-                                                {doc.nomorPHP ? (
-                                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-green-100 text-green-700 border border-green-200">
-                                                        <CheckCircle className="w-3.5 h-3.5" /> DITERIMA
-                                                    </span>
-                                                ) : (
-                                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-yellow-100 text-yellow-800 border border-yellow-200 animate-pulse">
-                                                        <Clock className="w-3.5 h-3.5" /> MENUNGGU
-                                                    </span>
-                                                )}
-                                            </td>
-                                            <td className="p-4 text-center">
-                                                <Link 
-                                                    href={`/penerimaan/${doc.noUrut}`} 
-                                                    className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm ${
-                                                        doc.nomorPHP ? 'bg-gray-100 text-gray-500 hover:bg-gray-200 border border-gray-300' : 'bg-purple-600 hover:bg-purple-700 text-white'
-                                                    }`}
-                                                >
-                                                    <ClipboardList size={14} /> {doc.nomorPHP ? 'Detail' : 'Terima'}
-                                                </Link>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                <div className="p-8">
+                    {docInfo && (
+                        <div className="bg-emerald-50 border border-emerald-100 rounded-[2rem] p-6 mb-8 flex gap-4">
+                            <Info className="text-emerald-500" />
+                            <div className="grid grid-cols-2 gap-4 w-full">
+                                <div><span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Kegiatan</span><p className="font-bold text-gray-800 uppercase leading-tight mt-1">{docInfo.namaKegiatan}</p></div>
+                                <div><span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">No Urut / Tahun</span><p className="font-black text-emerald-600 mt-1">{docInfo.noUrut} / {docInfo.tahun}</p></div>
+                            </div>
                         </div>
                     )}
+                    <form onSubmit={handleSubmit} className="space-y-8 animate-in fade-in duration-500">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <div>
+                                <label className="block text-xs font-black mb-3 text-gray-500 uppercase tracking-widest">Hasil Revisi Ke-</label>
+                                <select className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none focus:ring-4 focus:ring-emerald-100 font-bold text-gray-800" value={revisiKe} onChange={(e) => setRevisiKe(e.target.value)}>
+                                    {[1, 2, 3, 4, 5].map(n => <option key={n} value={n}>Revisi ke-{n}</option>)}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-black mb-3 text-gray-500 uppercase tracking-widest">Tanggal Terima Berkas</label>
+                                <input type="date" className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none focus:ring-4 focus:ring-emerald-100 font-bold text-gray-800" value={tanggal} onChange={(e) => setTanggal(e.target.value)} required />
+                            </div>
+                        </div>
+                        <div className="flex justify-end pt-8 border-t border-gray-50">
+                            <button type="submit" disabled={submitLoading} className="bg-emerald-600 text-white px-10 py-4 rounded-2xl font-black text-sm shadow-xl flex items-center gap-3">
+                                {submitLoading ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />} Simpan PHP
+                            </button>
+                        </div>
+                    </form>
                 </div>
             </div>
+            <Modal show={modalInfo.show} title={modalInfo.title} onClose={() => setModalInfo({ ...modalInfo, show: false })}>
+                <div className="p-8 text-center flex flex-col items-center">
+                    {modalInfo.isSuccess ? <CheckCircle size={60} className="text-emerald-500 mb-4 animate-bounce" /> : <div className="text-4xl mb-4 text-red-500">⚠️</div>}
+                    <p className="font-bold text-gray-700 uppercase text-sm tracking-wide leading-relaxed">{modalInfo.message}</p>
+                </div>
+            </Modal>
         </div>
     );
 }

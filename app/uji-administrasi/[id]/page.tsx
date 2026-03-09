@@ -27,38 +27,42 @@ export default function FormUjiAdministrasi() {
 
     useEffect(() => {
         const fetchDocData = async () => {
+            // Jika tahun (thn) tidak ada di URL, langsung matikan loading dan kasih peringatan
+            if (!id || !thn) {
+                setLoadingData(false);
+                setModalInfo({ 
+                    show: true, 
+                    title: 'Parameter Kurang', 
+                    message: 'Tahun dokumen tidak terdeteksi. Silakan kembali ke daftar dan klik ulang.', 
+                    isSuccess: false 
+                });
+                return;
+            }
+
             try {
                 const res = await fetch('/api/record/list'); 
                 const result = await res.json();
 
                 if (result.success) {
-                    const allDocs = result.data;
-                    
-                    // KUNCI DATA: Harus sama No Urut DAN sama Tahunnya
-                    const currentDoc = allDocs.find((d: any) => 
-                        d.noUrut === parseInt(id) && 
-                        d.tahun?.toString() === thn
+                    const currentDoc = result.data.find((d: any) => 
+                        d.noUrut === parseInt(id) && d.tahun?.toString() === thn
                     );
 
                     if (currentDoc) {
                         setDocInfo(currentDoc);
                     } else {
-                        setModalInfo({ 
-                            show: true, 
-                            title: 'Data Tidak Ditemukan', 
-                            message: `Dokumen No. ${id} Tahun ${thn} tidak ada di database.`, 
-                            isSuccess: false 
-                        });
+                        setModalInfo({ show: true, title: 'Tidak Ketemu', message: `Data No. ${id} Tahun ${thn} tidak ada.`, isSuccess: false });
                     }
                 }
             } catch (error) {
-                console.error("Gagal mengambil data:", error);
+                console.error("Gagal ambil data:", error);
             } finally {
-                setLoadingData(false);
+                // Ini kunci utamanya: Loading HARUS mati apa pun yang terjadi
+                setLoadingData(false); 
             }
         };
         
-        if (id && thn) fetchDocData();
+        fetchDocData();
     }, [id, thn]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {

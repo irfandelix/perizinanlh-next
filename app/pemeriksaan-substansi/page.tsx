@@ -1,143 +1,98 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import Link from 'next/link';
-import { BookOpen, CheckCircle, Clock, Loader2, AlertCircle } from 'lucide-react'; 
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import { Save, ArrowLeft, ClipboardCheck, CheckCircle, Loader2, Info } from 'lucide-react';
+import Modal from '@/components/Modal';
+import api from '@/lib/api';
 
-interface Dokumen {
-    _id: string;
-    noUrut: number;
-    nomorChecklist: string;
-    namaPemrakarsa: string;
-    namaKegiatan: string;
-    jenisDokumen: string;
-    tanggalMasukDokumen: string;
-    tahun?: string | number;
-    nomorBAPemeriksaan?: string; 
-}
+export default function FormPemeriksaan() {
+    const params = useParams();
+    const router = useRouter();
+    const searchParams = useSearchParams();
+    const id = params.id as string; 
+    const thn = searchParams.get('thn');
 
-export default function PemeriksaanSubstansiPage() {
-    const [dataDokumen, setDataDokumen] = useState<Dokumen[]>([]);
-    const [loading, setLoading] = useState(true);
-    
-    const [selectedYear, setSelectedYear] = useState<string>('');
-    const [availableYears, setAvailableYears] = useState<string[]>([]);
+    const [loadingData, setLoadingData] = useState(true);
+    const [submitLoading, setSubmitLoading] = useState(false);
+    const [docInfo, setDocInfo] = useState<any>(null);
+    const [modalInfo, setModalInfo] = useState({ show: false, title: '', message: '', isSuccess: false });
+    const [tanggal, setTanggal] = useState('');
 
     useEffect(() => {
-        const fetchData = async () => {
-            setLoading(true);
+        const fetchDocData = async () => {
+            if (!id) return;
             try {
                 const res = await fetch('/api/record/list'); 
                 const result = await res.json();
-                
                 if (result.success) {
-                    const docs = result.data;
-                    setDataDokumen(docs);
-
-                    const yearsSet = new Set(docs.map((item: Dokumen) => {
-                        return item.tahun?.toString() || (item.tanggalMasukDokumen ? item.tanggalMasukDokumen.substring(0, 4) : new Date().getFullYear().toString());
-                    }));
-                    
-                    const yearsArray = Array.from(yearsSet).sort().reverse() as string[];
-                    setAvailableYears(yearsArray);
-                    if (yearsArray.length > 0) setSelectedYear(yearsArray[0]);
+                    const currentDoc = result.data.find((d: any) => d._id === id);
+                    if (currentDoc) {
+                        setDocInfo(currentDoc);
+                        if (currentDoc.tanggalPemeriksaan) setTanggal(currentDoc.tanggalPemeriksaan);
+                    }
                 }
-            } catch (error) {
-                console.error("Error fetching data:", error);
-            } finally {
-                setLoading(false);
-            }
+            } catch (error) { console.error(error); } 
+            finally { setLoadingData(false); }
         };
-        fetchData();
-    }, []);
+        fetchDocData();
+    }, [id]);
 
-    const filteredData = dataDokumen.filter((doc) => {
-        const docYear = doc.tahun?.toString() || (doc.tanggalMasukDokumen ? doc.tanggalMasukDokumen.substring(0, 4) : '');
-        return docYear === selectedYear;
-    });
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setSubmitLoading(true);
+        try {
+            await api.post('/api/submit/d', { noUrut: docInfo.noUrut, tahun: docInfo.tahun, tanggalPemeriksaan: tanggal });
+            setModalInfo({ show: true, title: 'Berhasil', message: 'BA Pemeriksaan Substansi Berhasil Disimpan!', isSuccess: true });
+            setTimeout(() => router.push('/pemeriksaan-substansi'), 2000);
+        } catch (error) { setModalInfo({ show: true, title: 'Gagal', message: 'Gagal simpan data.', isSuccess: false }); } 
+        finally { setSubmitLoading(false); }
+    };
+
+    if (loadingData) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin text-indigo-600 w-10 h-10" /></div>;
 
     return (
-        <div className="min-h-screen bg-gray-50 p-6 md:p-12">
-            <div className="mb-8 max-w-5xl mx-auto">
-                <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-3">
-                    <div className="p-2 bg-indigo-600 rounded-lg shadow-md"><BookOpen className="text-white w-6 h-6" /></div>
-                    Pemeriksaan Substansi (Tahap D)
-                </h1>
-                <p className="text-gray-500 mt-2 ml-14">Rapat pembahasan dan penerbitan Berita Acara Pemeriksaan Dokumen Lingkungan.</p>
-            </div>
-
-            <div className="max-w-5xl mx-auto">
-                {availableYears.length > 0 && !loading && (
-                    <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
-                        {availableYears.map((year) => (
-                            <button
-                                key={year}
-                                onClick={() => setSelectedYear(year)}
-                                className={`px-6 py-2.5 rounded-full font-bold text-sm transition-all whitespace-nowrap border-2 ${
-                                    selectedYear === year ? 'bg-indigo-600 text-white border-indigo-600 shadow-md' : 'bg-white text-gray-500 border-gray-200 hover:border-indigo-300 hover:text-indigo-700'
-                                }`}
-                            >
-                                Tahun {year}
-                            </button>
-                        ))}
+        <div className="p-6 max-w-4xl mx-auto my-8 font-sans">
+            <button onClick={() => router.back()} className="flex items-center gap-2 text-gray-500 hover:text-indigo-600 font-bold mb-6 group transition-all">
+                <ArrowLeft size={20} className="group-hover:-translate-x-1" /> Kembali ke Daftar
+            </button>
+            <div className="bg-white shadow-xl rounded-[2.5rem] border border-gray-100 overflow-hidden">
+                <div className="bg-indigo-600 p-8 text-white flex items-center gap-5">
+                    <div className="p-4 bg-white/20 rounded-2xl backdrop-blur-md"><ClipboardCheck size={28} /></div>
+                    <div>
+                        <h1 className="text-2xl font-black uppercase tracking-tight">Pemeriksaan Substansi</h1>
+                        <p className="text-indigo-100 text-xs font-medium uppercase tracking-widest mt-1">TAHUN {thn} | TAHAP D</p>
                     </div>
-                )}
-
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                    {loading ? (
-                        <div className="flex flex-col items-center justify-center p-12 text-indigo-600">
-                            <Loader2 className="animate-spin w-8 h-8 mb-2" /><span className="text-sm">Memuat daftar pemeriksaan...</span>
-                        </div>
-                    ) : filteredData.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center p-12 text-gray-400">
-                            <AlertCircle className="w-10 h-10 mb-3 opacity-50" /><p>Tidak ada dokumen terdaftar pada tahun {selectedYear}.</p>
-                        </div>
-                    ) : (
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-left text-sm">
-                                <thead className="bg-indigo-50 text-indigo-900 font-semibold border-b border-indigo-100">
-                                    <tr>
-                                        <th className="p-4 w-16 text-center">No Urut</th>
-                                        <th className="p-4">Jenis & Judul</th>
-                                        <th className="p-4">Pemrakarsa</th>
-                                        <th className="p-4">Status Rapat</th>
-                                        <th className="p-4 text-center w-32">Aksi</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-100">
-                                    {filteredData.map((doc) => (
-                                        <tr key={doc._id} className="hover:bg-indigo-50/30 transition-colors">
-                                            <td className="p-4 text-center font-mono text-gray-500 bg-gray-50/50">{doc.noUrut}</td>
-                                            <td className="p-4">
-                                                <div className="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-700 mb-1">{doc.jenisDokumen}</div>
-                                                <div className="font-medium text-gray-800 line-clamp-2">{doc.namaKegiatan || "(Tanpa Judul)"}</div>
-                                                <div className="font-mono text-xs text-gray-400 mt-1">{doc.nomorChecklist}</div>
-                                            </td>
-                                            <td className="p-4 text-gray-600 font-medium">{doc.namaPemrakarsa || "-"}</td>
-                                            <td className="p-4">
-                                                {doc.nomorBAPemeriksaan ? (
-                                                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">
-                                                        <CheckCircle className="w-3 h-3" /> Selesai BA
-                                                    </span>
-                                                ) : (
-                                                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800 border border-orange-200 animate-pulse">
-                                                        <Clock className="w-3 h-3" /> Menunggu
-                                                    </span>
-                                                )}
-                                            </td>
-                                            <td className="p-4 text-center">
-                                                <Link href={`/pemeriksaan-substansi/${doc.noUrut}`} className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all shadow-sm ${doc.nomorBAPemeriksaan ? 'bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-300' : 'bg-indigo-600 hover:bg-indigo-700 text-white'}`}>
-                                                    <BookOpen size={14} /> {doc.nomorBAPemeriksaan ? 'Detail' : 'Periksa'}
-                                                </Link>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                </div>
+                <div className="p-8">
+                    {docInfo && (
+                        <div className="bg-indigo-50 border border-indigo-100 rounded-[2rem] p-6 mb-8 flex gap-4">
+                            <Info className="text-indigo-500" />
+                            <div className="grid grid-cols-2 gap-4 w-full">
+                                <div><span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Kegiatan</span><p className="font-bold text-gray-800 uppercase leading-tight mt-1">{docInfo.namaKegiatan}</p></div>
+                                <div><span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">No Urut / Tahun</span><p className="font-black text-indigo-600 mt-1">{docInfo.noUrut} / {docInfo.tahun}</p></div>
+                            </div>
                         </div>
                     )}
+                    <form onSubmit={handleSubmit} className="space-y-8 animate-in fade-in duration-500">
+                        <div className="max-w-md">
+                            <label className="block text-xs font-black mb-3 text-gray-500 uppercase tracking-widest">Tanggal BA Pemeriksaan</label>
+                            <input type="date" className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none focus:ring-4 focus:ring-indigo-100 font-bold text-gray-800" value={tanggal} onChange={(e) => setTanggal(e.target.value)} required />
+                        </div>
+                        <div className="flex justify-end pt-8 border-t border-gray-50">
+                            <button type="submit" disabled={submitLoading} className="bg-indigo-600 text-white px-10 py-4 rounded-2xl font-black text-sm shadow-xl flex items-center gap-3">
+                                {submitLoading ? <Loader2 className="animate-spin" /> : <Save size={18} />} Simpan BA Pemeriksaan
+                            </button>
+                        </div>
+                    </form>
                 </div>
             </div>
+            <Modal show={modalInfo.show} title={modalInfo.title} onClose={() => setModalInfo({ ...modalInfo, show: false })}>
+                <div className="p-8 text-center flex flex-col items-center">
+                    {modalInfo.isSuccess ? <CheckCircle size={60} className="text-emerald-500 mb-4 animate-bounce" /> : <div className="text-4xl mb-4 text-red-500">⚠️</div>}
+                    <p className="font-bold text-gray-700 uppercase text-sm tracking-wide leading-relaxed">{modalInfo.message}</p>
+                </div>
+            </Modal>
         </div>
     );
 }

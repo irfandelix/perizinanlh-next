@@ -21,6 +21,7 @@ export default function FormPengembalian() {
 
     useEffect(() => {
         const fetchDocData = async () => {
+            if (!id || !thn) { setLoadingData(false); return; }
             try {
                 const res = await fetch('/api/record/list'); 
                 const result = await res.json();
@@ -30,70 +31,52 @@ export default function FormPengembalian() {
                     );
                     if (currentDoc) setDocInfo(currentDoc);
                 }
-            } catch (error) { console.error(error); } finally { setLoadingData(false); }
+            } catch (error) { console.error(error); } 
+            finally { setLoadingData(false); }
         };
-        if (id && thn) fetchDocData();
+        fetchDocData();
     }, [id, thn]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setSubmitLoading(true);
         try {
-            await api.post('/api/submit/pengembalian', { 
-                noUrut: parseInt(id), 
-                tahun: thn, 
-                tanggalPengembalian: tanggal 
-            });
-            setModalInfo({ show: true, title: 'Dokumen Dikembalikan', message: `Status Dokumen Berhasil Diubah Menjadi DIKEMBALIKAN.`, isSuccess: true });
+            await api.post('/api/submit/pengembalian', { noUrut: parseInt(id), tahun: thn, tanggalPengembalian: tanggal });
+            setModalInfo({ show: true, title: 'Berhasil', message: 'Status Dokumen Berhasil Diubah Menjadi DIKEMBALIKAN.', isSuccess: true });
             setTimeout(() => router.push('/dashboard'), 2000);
-        } catch (error: any) { setModalInfo({ show: true, title: 'Gagal', message: 'Gagal proses pengembalian.', isSuccess: false }); } 
+        } catch (error) { setModalInfo({ show: true, title: 'Gagal', message: 'Gagal proses pengembalian.', isSuccess: false }); } 
         finally { setSubmitLoading(false); }
     };
 
-    if (loadingData) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin text-red-600" /></div>;
+    if (loadingData) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin text-red-600 w-10 h-10" /></div>;
 
     return (
         <div className="p-6 max-w-4xl mx-auto my-8 font-sans">
-            <button onClick={() => router.back()} className="flex items-center gap-2 text-gray-500 hover:text-red-600 font-bold mb-6 group transition-all">
-                <ArrowLeft size={20} className="group-hover:-translate-x-1" /> Kembali ke Daftar
-            </button>
+            <button onClick={() => router.back()} className="flex items-center gap-2 text-gray-500 hover:text-red-600 font-bold mb-6 group"><ArrowLeft size={20} className="group-hover:-translate-x-1" /> Kembali</button>
             <div className="bg-white shadow-xl rounded-[2.5rem] border border-gray-100 overflow-hidden">
                 <div className="bg-red-600 p-8 text-white flex items-center gap-5">
                     <div className="p-4 bg-white/20 rounded-2xl backdrop-blur-md"><RotateCcw size={28} /></div>
-                    <div>
-                        <h1 className="text-2xl font-black uppercase tracking-tight">Pengembalian Dokumen</h1>
-                        <p className="text-red-100 text-xs font-medium uppercase tracking-widest mt-1">TAHUN {thn} | FORM PENGEMBALIAN</p>
-                    </div>
+                    <div><h1 className="text-2xl font-black uppercase">Pengembalian Dokumen</h1><p className="text-red-100 text-xs font-medium uppercase tracking-widest mt-1">TAHUN {thn}</p></div>
                 </div>
                 <div className="p-8">
-                    {docInfo && (
-                        <div className="bg-red-50 border border-red-100 rounded-[2rem] p-6 mb-8 flex gap-4">
-                            <Info className="text-red-500" />
+                    {!docInfo ? <div className="p-4 bg-red-50 text-red-600 rounded-xl font-bold">⚠️ Data No. {id} Tahun {thn} Tidak Ditemukan.</div> : (
+                        <>
+                        <div className="bg-red-50 border border-red-100 rounded-[2rem] p-6 mb-8 flex gap-4"><Info className="text-red-500" />
                             <div className="grid grid-cols-2 gap-4 w-full">
-                                <div><span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Kegiatan</span><p className="font-bold text-gray-800 uppercase leading-tight mt-1">{docInfo.namaKegiatan}</p></div>
-                                <div><span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">No Urut / Tahun</span><p className="font-black text-red-600 mt-1">{docInfo.noUrut} / {docInfo.tahun}</p></div>
+                                <div><span className="text-[10px] font-black text-gray-400 uppercase">Kegiatan</span><p className="font-bold text-gray-800 uppercase leading-tight">{docInfo.namaKegiatan}</p></div>
+                                <div><span className="text-[10px] font-black text-gray-400 uppercase">No Urut / Tahun</span><p className="font-black text-red-600">{docInfo.noUrut} / {docInfo.tahun}</p></div>
                             </div>
                         </div>
+                        <form onSubmit={handleSubmit} className="space-y-8">
+                            <div className="max-w-md"><label className="block text-xs font-black mb-3 text-gray-500 uppercase tracking-widest">Tanggal Pengembalian Berkas</label>
+                            <input type="date" className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none focus:ring-4 focus:ring-red-100 font-bold text-gray-800" value={tanggal} onChange={(e) => setTanggal(e.target.value)} required /></div>
+                            <div className="flex justify-end pt-8 border-t border-gray-50"><button type="submit" disabled={submitLoading} className="bg-red-600 text-white px-10 py-4 rounded-2xl font-black text-sm shadow-xl flex items-center gap-3">{submitLoading ? <Loader2 className="animate-spin" /> : <Save size={18} />} Proses Pengembalian</button></div>
+                        </form>
+                        </>
                     )}
-                    <form onSubmit={handleSubmit} className="space-y-8 animate-in fade-in duration-500">
-                        <div className="max-w-md">
-                            <label className="block text-xs font-black mb-3 text-gray-500 uppercase tracking-widest">Tanggal Pengembalian Berkas</label>
-                            <input type="date" className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none focus:ring-4 focus:ring-red-100 focus:border-red-500 font-bold text-gray-800 cursor-pointer transition-all" value={tanggal} onChange={(e) => setTanggal(e.target.value)} required />
-                        </div>
-                        <div className="flex justify-end pt-8 border-t border-gray-50">
-                            <button type="submit" disabled={submitLoading} className="bg-red-600 hover:bg-red-700 active:scale-95 text-white px-10 py-4 rounded-2xl font-black text-sm shadow-xl shadow-red-100 flex items-center gap-3 transition-all uppercase tracking-widest">
-                                {submitLoading ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />} Proses Pengembalian
-                            </button>
-                        </div>
-                    </form>
                 </div>
             </div>
-            <Modal show={modalInfo.show} title={modalInfo.title} onClose={() => setModalInfo({ ...modalInfo, show: false })}>
-                <div className="p-8 text-center flex flex-col items-center">
-                    {modalInfo.isSuccess ? <CheckCircle size={60} className="text-emerald-500 mb-4 animate-bounce" /> : <div className="text-4xl mb-4 text-red-500">⚠️</div>}
-                    <p className="font-bold text-gray-700 uppercase text-sm tracking-wide leading-relaxed">{modalInfo.message}</p>
-                </div>
-            </Modal>
+            <Modal show={modalInfo.show} title={modalInfo.title} onClose={() => setModalInfo({ ...modalInfo, show: false })}><div className="p-8 text-center flex flex-col items-center">{modalInfo.isSuccess ? <CheckCircle size={60} className="text-emerald-500 mb-4 animate-bounce" /> : <div className="text-4xl mb-4 text-red-500">⚠️</div>}<p className="font-bold text-gray-700 uppercase text-sm">{modalInfo.message}</p></div></Modal>
         </div>
     );
 }
