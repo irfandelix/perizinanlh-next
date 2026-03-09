@@ -121,8 +121,9 @@ function PemeriksaanRevisiContent() {
                             </span>
                         </td>
                         <td className="p-5 text-center">
+                            {/* INI YANG DIGANTI: MENGGUNAKAN item.noUrut */}
                             <Link 
-                              href={`/pemeriksaan-revisi/${item._id}?thn=${item.tahun}`} 
+                              href={`/pemeriksaan-revisi/${item.noUrut}?thn=${item.tahun}`} 
                               className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg shadow-blue-100"
                             >
                                 <Eye size={14} /> Periksa

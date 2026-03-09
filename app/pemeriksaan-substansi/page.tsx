@@ -141,8 +141,9 @@ function PemeriksaanSubstansiContent() {
                                                 )}
                                             </td>
                                             <td className="p-6 text-center">
+                                                {/* INI YANG DIGANTI: MENGGUNAKAN doc.noUrut AGAR COCOK DENGAN FORM */}
                                                 <Link 
-                                                    href={`/pemeriksaan-substansi/${doc._id}?thn=${doc.tahun}`} 
+                                                    href={`/pemeriksaan-substansi/${doc.noUrut}?thn=${doc.tahun}`} 
                                                     className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-md active:scale-95 ${
                                                         doc.nomorBAPemeriksaan 
                                                         ? 'bg-slate-100 text-slate-400 hover:bg-slate-200' 
