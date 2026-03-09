@@ -191,34 +191,34 @@ export async function POST(
             generatedNomorStr = generateNomor(queryNoUrut, tanggalPenyerahanPerbaikan, kodeTahapan, existingData.jenisDokumen);
             updateQuery = { [fieldNo]: generatedNomorStr, [fieldTgl]: tanggalPenyerahanPerbaikan, [fieldPetugas]: petugasPenerimaPerbaikan, statusTerakhir: 'DIPERIKSA', updatedAt: new Date() };
         }
-        // ==========================================
+// ==========================================
         // TAHAP G: RISALAH PENGOLAH (RPD)
         // ==========================================
         else if (tahap === 'g') {
             const { tanggalPembuatanRisalah } = body;
-            const { year } = getDateParts(tanggalPembuatanRisalah);
+            const { year: yearTerbit } = getDateParts(tanggalPembuatanRisalah);
 
-            // 1. Cari dokumen dengan nomor RPD tertinggi di tahun yang sama
+            // 1. Cari RPD terakhir berdasarkan TAHUN TERBIT RISALAH (bukan tahun registrasi)
             const lastRisalah = await collection.find({ 
-                tahun: year, 
+                tahunRisalah: yearTerbit, 
                 nomorRisalah: { $exists: true, $ne: "" } 
             })
-            .sort({ seqRisalah: -1 }) // Kita pakai field seqRisalah untuk urutan
+            .sort({ seqRisalah: -1 }) 
             .limit(1)
             .toArray();
 
-            // 2. Tentukan nomor urut RPD selanjutnya
-            // Jika ada (lastRisalah[0].seqRisalah), maka +1. Jika tidak ada (tahun baru), balik ke 1.
+            // 2. Tentukan nomor urut: Jika tahun baru dan belum ada RPD, mulai dari 1
             const nextSeq = lastRisalah.length > 0 ? (lastRisalah[0].seqRisalah || 0) + 1 : 1;
 
-            // 3. Generate nomor surat menggunakan urutan yang baru (nextSeq)
+            // 3. Generate nomor surat menggunakan urutan terbaru
             generatedNomorStr = generateNomor(nextSeq, tanggalPembuatanRisalah, 'RPD', existingData.jenisDokumen);
             
-            // 4. Update data ke database
+            // 4. Simpan 'tahunRisalah' agar dokumen tahun 2025 lainnya yang terbit di 2026 bisa urut
             updateQuery = { 
                 tanggalRisalah: tanggalPembuatanRisalah, 
                 nomorRisalah: generatedNomorStr,
-                seqRisalah: nextSeq // WAJIB disimpan agar pencarian di atas akurat
+                tahunRisalah: yearTerbit, // Field kunci untuk urutan tahun terbit
+                seqRisalah: nextSeq 
             };
         }
         else if (tahap === 'pengembalian') {
