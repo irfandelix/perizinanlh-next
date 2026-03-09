@@ -27,7 +27,12 @@ function FormUjiAdministrasiContent() {
                 const res = await fetch('/api/record/list'); 
                 const result = await res.json();
                 if (result.success) {
-                    const currentDoc = result.data.find((d: any) => d.noUrut === parseInt(id) && d.tahun?.toString() === thn);
+                    // KODINGAN PINTAR: Menyamakan logika tahun dengan halaman daftar
+                    const currentDoc = result.data.find((d: any) => {
+                        const docYear = d.tahun?.toString() || (d.tanggalMasukDokumen ? d.tanggalMasukDokumen.substring(0, 4) : new Date().getFullYear().toString());
+                        return d.noUrut === parseInt(id) && docYear === thn;
+                    });
+
                     if (currentDoc) {
                         setDocInfo(currentDoc);
                         if (currentDoc.tanggalUjiBerkas) setTanggal(currentDoc.tanggalUjiBerkas);
@@ -66,7 +71,7 @@ function FormUjiAdministrasiContent() {
                         <div className="bg-orange-50 border border-orange-100 rounded-[2rem] p-6 mb-8 flex gap-4"><Info className="text-orange-500 mt-1" />
                             <div className="grid grid-cols-2 gap-4 w-full">
                                 <div><span className="text-[10px] font-black text-gray-400 uppercase">Kegiatan</span><p className="font-bold text-gray-800 uppercase leading-tight mt-1">{docInfo.namaKegiatan}</p></div>
-                                <div><span className="text-[10px] font-black text-gray-400 uppercase">No Urut / Tahun</span><p className="font-black text-orange-600 mt-1">{docInfo.noUrut} / {docInfo.tahun}</p></div>
+                                <div><span className="text-[10px] font-black text-gray-400 uppercase">No Urut / Tahun</span><p className="font-black text-orange-600 mt-1">{docInfo.noUrut} / {thn}</p></div>
                             </div>
                         </div>
                         <form onSubmit={handleSubmit} className="space-y-8">
