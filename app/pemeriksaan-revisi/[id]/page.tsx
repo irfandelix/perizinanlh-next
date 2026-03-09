@@ -1,51 +1,60 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { Save, ArrowLeft, History, CheckCircle, Loader2, Info } from 'lucide-react';
 import Modal from '@/components/Modal';
 import api from '@/lib/api';
 
-export default function FormRevisi() {
+// 1. Buat komponen internal untuk menampung logika form
+function FormRevisiContent() {
     const params = useParams();
     const router = useRouter();
-    const searchParams = useSearchParams();
+    const searchParams = useSearchParams(); // Hook ini yang memicu error build
+    
+    const id = params.id as string; 
     const thn = searchParams.get('thn'); 
-    const id = params.id as string;
 
     const [loadingData, setLoadingData] = useState(true);
     const [submitLoading, setSubmitLoading] = useState(false);
     const [docInfo, setDocInfo] = useState<any>(null);
     const [modalInfo, setModalInfo] = useState({ show: false, title: '', message: '', isSuccess: false });
+    
     const [revisiKe, setRevisiKe] = useState('1');
     const [tanggal, setTanggal] = useState('');
 
     useEffect(() => {
         const fetchDocData = async () => {
-            if (!id || !thn) { setLoadingData(false); return; }
+            if (!id) return;
             try {
                 const res = await fetch('/api/record/list'); 
                 const result = await res.json();
                 if (result.success) {
-                    const currentDoc = result.data.find((d: any) => 
-                        d.noUrut === parseInt(id) && d.tahun?.toString() === thn
-                    );
-                    if (currentDoc) setDocInfo(currentDoc);
+                    const currentDoc = result.data.find((d: any) => d._id === id);
+                    if (currentDoc) {
+                        setDocInfo(currentDoc);
+                        if (currentDoc.tanggalRevisi1) setTanggal(currentDoc.tanggalRevisi1);
+                    }
                 }
             } catch (error) { console.error(error); } 
             finally { setLoadingData(false); }
         };
         fetchDocData();
-    }, [id, thn]);
+    }, [id]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setSubmitLoading(true);
         try {
-            await api.post('/api/submit/e', { noUrut: parseInt(id), tahun: thn, nomorRevisi: revisiKe, tanggalRevisi: tanggal });
+            await api.post('/api/submit/e', { 
+                noUrut: docInfo.noUrut, 
+                tahun: docInfo.tahun, 
+                nomorRevisi: revisiKe,
+                tanggalRevisi: tanggal 
+            });
             setModalInfo({ show: true, title: 'Berhasil', message: `Data Revisi ${revisiKe} Berhasil Disimpan!`, isSuccess: true });
             setTimeout(() => router.push('/pemeriksaan-revisi'), 2000);
-        } catch (error) { setModalInfo({ show: true, title: 'Gagal', message: 'Gagal simpan data.', isSuccess: false }); } 
+        } catch (error: any) { setModalInfo({ show: true, title: 'Gagal', message: 'Gagal simpan data.', isSuccess: false }); } 
         finally { setSubmitLoading(false); }
     };
 
@@ -53,35 +62,74 @@ export default function FormRevisi() {
 
     return (
         <div className="p-6 max-w-4xl mx-auto my-8 font-sans">
-            <button onClick={() => router.back()} className="flex items-center gap-2 text-gray-500 hover:text-blue-600 font-bold mb-6 group"><ArrowLeft size={20} className="group-hover:-translate-x-1" /> Kembali</button>
+            <button onClick={() => router.back()} className="flex items-center gap-2 text-gray-500 hover:text-blue-600 font-bold mb-6 transition-all group">
+                <ArrowLeft size={20} className="group-hover:-translate-x-1 transition-transform" /> Kembali ke Daftar
+            </button>
+
             <div className="bg-white shadow-xl rounded-[2.5rem] border border-gray-100 overflow-hidden">
                 <div className="bg-blue-600 p-8 text-white flex items-center gap-5">
                     <div className="p-4 bg-white/20 rounded-2xl backdrop-blur-md"><History size={28} /></div>
-                    <div><h1 className="text-2xl font-black uppercase">Pemeriksaan Revisi</h1><p className="text-blue-100 text-xs font-medium uppercase tracking-widest mt-1">TAHUN {thn} | TAHAP E</p></div>
+                    <div>
+                        <h1 className="text-2xl font-black uppercase tracking-tight">Input Pemeriksaan Revisi</h1>
+                        <p className="text-blue-100 text-xs font-medium uppercase tracking-widest mt-1">TAHUN {thn || docInfo?.tahun} | TAHAP E</p>
+                    </div>
                 </div>
+
                 <div className="p-8">
-                    {!docInfo ? <div className="p-4 bg-red-50 text-red-600 rounded-xl font-bold">⚠️ Data No. {id} Tahun {thn} Tidak Ditemukan.</div> : (
-                        <>
-                        <div className="bg-blue-50 border border-blue-100 rounded-[2rem] p-6 mb-8 flex gap-4"><Info className="text-blue-500" />
-                            <div className="grid grid-cols-2 gap-4 w-full">
-                                <div><span className="text-[10px] font-black text-gray-400 uppercase">Kegiatan</span><p className="font-bold text-gray-800 uppercase leading-tight">{docInfo.namaKegiatan}</p></div>
-                                <div><span className="text-[10px] font-black text-gray-400 uppercase">No Urut / Tahun</span><p className="font-black text-blue-600">{docInfo.noUrut} / {docInfo.tahun}</p></div>
+                    {docInfo && (
+                        <div className="bg-blue-50 border border-blue-100 rounded-[2rem] p-6 mb-8 flex gap-4 items-start">
+                            <Info className="text-blue-500 mt-1" />
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
+                                <div><span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Kegiatan</span><p className="font-bold text-gray-800 uppercase leading-tight mt-1">{docInfo.namaKegiatan}</p></div>
+                                <div><span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Pemrakarsa</span><p className="font-bold text-gray-800 mt-1">{docInfo.namaPemrakarsa}</p></div>
+                                <div><span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">No Urut / Tahun</span><p className="font-black text-blue-600 mt-1 text-lg">{docInfo.noUrut} / {docInfo.tahun}</p></div>
                             </div>
                         </div>
-                        <form onSubmit={handleSubmit} className="space-y-8">
-                            <div className="grid grid-cols-2 gap-6">
-                                <div><label className="block text-xs font-black mb-3 text-gray-500 uppercase">Revisi Ke-</label>
-                                <select className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none font-bold text-gray-800" value={revisiKe} onChange={(e) => setRevisiKe(e.target.value)}>{[1,2,3,4,5].map(n => <option key={n} value={n}>{n}</option>)}</select></div>
-                                <div><label className="block text-xs font-black mb-3 text-gray-500 uppercase">Tanggal Revisi</label>
-                                <input type="date" className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none font-bold text-gray-800" value={tanggal} onChange={(e) => setTanggal(e.target.value)} required /></div>
-                            </div>
-                            <div className="flex justify-end pt-8 border-t border-gray-50"><button type="submit" disabled={submitLoading} className="bg-blue-600 text-white px-10 py-4 rounded-2xl font-black text-sm shadow-xl flex items-center gap-3">{submitLoading ? <Loader2 className="animate-spin" /> : <Save size={18} />} Simpan Revisi</button></div>
-                        </form>
-                        </>
                     )}
+
+                    <form onSubmit={handleSubmit} className="space-y-8 animate-in fade-in duration-500">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <div>
+                                <label className="block text-xs font-black mb-3 text-gray-500 uppercase tracking-widest">Revisi Ke-</label>
+                                <select className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none focus:ring-4 focus:ring-blue-100 font-bold text-gray-800" value={revisiKe} onChange={(e) => setRevisiKe(e.target.value)}>
+                                    {[1, 2, 3, 4, 5].map(n => <option key={n} value={n}>Revisi ke-{n}</option>)}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-black mb-3 text-gray-500 uppercase tracking-widest">Tanggal BA Revisi</label>
+                                <input type="date" className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none focus:ring-4 focus:ring-blue-100 font-bold text-gray-800" value={tanggal} onChange={(e) => setTanggal(e.target.value)} required />
+                            </div>
+                        </div>
+
+                        <div className="flex justify-end pt-8 border-t border-gray-50">
+                            <button type="submit" disabled={submitLoading} className="bg-blue-600 hover:bg-blue-700 active:scale-95 text-white px-10 py-4 rounded-2xl font-black text-sm shadow-xl shadow-blue-100 flex items-center gap-3 transition-all uppercase tracking-widest">
+                                {submitLoading ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />} Simpan Data Revisi
+                            </button>
+                        </div>
+                    </form>
                 </div>
             </div>
-            <Modal show={modalInfo.show} title={modalInfo.title} onClose={() => setModalInfo({ ...modalInfo, show: false })}><div className="p-8 text-center flex flex-col items-center">{modalInfo.isSuccess ? <CheckCircle size={60} className="text-emerald-500 mb-4 animate-bounce" /> : <div className="text-4xl mb-4 text-red-500">⚠️</div>}<p className="font-bold text-gray-700 uppercase text-sm">{modalInfo.message}</p></div></Modal>
+
+            <Modal show={modalInfo.show} title={modalInfo.title} onClose={() => setModalInfo({ ...modalInfo, show: false })}>
+                <div className="p-8 text-center flex flex-col items-center">
+                    {modalInfo.isSuccess ? <CheckCircle size={60} className="text-emerald-500 mb-4 animate-bounce" /> : <div className="text-4xl mb-4 text-red-500">⚠️</div>}
+                    <p className="font-bold text-gray-700 uppercase text-sm tracking-wide">{modalInfo.message}</p>
+                </div>
+            </Modal>
         </div>
+    );
+}
+
+// 2. EXPORT UTAMA: Bungkus komponen di dalam Suspense
+export default function PemeriksaanRevisiDetailPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50">
+                <Loader2 className="animate-spin w-12 h-12 text-blue-600 mb-4" />
+                <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Menyiapkan Form Revisi...</p>
+            </div>
+        }>
+            <FormRevisiContent />
+        </Suspense>
     );
 }
