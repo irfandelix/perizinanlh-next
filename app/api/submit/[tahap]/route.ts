@@ -33,7 +33,7 @@ const generateNomor = (nomorUntukSurat: number, dateString: string, tahapan: str
     const noUrutStr = formatToThreeDigits(nomorUntukSurat); 
     
     let prefix = "600.4";
-    if (tahapan.includes("BA.V") || tahapan.includes("BA.P")) prefix = "600.4.25";
+    if (tahapan.includes("BA.V") || tahapan.includes("BA.P")) prefix = "600.4.5";
 
     return `${prefix}/${noUrutStr}.${month}/17/${tahapan}.${kodeJenis}/${year}`;
 };
