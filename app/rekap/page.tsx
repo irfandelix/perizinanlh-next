@@ -4,7 +4,18 @@ import React, { useState, useEffect } from 'react';
 import api from '@/lib/api';
 import * as XLSX from 'xlsx';
 import dynamic from 'next/dynamic'; 
-import { ChevronDown, ChevronUp, FolderOpen, ClipboardCheck, History, CheckCircle, AlertCircle } from 'lucide-react';
+import { 
+    ChevronDown, 
+    ChevronUp, 
+    FolderOpen, 
+    ClipboardCheck, 
+    History, 
+    CheckCircle, 
+    AlertCircle, 
+    Download,
+    Search,
+    Loader2
+} from 'lucide-react';
 
 interface Dokumen {
     _id: string;
@@ -36,18 +47,17 @@ interface Dokumen {
     nomorRisalah?: string; tanggalRisalah?: string;
 }
 
-// Helper component untuk menampilkan label & nilai di mode dropdown
+// Helper untuk menampilkan label & nilai
 const DetailItem = ({ label, value, highlight = false }: { label: string, value: any, highlight?: boolean }) => (
     <div className="mb-3">
-        <span className="text-gray-500 text-xs font-semibold uppercase tracking-wider block mb-0.5">{label}</span>
-        <span className={`text-sm ${highlight ? 'font-bold text-emerald-700' : 'font-medium text-gray-800'}`}>
+        <span className="text-gray-500 text-[10px] font-black uppercase tracking-wider block mb-0.5">{label}</span>
+        <span className={`text-sm ${highlight ? 'font-extrabold text-emerald-700' : 'font-bold text-gray-800'}`}>
             {value || '-'}
         </span>
     </div>
 );
 
 function TableContent({ rekapData }: { rekapData: Dokumen[] }) {
-    // State untuk melacak baris mana yang sedang di-expand (dibuka dropdown-nya)
     const [expandedRow, setExpandedRow] = useState<string | null>(null);
 
     const toggleRow = (id: string) => {
@@ -55,242 +65,178 @@ function TableContent({ rekapData }: { rekapData: Dokumen[] }) {
     };
 
     return (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div className="bg-white rounded-[2.5rem] shadow-sm border border-gray-100 overflow-hidden">
             <table className="w-full text-left border-collapse">
                 <thead>
-                    <tr className="bg-emerald-50 text-emerald-800 border-b-2 border-emerald-100">
-                        <th className="p-4 font-bold text-sm w-16 text-center">No</th>
-                        <th className="p-4 font-bold text-sm w-32">Tgl Masuk</th>
-                        <th className="p-4 font-bold text-sm">Nama Kegiatan</th>
-                        <th className="p-4 font-bold text-sm">Pemrakarsa</th>
-                        <th className="p-4 font-bold text-sm w-36 text-center">Jenis Dok</th> {/* <-- Diperlebar di sini */}
-                        <th className="p-4 font-bold text-sm w-24 text-center">Detail</th>
+                    <tr className="bg-emerald-600 text-white">
+                        <th className="p-5 font-black text-[11px] uppercase tracking-widest w-16 text-center">No</th>
+                        <th className="p-5 font-black text-[11px] uppercase tracking-widest w-32">Tgl Masuk</th>
+                        <th className="p-5 font-black text-[11px] uppercase tracking-widest">Nama Kegiatan</th>
+                        <th className="p-5 font-black text-[11px] uppercase tracking-widest">Pemrakarsa</th>
+                        <th className="p-5 font-black text-[11px] uppercase tracking-widest w-36 text-center">Jenis Dok</th>
+                        <th className="p-5 font-black text-[11px] uppercase tracking-widest w-24 text-center">Detail</th>
                     </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody className="divide-y divide-gray-50">
                     {rekapData.map((doc) => (
                         <React.Fragment key={doc._id}>
-                            {/* MASTER ROW (Selalu Tampil) */}
                             <tr 
                                 onClick={() => toggleRow(doc._id)}
-                                className={`cursor-pointer transition-colors duration-200 hover:bg-emerald-50/50 ${expandedRow === doc._id ? 'bg-emerald-50/50' : 'bg-white'}`}
+                                className={`cursor-pointer transition-all duration-200 ${expandedRow === doc._id ? 'bg-emerald-50/50' : 'hover:bg-slate-50'}`}
                             >
-                                <td className="p-4 text-center font-bold text-gray-700">{doc.noUrut}</td>
-                                <td className="p-4 text-sm font-medium text-gray-600">{doc.tanggalMasukDokumen}</td>
-                                <td className="p-4">
-                                    <p className="font-bold text-gray-800 line-clamp-2">{doc.namaKegiatan}</p>
-                                    <p className="text-xs text-gray-500 mt-1 font-mono">{doc.nomorChecklist || doc.nomorRegistrasiAmdalnet}</p>
+                                <td className="p-5 text-center font-black text-gray-400">{doc.noUrut}</td>
+                                <td className="p-5 text-sm font-bold text-gray-600">{doc.tanggalMasukDokumen}</td>
+                                <td className="p-5">
+                                    <p className="font-black text-gray-800 uppercase line-clamp-1">{doc.namaKegiatan}</p>
+                                    <p className="text-[10px] text-gray-400 mt-1 font-mono tracking-tighter">{doc.nomorChecklist || doc.nomorRegistrasiAmdalnet}</p>
                                 </td>
-                                <td className="p-4 text-sm font-medium text-gray-700">{doc.namaPemrakarsa}</td>
-                                <td className="p-4 text-center">
-                                    {/* <-- whitespace-nowrap ditambahkan di sini --> */}
-                                    <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-lg text-xs font-bold tracking-wide whitespace-nowrap inline-block">
+                                <td className="p-5 text-sm font-bold text-gray-700">{doc.namaPemrakarsa}</td>
+                                <td className="p-5 text-center">
+                                    <span className="px-3 py-1 bg-blue-50 text-blue-700 rounded-lg text-[10px] font-black tracking-widest whitespace-nowrap inline-block border border-blue-100">
                                         {doc.jenisDokumen}
                                     </span>
                                 </td>
-                                <td className="p-4 text-center">
-                                    <button className={`p-2 rounded-full transition-all ${expandedRow === doc._id ? 'bg-emerald-200 text-emerald-800' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
-                                        {expandedRow === doc._id ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                                <td className="p-5 text-center">
+                                    <button className={`p-2 rounded-xl transition-all ${expandedRow === doc._id ? 'bg-emerald-600 text-white rotate-180' : 'bg-gray-100 text-gray-400'}`}>
+                                        <ChevronDown size={18} />
                                     </button>
                                 </td>
                             </tr>
 
-                            {/* DROPDOWN EXPANDED ROW (Tampil saat diklik) */}
                             {expandedRow === doc._id && (
-                                <tr className="bg-slate-50 border-b border-gray-200">
-                                    <td colSpan={6} className="p-0">
-                                        <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6 animate-fade-in shadow-inner">
+                                <tr className="bg-slate-50/50">
+                                    <td colSpan={6} className="p-8">
+                                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-in fade-in slide-in-from-top-2 duration-300">
                                             
-                                            {/* KOLOM 1: IDENTITAS LENGKAP & SURAT */}
-                                            <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm">
-                                                <h4 className="flex items-center gap-2 text-emerald-700 font-bold border-b pb-2 mb-4">
-                                                    <FolderOpen size={18} /> Identitas & Dokumen
+                                            {/* KOLOM 1: IDENTITAS */}
+                                            <div className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm">
+                                                <h4 className="flex items-center gap-2 text-emerald-700 font-black text-sm border-b border-gray-50 pb-3 mb-5 uppercase tracking-tighter">
+                                                    <div className="p-1.5 bg-emerald-100 rounded-lg"><FolderOpen size={16} /></div> Identitas & Dokumen
                                                 </h4>
                                                 <DetailItem label="Nomor Checklist (DLH)" value={doc.nomorChecklist} highlight />
                                                 <DetailItem label="Nomor Reg Amdalnet" value={doc.nomorRegistrasiAmdalnet} />
-                                                <DetailItem label="Jenis & Lokasi Kegiatan" value={`${doc.jenisKegiatan || '-'} — ${doc.lokasiKegiatan || '-'}`} />
-                                                <DetailItem label="Konsultan Penyusun" value={doc.namaKonsultan} />
-                                                
-                                                <div className="mt-4 pt-4 border-t border-dashed border-gray-200">
-                                                    <DetailItem label="Surat Permohonan (No & Tgl)" value={`${doc.nomorSuratPermohonan || '-'} (${doc.tanggalSuratPermohonan || '-'})`} />
-                                                    <DetailItem label="Perihal Surat" value={doc.perihalSuratPermohonan} />
+                                                <DetailItem label="Jenis & Lokasi" value={`${doc.jenisKegiatan || '-'} — ${doc.lokasiKegiatan || '-'}`} />
+                                                <DetailItem label="Konsultan" value={doc.namaKonsultan} />
+                                                <div className="mt-4 pt-4 border-t border-dashed border-gray-100">
+                                                    <DetailItem label="Permohonan" value={`${doc.nomorSuratPermohonan || '-'} (${doc.tanggalSuratPermohonan || '-'})`} />
                                                 </div>
                                             </div>
 
-                                            {/* KOLOM 2: PROSES BERITA ACARA (BA) */}
-                                            <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm">
-                                                <h4 className="flex items-center gap-2 text-blue-700 font-bold border-b pb-2 mb-4">
-                                                    <ClipboardCheck size={18} /> Riwayat Berita Acara
+                                            {/* KOLOM 2: BERITA ACARA */}
+                                            <div className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm">
+                                                <h4 className="flex items-center gap-2 text-blue-700 font-black text-sm border-b border-gray-50 pb-3 mb-5 uppercase tracking-tighter">
+                                                    <div className="p-1.5 bg-blue-100 rounded-lg"><ClipboardCheck size={16} /></div> Riwayat Berita Acara
                                                 </h4>
                                                 <DetailItem label="BA Uji Administrasi" value={`${doc.nomorUjiBerkas || '-'} ${doc.tanggalUjiBerkas ? `(${doc.tanggalUjiBerkas})` : ''}`} />
-                                                <DetailItem label="BA Verifikasi Lapangan" value={`${doc.nomorBAVerlap || '-'} ${doc.tanggalVerlap ? `(${doc.tanggalVerlap})` : ''}`} />
+                                                <DetailItem label="BA Verlap" value={`${doc.nomorBAVerlap || '-'} ${doc.tanggalVerlap ? `(${doc.tanggalVerlap})` : ''}`} />
                                                 <DetailItem label="BA Pemeriksaan Berkas" value={`${doc.nomorBAPemeriksaan || '-'} ${doc.tanggalPemeriksaan ? `(${doc.tanggalPemeriksaan})` : ''}`} />
                                             </div>
 
-                                            {/* KOLOM 3: REVISI, PHP & HASIL AKHIR */}
-                                            <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm">
-                                                <h4 className="flex items-center gap-2 text-orange-600 font-bold border-b pb-2 mb-4">
-                                                    <History size={18} /> Riwayat Revisi & Akhir
+                                            {/* KOLOM 3: REVISI & HASIL AKHIR */}
+                                            <div className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm">
+                                                <h4 className="flex items-center gap-2 text-orange-600 font-black text-sm border-b border-gray-50 pb-3 mb-5 uppercase tracking-tighter">
+                                                    <div className="p-1.5 bg-orange-100 rounded-lg"><History size={16} /></div> Riwayat Revisi & Akhir
                                                 </h4>
-                                                
-                                                <div className="mb-3">
-                                                    <span className="text-gray-500 text-xs font-semibold uppercase tracking-wider block mb-0.5">Riwayat Revisi</span>
-                                                    <div className="text-sm font-medium text-gray-800 space-y-1">
-                                                        {doc.nomorRevisi1 ? <div className="flex gap-2 text-xs items-center"><span className="w-4 h-4 rounded-full bg-gray-200 flex items-center justify-center">1</span> {doc.tanggalRevisi1}</div> : '-'}
-                                                        {doc.nomorRevisi2 && <div className="flex gap-2 text-xs items-center"><span className="w-4 h-4 rounded-full bg-gray-200 flex items-center justify-center">2</span> {doc.tanggalRevisi2}</div>}
-                                                        {doc.nomorRevisi3 && <div className="flex gap-2 text-xs items-center"><span className="w-4 h-4 rounded-full bg-gray-200 flex items-center justify-center">3</span> {doc.tanggalRevisi3}</div>}
-                                                        {doc.nomorRevisi4 && <div className="flex gap-2 text-xs items-center"><span className="w-4 h-4 rounded-full bg-gray-200 flex items-center justify-center">4</span> {doc.tanggalRevisi4}</div>}
-                                                        {doc.nomorRevisi5 && <div className="flex gap-2 text-xs items-center"><span className="w-4 h-4 rounded-full bg-gray-200 flex items-center justify-center">5</span> {doc.tanggalRevisi5}</div>}
+                                                <div className="mb-5">
+                                                    <span className="text-gray-400 text-[10px] font-black uppercase tracking-widest block mb-3">Daftar Revisi</span>
+                                                    <div className="space-y-3">
+                                                        {[1, 2, 3, 4, 5].map((num) => {
+                                                            const tgl = (doc as any)[`tanggalRevisi${num}`];
+                                                            const no = (doc as any)[`nomorRevisi${num}`];
+                                                            if (!tgl) return null;
+                                                            return (
+                                                                <div key={num} className="flex items-start gap-2">
+                                                                    <span className="w-5 h-5 bg-slate-100 text-slate-500 rounded-full flex items-center justify-center text-[10px] font-black shrink-0">{num}</span>
+                                                                    <div>
+                                                                        <p className="text-xs font-bold text-gray-800">{tgl}</p>
+                                                                        <p className="text-[9px] font-mono text-orange-600 font-bold bg-orange-50 px-1.5 py-0.5 rounded mt-1 border border-orange-100 inline-block">{no || 'Proses'}</p>
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                        {!doc.tanggalRevisi1 && <p className="text-xs text-gray-300 italic">-</p>}
                                                     </div>
                                                 </div>
-
-                                                <DetailItem label="Penerimaan Hasil Perbaikan (PHP)" value={`${doc.nomorPHP || '-'} ${doc.tanggalPHP ? `(${doc.tanggalPHP})` : ''}`} />
-                                                
-                                                <div className="mt-4 pt-4 border-t border-dashed border-gray-200">
-                                                    {doc.tanggalPengembalian && (
-                                                        <div className="mb-3 text-red-600 flex items-start gap-2">
-                                                            <AlertCircle size={16} className="mt-0.5 shrink-0" />
-                                                            <div>
-                                                                <span className="text-xs font-bold uppercase block">Dikembalikan Pada</span>
-                                                                <span className="text-sm font-bold">{doc.tanggalPengembalian}</span>
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                    
-                                                    <DetailItem label="Nomor Risalah" value={`${doc.nomorRisalah || '-'} ${doc.tanggalRisalah ? `(${doc.tanggalRisalah})` : ''}`} />
-                                                    
-                                                    <div className="bg-emerald-50 border border-emerald-200 p-3 rounded-lg mt-2">
-                                                        <span className="text-emerald-700 text-xs font-bold uppercase tracking-wider block mb-1 flex items-center gap-1">
-                                                            <CheckCircle size={14} /> Izin Terbit
-                                                        </span>
-                                                        <span className="font-bold text-emerald-900">{doc.nomorIzinTerbit || 'Belum Terbit'}</span>
+                                                <div className="pt-4 border-t border-dashed border-gray-100">
+                                                    <DetailItem label="PHP" value={doc.nomorPHP ? `${doc.tanggalPHP} | ${doc.nomorPHP}` : '-'} />
+                                                    <DetailItem label="Risalah (RPD)" value={doc.nomorRisalah ? `${doc.tanggalRisalah} | ${doc.nomorRisalah}` : '-'} />
+                                                    <div className="bg-emerald-50 border border-emerald-100 p-3 rounded-xl mt-2">
+                                                        <span className="text-emerald-700 text-[10px] font-black uppercase tracking-widest flex items-center gap-1 mb-1"><CheckCircle size={12}/> Izin Terbit</span>
+                                                        <span className="text-xs font-black text-emerald-900 break-all">{doc.nomorIzinTerbit || 'BELUM TERBIT'}</span>
                                                     </div>
                                                 </div>
                                             </div>
-
                                         </div>
                                     </td>
                                 </tr>
                             )}
                         </React.Fragment>
                     ))}
-                    
-                    {rekapData.length === 0 && (
-                        <tr>
-                            <td colSpan={6} className="p-8 text-center text-gray-500 font-medium">
-                                Belum ada dokumen yang terdaftar.
-                            </td>
-                        </tr>
-                    )}
                 </tbody>
             </table>
         </div>
     );
 }
 
-const DynamicTableContent = dynamic(() => Promise.resolve(TableContent), { ssr: false, loading: () => (<div className="p-8 text-center text-gray-500 font-medium animate-pulse bg-white rounded-xl shadow-sm border border-gray-200">Memuat tampilan tabel dropdown...</div>) });
+const DynamicTable = dynamic(() => Promise.resolve(TableContent), { ssr: false });
 
 export default function RekapTabelPage() {
     const [rekapData, setRekapData] = useState<Dokumen[]>([]);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState('');
     const [selectedYear, setSelectedYear] = useState<string>('');
     const [availableYears, setAvailableYears] = useState<string[]>([]);
 
     useEffect(() => {
         const fetchRekapData = async () => {
             try {
-                setLoading(true);
                 const response = await api.get('/api/rekap'); 
                 const docs = response.data.data;
                 setRekapData(docs);
-
-                const yearsSet = new Set(docs.map((item: Dokumen) => item.tahun?.toString() || (item.tanggalMasukDokumen ? item.tanggalMasukDokumen.substring(0, 4) : new Date().getFullYear().toString())));
-                const yearsArray = Array.from(yearsSet).sort().reverse() as string[];
-                setAvailableYears(yearsArray);
-                
-                if (yearsArray.length > 0) setSelectedYear(yearsArray[0]);
-
-            } catch (err) {
-                setError('Gagal memuat data rekapitulasi.');
-            } finally {
-                setLoading(false);
-            }
+                const years = Array.from(new Set(docs.map((d: any) => d.tahun?.toString() || d.tanggalMasukDokumen?.substring(0, 4)))).sort().reverse() as string[];
+                setAvailableYears(years);
+                if (years.length > 0) setSelectedYear(years[0]);
+            } catch (err) { console.error(err); } 
+            finally { setLoading(false); }
         };
         fetchRekapData();
     }, []);
 
-    const filteredData = rekapData.filter((doc) => {
-        const docYear = doc.tahun?.toString() || (doc.tanggalMasukDokumen ? doc.tanggalMasukDokumen.substring(0, 4) : '');
-        return docYear === selectedYear;
-    });
+    const filteredData = rekapData.filter((doc) => (doc.tahun?.toString() || doc.tanggalMasukDokumen?.substring(0, 4)) === selectedYear);
 
     const handleDownloadExcel = () => {
-        if (filteredData.length === 0) return alert(`Tidak ada data untuk tahun ${selectedYear}.`);
-
         const dataToExport = filteredData.map(doc => ({
-            "No. Urut": doc.noUrut, 
-            "No. Checklist (DLH)": doc.nomorChecklist || '-', 
-            "No. Reg Amdalnet": doc.nomorRegistrasiAmdalnet || '-', 
-            "Nama Kegiatan": doc.namaKegiatan, 
-            "Jenis Kegiatan": doc.jenisKegiatan || '-',
-            "Lokasi Kegiatan": doc.lokasiKegiatan || '-',
-            "Jenis Dokumen": doc.jenisDokumen, 
-            "Nama Pemrakarsa": doc.namaPemrakarsa, 
-            "Nama Konsultan": doc.namaKonsultan || '-',
-            "Tanggal Masuk": doc.tanggalMasukDokumen, 
-            "No. Surat Permohonan": doc.nomorSuratPermohonan || '-',
-            "Tgl. Surat": doc.tanggalSuratPermohonan || '-',
-            "Perihal Surat": doc.perihalSuratPermohonan || '-',
-            "No. BA Uji Administrasi": doc.nomorUjiBerkas, "Tgl. BA Uji Administrasi": doc.tanggalUjiBerkas, 
-            "No. BA Verifikasi Lapangan": doc.nomorBAVerlap, "Tgl. Verifikasi Lapangan": doc.tanggalVerlap, 
-            "No. BA Pemeriksaan Berkas": doc.nomorBAPemeriksaan, "Tgl. Pemeriksaan Berkas": doc.tanggalPemeriksaan, 
-            "No. BA Revisi 1": doc.nomorRevisi1, "Tgl. Revisi 1": doc.tanggalRevisi1, 
-            "No. BA Revisi 2": doc.nomorRevisi2, "Tgl. Revisi 2": doc.tanggalRevisi2, 
-            "No. BA Revisi 3": doc.nomorRevisi3, "Tgl. Revisi 3": doc.tanggalRevisi3, 
-            "No. BA Revisi 4": doc.nomorRevisi4, "Tgl. Revisi 4": doc.tanggalRevisi4, 
-            "No. BA Revisi 5": doc.nomorRevisi5, "Tgl. Revisi 5": doc.tanggalRevisi5, 
-            "No. Penerimaan Perbaikan": doc.nomorPHP, "Tgl. Penerimaan Perbaikan": doc.tanggalPHP, 
-            "Petugas Penerima": doc.petugasPenerimaPerbaikan, "Tgl. Pengembalian": doc.tanggalPengembalian, 
-            "No. Izin Terbit": doc.nomorIzinTerbit, "No. Risalah": doc.nomorRisalah, "Tgl. Risalah": doc.tanggalRisalah
+            "No": doc.noUrut, "Nama Kegiatan": doc.namaKegiatan, "Pemrakarsa": doc.namaPemrakarsa, "Jenis Dokumen": doc.jenisDokumen,
+            "No. Checklist": doc.nomorChecklist, "Tgl Masuk": doc.tanggalMasukDokumen, "BA Uji": doc.nomorUjiBerkas,
+            "BA Verlap": doc.nomorBAVerlap, "BA Periksa": doc.nomorBAPemeriksaan, "Risalah": doc.nomorRisalah, "Izin": doc.nomorIzinTerbit
         }));
-
-        const worksheet = XLSX.utils.json_to_sheet(dataToExport);
-        const wscols = Object.keys(dataToExport[0]).map(() => ({ wch: 20 }));
-        wscols[0] = { wch: 8 }; wscols[3] = { wch: 40 }; wscols[5] = { wch: 50 }; worksheet['!cols'] = wscols;
-        const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, `Rekap ${selectedYear}`);
-        XLSX.writeFile(workbook, `Rekapitulasi_Dokumen_DLH_${selectedYear}.xlsx`);
+        const ws = XLSX.utils.json_to_sheet(dataToExport);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, `Rekap ${selectedYear}`);
+        XLSX.writeFile(wb, `Rekap_DLH_${selectedYear}.xlsx`);
     };
 
-    if (error) return <div className="p-8 text-center text-red-500 font-bold">{error}</div>;
-
     return (
-        <div className="p-6 bg-slate-100 min-h-screen">            
-            <div className="flex justify-between items-end mb-6">
+        <div className="p-8 bg-slate-50 min-h-screen font-sans">
+            <div className="flex justify-between items-end mb-10">
                 <div>
-                    <h1 className="text-3xl font-extrabold text-gray-800 tracking-tight">Rekapitulasi Dokumen</h1>
-                    <p className="text-gray-500 text-sm mt-1 font-medium">Monitoring seluruh proses dokumen perizinan lingkungan hidup.</p>
+                    <h1 className="text-3xl font-black text-slate-800 tracking-tight">Rekapitulasi Dokumen</h1>
+                    <p className="text-slate-400 text-xs font-bold uppercase tracking-[0.2em] mt-2">Monitoring Arsip & Perizinan Lingkungan Hidup</p>
                 </div>
-                <button onClick={handleDownloadExcel} className='bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-xl font-bold shadow-lg shadow-emerald-200 transition-all flex items-center gap-2 disabled:opacity-50 hover:-translate-y-0.5' disabled={loading || filteredData.length === 0}>
-                    📥 {loading ? 'Memuat...' : `Unduh Excel ${selectedYear}`}
+                <button onClick={handleDownloadExcel} className="bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-emerald-100 flex items-center gap-3 transition-all">
+                    <Download size={18} /> Ekspor Excel {selectedYear}
                 </button>
             </div>
 
-            {availableYears.length > 0 && (
-                <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
-                    {availableYears.map((year) => (
-                        <button key={year} onClick={() => setSelectedYear(year)} className={`px-6 py-2.5 rounded-full font-bold text-sm transition-all whitespace-nowrap border-2 ${selectedYear === year ? 'bg-emerald-600 text-white border-emerald-600 shadow-md' : 'bg-white text-gray-500 border-gray-200 hover:border-emerald-300 hover:text-emerald-700'}`}>Tahun {year}</button>
-                    ))}
-                </div>
-            )}
+            <div className="flex gap-2 mb-8 overflow-x-auto pb-2">
+                {availableYears.map((year) => (
+                    <button key={year} onClick={() => setSelectedYear(year)} className={`px-8 py-3 rounded-full font-black text-xs uppercase tracking-widest border-2 transition-all ${selectedYear === year ? 'bg-emerald-600 border-emerald-600 text-white shadow-lg' : 'bg-white border-slate-200 text-slate-400 hover:border-emerald-200'}`}>Tahun {year}</button>
+                ))}
+            </div>
 
             {loading ? (
-                <div className="p-12 text-center text-emerald-600 font-bold text-lg animate-pulse bg-white rounded-xl shadow-sm border border-gray-200">
-                    Sedang mengambil data rekap dari server...
-                </div>
+                <div className="p-20 text-center"><Loader2 className="animate-spin mx-auto text-emerald-600 w-12 h-12" /></div>
             ) : (
-                <DynamicTableContent rekapData={filteredData} />
+                <DynamicTable rekapData={filteredData} />
             )}
         </div>
     );
