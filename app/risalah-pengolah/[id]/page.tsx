@@ -7,7 +7,11 @@ import Modal from '@/components/Modal';
 import api from '@/lib/api';
 
 export default function FormInputRisalah() {
-    const { id } = useParams();
+    // 1. UPDATE: Ambil params secara fleksibel (antisipasi nama folder [id] atau [noUrut])
+    const params = useParams();
+    const rawId = params.id || params.noUrut; 
+    const id = Array.isArray(rawId) ? rawId[0] : rawId;
+
     const router = useRouter();
     const [loading, setLoading] = useState(true);
     const [submitLoading, setSubmitLoading] = useState(false);
@@ -17,42 +21,64 @@ export default function FormInputRisalah() {
 
     useEffect(() => {
         const fetchDoc = async () => {
-            const res = await fetch('/api/record/list');
-            const result = await res.json();
-            if (result.success) {
-                const current = result.data.find((d: any) => d.noUrut === parseInt(id as string));
-                if (current) {
-                    setDoc(current);
-                    if (current.tanggalRisalah) setTanggal(current.tanggalRisalah);
+            if (!id) return;
+            try {
+                const res = await fetch('/api/record/list');
+                const result = await res.json();
+                if (result.success) {
+                    // 2. Cari berdasarkan noUrut yang diparsing dari URL
+                    const current = result.data.find((d: any) => d.noUrut === parseInt(id));
+                    if (current) {
+                        setDoc(current);
+                        if (current.tanggalRisalah) setTanggal(current.tanggalRisalah);
+                    }
                 }
+            } catch (err) {
+                console.error("Gagal load data:", err);
+            } finally {
+                setLoading(false);
             }
-            setLoading(false);
         };
         fetchDoc();
     }, [id]);
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (!id) return;
         setSubmitLoading(true);
         try {
-            const res = await api.post('/api/submit/g', { noUrut: parseInt(id as string), tanggalPembuatanRisalah: tanggal });
+            // 3. Pastikan noUrut dikirim sebagai angka agar API tidak Error 400
+            const res = await api.post('/api/submit/g', { 
+                noUrut: parseInt(id), 
+                tanggalPembuatanRisalah: tanggal 
+            });
+            
             setModal({ 
                 show: true, 
                 title: 'Berhasil', 
                 message: `Risalah Pengolah Data Berhasil Disimpan! Nomor: ${res.data.generatedNomor}`, 
                 isSuccess: true 
             });
+            
+            // Redirect ke halaman daftar risalah
             setTimeout(() => router.push('/risalah-pengolah'), 2500);
-        } catch (err) {
-            setModal({ show: true, title: 'Gagal', message: 'Terjadi kesalahan saat menyimpan.', isSuccess: false });
-        } finally { setSubmitLoading(false); }
+        } catch (err: any) {
+            setModal({ 
+                show: true, 
+                title: 'Gagal', 
+                message: err.response?.data?.message || 'Terjadi kesalahan saat menyimpan.', 
+                isSuccess: false 
+            });
+        } finally { 
+            setSubmitLoading(false); 
+        }
     };
 
-    if (loading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin text-rose-600" /></div>;
+    if (loading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin text-rose-600 w-10 h-10" /></div>;
 
     return (
         <div className="p-6 max-w-4xl mx-auto my-8 font-sans">
-            <button onClick={() => router.back()} className="flex items-center gap-2 text-slate-500 hover:text-rose-600 font-bold mb-6 transition-all group">
+            <button onClick={() => router.push('/risalah-pengolah')} className="flex items-center gap-2 text-slate-500 hover:text-rose-600 font-bold mb-6 transition-all group">
                 <ArrowLeft size={20} className="group-hover:-translate-x-1" /> Kembali ke Daftar Risalah
             </button>
 
@@ -66,13 +92,17 @@ export default function FormInputRisalah() {
                 </div>
 
                 <div className="p-8">
-                    {doc && (
+                    {doc ? (
                         <div className="bg-rose-50 border border-rose-100 rounded-3xl p-6 mb-8 flex items-start gap-4">
                             <Info className="text-rose-500 mt-1" size={20} />
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
                                 <div><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Kegiatan</span><p className="font-bold text-slate-800 leading-tight mt-1 uppercase">{doc.namaKegiatan}</p></div>
                                 <div><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Pemrakarsa</span><p className="font-bold text-slate-800 mt-1">{doc.namaPemrakarsa}</p></div>
                             </div>
+                        </div>
+                    ) : (
+                        <div className="p-4 bg-amber-50 text-amber-700 rounded-xl mb-8 border border-amber-200 font-bold text-sm">
+                            ⚠️ Data Dokumen No. {id} tidak ditemukan. Pastikan nomor urut benar.
                         </div>
                     )}
 
@@ -90,7 +120,7 @@ export default function FormInputRisalah() {
                         </div>
 
                         <div className="flex justify-end pt-8 border-t border-slate-50">
-                            <button type="submit" disabled={submitLoading} className="bg-rose-600 hover:bg-rose-700 active:scale-95 text-white px-10 py-4 rounded-2xl font-black text-sm shadow-lg shadow-rose-200 flex items-center gap-3 transition-all disabled:opacity-50 uppercase tracking-widest">
+                            <button type="submit" disabled={submitLoading || !doc} className="bg-rose-600 hover:bg-rose-700 active:scale-95 text-white px-10 py-4 rounded-2xl font-black text-sm shadow-lg shadow-rose-200 flex items-center gap-3 transition-all disabled:opacity-50 uppercase tracking-widest">
                                 {submitLoading ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />} Simpan & Terbitkan RPD
                             </button>
                         </div>
