@@ -92,7 +92,7 @@ export default function RisalahPengolahPage() {
                                             )}
                                         </td>
                                         <td className="p-5 text-center">
-                                            <button onClick={() => router.push(`/risalah-pengolah/${doc.noUrut}`)} className="p-2 bg-slate-100 hover:bg-rose-600 hover:text-white rounded-xl transition-all group">
+                                            <button onClick={() => router.push(`/risalah-pengolah/${doc._id}`)} className="p-2 bg-slate-100 hover:bg-rose-600 hover:text-white rounded-xl transition-all group">
                                                 <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform" />
                                             </button>
                                         </td>

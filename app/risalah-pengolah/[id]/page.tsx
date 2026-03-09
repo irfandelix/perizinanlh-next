@@ -26,52 +26,51 @@ export default function FormInputRisalah() {
                 const res = await fetch('/api/record/list');
                 const result = await res.json();
                 if (result.success) {
-                    // 2. Cari berdasarkan noUrut yang diparsing dari URL
-                    const current = result.data.find((d: any) => d.noUrut === parseInt(id));
+                    // CARI BERDASARKAN _id (PASTI UNIK & TIDAK TERTUKAR)
+                    const current = result.data.find((d: any) => d._id === id);
+                    
                     if (current) {
                         setDoc(current);
                         if (current.tanggalRisalah) setTanggal(current.tanggalRisalah);
                     }
                 }
-            } catch (err) {
-                console.error("Gagal load data:", err);
-            } finally {
-                setLoading(false);
-            }
+            } catch (err) { console.error(err); } 
+            finally { setLoading(false); }
         };
         fetchDoc();
     }, [id]);
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!id) return;
         setSubmitLoading(true);
         try {
-            // 3. Pastikan noUrut dikirim sebagai angka agar API tidak Error 400
+            // Tetap kirim noUrut ke API untuk generate nomor surat, 
+            // tapi kita ambil dari object 'doc' yang sudah benar
             const res = await api.post('/api/submit/g', { 
-                noUrut: parseInt(id), 
+                noUrut: doc.noUrut, 
                 tanggalPembuatanRisalah: tanggal 
             });
-            
-            setModal({ 
-                show: true, 
-                title: 'Berhasil', 
-                message: `Risalah Pengolah Data Berhasil Disimpan! Nomor: ${res.data.generatedNomor}`, 
-                isSuccess: true 
-            });
-            
-            // Redirect ke halaman daftar risalah
-            setTimeout(() => router.push('/risalah-pengolah'), 2500);
-        } catch (err: any) {
-            setModal({ 
-                show: true, 
-                title: 'Gagal', 
-                message: err.response?.data?.message || 'Terjadi kesalahan saat menyimpan.', 
-                isSuccess: false 
-            });
-        } finally { 
-            setSubmitLoading(false); 
-        }
+            // ... (sisanya sama)
+                
+                setModal({ 
+                    show: true, 
+                    title: 'Berhasil', 
+                    message: `Risalah Pengolah Data Berhasil Disimpan! Nomor: ${res.data.generatedNomor}`, 
+                    isSuccess: true 
+                });
+                
+                // Redirect ke halaman daftar risalah
+                setTimeout(() => router.push('/risalah-pengolah'), 2500);
+            } catch (err: any) {
+                setModal({ 
+                    show: true, 
+                    title: 'Gagal', 
+                    message: err.response?.data?.message || 'Terjadi kesalahan saat menyimpan.', 
+                    isSuccess: false 
+                });
+            } finally { 
+                setSubmitLoading(false); 
+            }
     };
 
     if (loading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin text-rose-600 w-10 h-10" /></div>;
