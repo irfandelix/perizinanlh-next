@@ -191,10 +191,35 @@ export async function POST(
             generatedNomorStr = generateNomor(queryNoUrut, tanggalPenyerahanPerbaikan, kodeTahapan, existingData.jenisDokumen);
             updateQuery = { [fieldNo]: generatedNomorStr, [fieldTgl]: tanggalPenyerahanPerbaikan, [fieldPetugas]: petugasPenerimaPerbaikan, statusTerakhir: 'DIPERIKSA', updatedAt: new Date() };
         }
+        // ==========================================
+        // TAHAP G: RISALAH PENGOLAH (RPD)
+        // ==========================================
         else if (tahap === 'g') {
             const { tanggalPembuatanRisalah } = body;
-            generatedNomorStr = generateNomor(queryNoUrut, tanggalPembuatanRisalah, 'RPD', existingData.jenisDokumen);
-            updateQuery = { tanggalRisalah: tanggalPembuatanRisalah, nomorRisalah: generatedNomorStr };
+            const { year } = getDateParts(tanggalPembuatanRisalah);
+
+            // 1. Cari dokumen dengan nomor RPD tertinggi di tahun yang sama
+            const lastRisalah = await collection.find({ 
+                tahun: year, 
+                nomorRisalah: { $exists: true, $ne: "" } 
+            })
+            .sort({ seqRisalah: -1 }) // Kita pakai field seqRisalah untuk urutan
+            .limit(1)
+            .toArray();
+
+            // 2. Tentukan nomor urut RPD selanjutnya
+            // Jika ada (lastRisalah[0].seqRisalah), maka +1. Jika tidak ada (tahun baru), balik ke 1.
+            const nextSeq = lastRisalah.length > 0 ? (lastRisalah[0].seqRisalah || 0) + 1 : 1;
+
+            // 3. Generate nomor surat menggunakan urutan yang baru (nextSeq)
+            generatedNomorStr = generateNomor(nextSeq, tanggalPembuatanRisalah, 'RPD', existingData.jenisDokumen);
+            
+            // 4. Update data ke database
+            updateQuery = { 
+                tanggalRisalah: tanggalPembuatanRisalah, 
+                nomorRisalah: generatedNomorStr,
+                seqRisalah: nextSeq // WAJIB disimpan agar pencarian di atas akurat
+            };
         }
         else if (tahap === 'pengembalian') {
             const { tanggalPengembalian } = body;
