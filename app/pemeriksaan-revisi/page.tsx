@@ -121,9 +121,9 @@ function PemeriksaanRevisiContent() {
                             </span>
                         </td>
                         <td className="p-5 text-center">
-                            {/* INI YANG DIGANTI: MENGGUNAKAN item.noUrut */}
+                            {/* INI YANG DIGANTI: Mencegah error "Tahun undefined" */}
                             <Link 
-                              href={`/pemeriksaan-revisi/${item.noUrut}?thn=${item.tahun}`} 
+                              href={`/pemeriksaan-revisi/${item.noUrut}?thn=${item.tahun || (item.tanggalMasukDokumen ? item.tanggalMasukDokumen.substring(0, 4) : new Date().getFullYear())}`} 
                               className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg shadow-blue-100"
                             >
                                 <Eye size={14} /> Periksa

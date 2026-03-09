@@ -93,8 +93,11 @@ function UjiAdministrasiContent() {
                                                 {doc.nomorUjiBerkas ? <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black bg-emerald-50 text-emerald-600 border border-emerald-100 uppercase tracking-widest"><CheckCircle className="w-3.5 h-3.5" /> Selesai BA</span> : <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black bg-amber-50 text-amber-600 border border-amber-100 uppercase tracking-widest animate-pulse"><Clock className="w-3.5 h-3.5" /> Menunggu</span>}
                                             </td>
                                             <td className="p-6 text-center">
-                                                {/* PERBAIKAN: doc._id DIGANTI JADI doc.noUrut */}
-                                                <Link href={`/uji-administrasi/${doc.noUrut}?thn=${doc.tahun}`} className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-md active:scale-95 ${doc.nomorUjiBerkas ? 'bg-slate-100 text-slate-400 hover:bg-slate-200' : 'bg-orange-600 hover:bg-orange-700 text-white shadow-orange-100'}`}>
+                                                {/* PERBAIKAN: Menambahkan fallback tahun agar tidak undefined */}
+                                                <Link 
+                                                    href={`/uji-administrasi/${doc.noUrut}?thn=${doc.tahun || (doc.tanggalMasukDokumen ? doc.tanggalMasukDokumen.substring(0, 4) : new Date().getFullYear())}`} 
+                                                    className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-md active:scale-95 ${doc.nomorUjiBerkas ? 'bg-slate-100 text-slate-400 hover:bg-slate-200' : 'bg-orange-600 hover:bg-orange-700 text-white shadow-orange-100'}`}
+                                                >
                                                     {doc.nomorUjiBerkas ? 'Detail' : 'Periksa'}<ChevronRight size={14} className="group-hover:translate-x-0.5 transition-transform" />
                                                 </Link>
                                             </td>
