@@ -191,33 +191,23 @@ export async function POST(
             generatedNomorStr = generateNomor(queryNoUrut, tanggalPenyerahanPerbaikan, kodeTahapan, existingData.jenisDokumen);
             updateQuery = { [fieldNo]: generatedNomorStr, [fieldTgl]: tanggalPenyerahanPerbaikan, [fieldPetugas]: petugasPenerimaPerbaikan, statusTerakhir: 'DIPERIKSA', updatedAt: new Date() };
         }
-// ==========================================
-        // TAHAP G: RISALAH PENGOLAH (RPD)
-        // ==========================================
+        // --- TAHAP G: RISALAH (DENGAN LOGIKA TAHUN TERBIT) ---
         else if (tahap === 'g') {
             const { tanggalPembuatanRisalah } = body;
             const { year: yearTerbit } = getDateParts(tanggalPembuatanRisalah);
 
-            // 1. Cari RPD terakhir berdasarkan TAHUN TERBIT RISALAH (bukan tahun registrasi)
             const lastRisalah = await collection.find({ 
                 tahunRisalah: yearTerbit, 
                 nomorRisalah: { $exists: true, $ne: "" } 
-            })
-            .sort({ seqRisalah: -1 }) 
-            .limit(1)
-            .toArray();
+            }).sort({ seqRisalah: -1 }).limit(1).toArray();
 
-            // 2. Tentukan nomor urut: Jika tahun baru dan belum ada RPD, mulai dari 1
             const nextSeq = lastRisalah.length > 0 ? (lastRisalah[0].seqRisalah || 0) + 1 : 1;
-
-            // 3. Generate nomor surat menggunakan urutan terbaru
             generatedNomorStr = generateNomor(nextSeq, tanggalPembuatanRisalah, 'RPD', existingData.jenisDokumen);
             
-            // 4. Simpan 'tahunRisalah' agar dokumen tahun 2025 lainnya yang terbit di 2026 bisa urut
             updateQuery = { 
+                nomorRisalah: generatedNomorStr, 
                 tanggalRisalah: tanggalPembuatanRisalah, 
-                nomorRisalah: generatedNomorStr,
-                tahunRisalah: yearTerbit, // Field kunci untuk urutan tahun terbit
+                tahunRisalah: yearTerbit, 
                 seqRisalah: nextSeq 
             };
         }
