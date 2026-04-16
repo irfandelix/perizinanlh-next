@@ -1,8 +1,10 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Printer, ArrowLeft } from 'lucide-react';
+import { Printer, ArrowLeft, Save, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 
 interface TandaTerimaData {
   id: string;
@@ -21,19 +23,20 @@ interface TandaTerimaData {
 
 export default function TandaTerimaRegistrasi({ params }: { params: { id: string } }) {
   const [data, setData] = useState<TandaTerimaData | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
   const router = useRouter();
   const { id } = params;
 
   useEffect(() => {
     const today = new Date();
-    // DATA DUMMY (Ganti dengan data asli nanti)
+    // DATA DUMMY (Nanti ganti dengan fetch ke API database kamu berdasarkan ID)
     setData({
       id: id,
       noRegistrasi: `REG-${id}/DLH/${today.getFullYear()}`,
       tglTerima: today.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }),
       tglTerimaRaw: today,
-      noSurat: '660.1/045/V/2025',
-      tglSurat: '20 Mei 2025',
+      noSurat: '660.1/045/V/2026',
+      tglSurat: '20 April 2026',
       perihal: 'Permohonan Persetujuan Lingkungan Kegiatan Perumahan Graha Asri',
       namaPemrakarsa: 'PT. SUMBER REJEKI ABADI',
       alamatPemrakarsa: 'Jl. Raya Sukowati No. 45, Sragen',
@@ -42,6 +45,66 @@ export default function TandaTerimaRegistrasi({ params }: { params: { id: string
       petugas: 'Siti Aminah (Petugas MPP)',
     });
   }, [id]);
+
+  // --- FUNGSI GENERATE PDF & SIMPAN KE DRIVE ---
+  const handleSimpanKeDrive = async () => {
+    if (!data) return;
+    
+    const printElement = document.getElementById('print-area');
+    if (!printElement) return;
+
+    setIsSaving(true);
+    try {
+      // 1. Tangkap Elemen HTML menjadi Gambar
+      const canvas = await html2canvas(printElement, { 
+        scale: 2, 
+        useCORS: true 
+      });
+      const imgData = canvas.toDataURL('image/png');
+
+      // 2. Susun menjadi file PDF ukuran A4
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const imgProps = pdf.getImageProperties(imgData);
+      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+
+      // 3. Konversi PDF menjadi format File yang siap di-upload
+      const pdfBlob = pdf.output('blob');
+      const safeId = data.noRegistrasi.replace(/\//g, '_');
+      const file = new File([pdfBlob], `Tanda_Terima_REG_${safeId}.pdf`, { type: 'application/pdf' });
+
+      // 4. Siapkan data untuk dikirim ke API Tahap A
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('namaPemrakarsa', data.namaPemrakarsa);
+      formData.append('noUrut', id); // Jika id di URL ini adalah noUrut
+      
+      // Catatan: Karena ini halaman Tanda Terima (berhubungan dengan Tahap A/Registrasi),
+      // Kita kirim ke endpoint /api/submit/tahap-a
+      const response = await fetch('/api/submit/tahap-a', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const result = await response.json();
+      
+      if (!result.success) {
+        throw new Error(result.message || "Gagal menyimpan ke Drive");
+      }
+      
+      // 5. Jika sukses, jalankan jendela print fisik
+      window.print();
+
+    } catch (error) {
+      console.error("Terjadi kesalahan:", error);
+      alert("Gagal menyimpan ke Google Drive. Anda tetap bisa mencetaknya secara manual.");
+      // Tetap panggil window.print() meski gagal upload agar layanan tidak terhambat
+      window.print(); 
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   if (!data) return <div className="p-10 text-center font-bold">Memuat data...</div>;
 
@@ -86,21 +149,37 @@ export default function TandaTerimaRegistrasi({ params }: { params: { id: string
           >
             <ArrowLeft size={20} className="mr-2" /> Kembali
           </button>
-          <button 
-            onClick={() => window.print()} 
-            className="flex items-center px-6 py-2 bg-orange-500 text-white font-bold rounded-lg hover:bg-orange-600 transition shadow-lg"
-          >
-            <Printer size={20} className="mr-2" /> Cetak Dokumen
-          </button>
+          
+          <div className="flex gap-3">
+            {/* Tombol Print Biasa (Hanya Print Fisik) */}
+            <button 
+              onClick={() => window.print()} 
+              disabled={isSaving}
+              className="flex items-center px-4 py-2 bg-slate-200 text-slate-700 font-bold rounded-lg hover:bg-slate-300 transition"
+            >
+              <Printer size={18} className="mr-2" /> Cetak Manual
+            </button>
+            
+            {/* Tombol Print & Drive (Otomatis Upload) */}
+            <button 
+              onClick={handleSimpanKeDrive} 
+              disabled={isSaving}
+              className={`flex items-center px-6 py-2 ${isSaving ? 'bg-orange-300 cursor-not-allowed' : 'bg-orange-500 hover:bg-orange-600'} text-white font-bold rounded-lg transition shadow-lg`}
+            >
+              {isSaving ? (
+                <><Loader2 size={20} className="mr-2 animate-spin" /> Menyimpan...</>
+              ) : (
+                <><Save size={20} className="mr-2" /> Cetak & Simpan ke Drive</>
+              )}
+            </button>
+          </div>
         </div>
 
-        {/* --- KERTAS SURAT (ID INI YANG AKAN DICETAK) --- */}
-        {/* PERUBAHAN: Menggunakan 'font-sans' (Arial) untuk seluruh dokumen */}
+        {/* --- KERTAS SURAT (ID INI YANG AKAN DICETAK & DISCREENSHOT) --- */}
         <div id="print-area" className="bg-white w-[210mm] min-h-[297mm] p-[2cm] shadow-2xl text-black relative font-sans">
           
           {/* === 1. KOP SURAT === */}
           <div className="flex items-center border-b-[4px] border-double border-black pb-2 mb-6">
-              {/* Logo Wrapper */}
               <div className="w-[20%] flex justify-center items-center">
                    <img 
                       src="/logo-sragen.png" 
@@ -116,7 +195,6 @@ export default function TandaTerimaRegistrasi({ params }: { params: { id: string
                    />
               </div>
 
-              {/* Teks Kop (Sudah Arial dari awal) */}
               <div className="w-[80%] text-center pr-8"> 
                   <h3 className="text-[14pt] font-medium tracking-wide leading-tight text-black">
                       PEMERINTAH KABUPATEN SRAGEN
@@ -203,25 +281,21 @@ export default function TandaTerimaRegistrasi({ params }: { params: { id: string
               </table>
           </div>
 
-          {/* === 5. TANDA TANGAN (POSISI SEJAJAR) === */}
+          {/* === 5. TANDA TANGAN === */}
           <div className="mt-8 px-2 text-[11pt] text-black">
               <div className="grid grid-cols-2 gap-10">
-                  
-                  {/* KOLOM KIRI */}
                   <div className="text-center pt-8">
                       <p className="mb-24">Yang Menyerahkan,</p>
                       <p className="font-bold underline uppercase">{data.pengirim}</p>
                       <p className="text-[10pt] mt-1">( Tanda Tangan & Nama Terang )</p>
                   </div>
                   
-                  {/* KOLOM KANAN */}
                   <div className="text-center">
                       <p className="mb-2">Sragen, {data.tglTerimaRaw.toLocaleDateString('id-ID', {day: 'numeric', month: 'long', year: 'numeric'})}</p>
                       <p className="mb-24">Yang Menerima,</p>
                       <p className="font-bold underline uppercase">{data.petugas}</p>
                       <p className="text-[10pt] mt-1">( Petugas Pelayanan DLH )</p>
                   </div>
-
               </div>
           </div>
 

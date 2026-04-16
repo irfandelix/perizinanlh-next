@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
-import { BookOpen, CheckCircle, Clock, Loader2, AlertCircle, ChevronRight } from 'lucide-react'; 
+import { BookOpen, CheckCircle, Clock, Loader2, AlertCircle, ChevronRight, ExternalLink } from 'lucide-react'; 
 
 interface Dokumen {
     _id: string;
@@ -14,9 +14,9 @@ interface Dokumen {
     tanggalMasukDokumen: string;
     tahun?: string | number;
     nomorBAPemeriksaan?: string; 
+    fileTahapD?: string; // TAMBAHAN: Menyimpan URL link Google Drive
 }
 
-// 1. Ubah komponen utama menjadi komponen internal (Content)
 function PemeriksaanSubstansiContent() {
     const [dataDokumen, setDataDokumen] = useState<Dokumen[]>([]);
     const [loading, setLoading] = useState(true);
@@ -108,7 +108,7 @@ function PemeriksaanSubstansiContent() {
                                         <th className="p-6">Kegiatan & Jenis Dokumen</th>
                                         <th className="p-6">Pemrakarsa</th>
                                         <th className="p-6 text-center">Status Rapat</th>
-                                        <th className="p-6 text-center w-40">Aksi</th>
+                                        <th className="p-6 text-center w-52">Aksi</th> {/* Diperlebar agar muat 2 tombol */}
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-50">
@@ -140,19 +140,36 @@ function PemeriksaanSubstansiContent() {
                                                     </span>
                                                 )}
                                             </td>
-                                            <td className="p-6 text-center">
-                                                {/* PERBAIKAN: Menambahkan fallback tahun agar tidak undefined */}
-                                                <Link 
-                                                    href={`/pemeriksaan-substansi/${doc.noUrut}?thn=${doc.tahun || (doc.tanggalMasukDokumen ? doc.tanggalMasukDokumen.substring(0, 4) : new Date().getFullYear())}`} 
-                                                    className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-md active:scale-95 ${
-                                                        doc.nomorBAPemeriksaan 
-                                                        ? 'bg-slate-100 text-slate-400 hover:bg-slate-200' 
-                                                        : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-100'
-                                                    }`}
-                                                >
-                                                    {doc.nomorBAPemeriksaan ? 'Detail' : 'Periksa'}
-                                                    <ChevronRight size={14} className="group-hover:translate-x-0.5 transition-transform" />
-                                                </Link>
+                                            <td className="p-6">
+                                                <div className="flex items-center justify-center gap-2">
+                                                    
+                                                    {/* TOMBOL LIHAT FILE DRIVE (Hanya muncul jika file ada) */}
+                                                    {doc.fileTahapD && (
+                                                        <a 
+                                                            href={doc.fileTahapD} 
+                                                            target="_blank" 
+                                                            rel="noopener noreferrer"
+                                                            className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest bg-emerald-100 text-emerald-700 hover:bg-emerald-200 transition-all shadow-sm active:scale-95"
+                                                            title="Buka Dokumen di Google Drive"
+                                                        >
+                                                            <ExternalLink size={14} /> File
+                                                        </a>
+                                                    )}
+
+                                                    {/* TOMBOL PERIKSA / DETAIL */}
+                                                    <Link 
+                                                        href={`/pemeriksaan-substansi/${doc.noUrut}?thn=${doc.tahun || (doc.tanggalMasukDokumen ? doc.tanggalMasukDokumen.substring(0, 4) : new Date().getFullYear())}`} 
+                                                        className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-md active:scale-95 ${
+                                                            doc.nomorBAPemeriksaan 
+                                                            ? 'bg-slate-100 text-slate-500 hover:bg-slate-200 shadow-none' 
+                                                            : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-100'
+                                                        }`}
+                                                    >
+                                                        {doc.nomorBAPemeriksaan ? 'Detail' : 'Periksa'}
+                                                        <ChevronRight size={14} className="group-hover:translate-x-0.5 transition-transform" />
+                                                    </Link>
+
+                                                </div>
                                             </td>
                                         </tr>
                                     ))}
@@ -166,7 +183,6 @@ function PemeriksaanSubstansiContent() {
     );
 }
 
-// 2. EXPORT UTAMA: Bungkus seluruh halaman ke dalam Suspense
 export default function PemeriksaanSubstansiPage() {
     return (
         <Suspense fallback={

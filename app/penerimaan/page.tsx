@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
-import { FileCheck, CheckCircle, Clock, Loader2, AlertCircle, ChevronRight } from 'lucide-react'; 
+import { FileCheck, CheckCircle, Clock, Loader2, AlertCircle, ChevronRight, ExternalLink } from 'lucide-react'; 
 
 interface Dokumen {
     _id: string;
@@ -14,6 +14,7 @@ interface Dokumen {
     tanggalMasukDokumen: string;
     tahun?: string | number;
     nomorPHP?: string; 
+    filePHPScan?: string; // TAMBAHAN: Menyimpan URL link Google Drive untuk Revisi 1
 }
 
 function PenerimaanContent() {
@@ -36,8 +37,11 @@ function PenerimaanContent() {
                     setAvailableYears(yearsArray);
                     if (yearsArray.length > 0) setSelectedYear(yearsArray[0]);
                 }
-            } catch (error) { console.error("Error fetching data:", error); } 
-            finally { setLoading(false); }
+            } catch (error) { 
+                console.error("Error fetching data:", error); 
+            } finally { 
+                setLoading(false); 
+            }
         };
         fetchData();
     }, []);
@@ -61,21 +65,39 @@ function PenerimaanContent() {
                 {availableYears.length > 0 && !loading && (
                     <div className="flex gap-2 mb-8 overflow-x-auto pb-2 scrollbar-hide">
                         {availableYears.map((year) => (
-                            <button key={year} onClick={() => setSelectedYear(year)} className={`px-8 py-3 rounded-full font-black text-xs uppercase tracking-widest border-2 transition-all ${selectedYear === year ? 'bg-emerald-600 text-white border-emerald-600 shadow-lg shadow-emerald-100' : 'bg-white text-slate-400 border-slate-200 hover:border-emerald-200 hover:text-emerald-600'}`}>Tahun {year}</button>
+                            <button 
+                                key={year} 
+                                onClick={() => setSelectedYear(year)} 
+                                className={`px-8 py-3 rounded-full font-black text-xs uppercase tracking-widest border-2 transition-all ${selectedYear === year ? 'bg-emerald-600 text-white border-emerald-600 shadow-lg shadow-emerald-100' : 'bg-white text-slate-400 border-slate-200 hover:border-emerald-200 hover:text-emerald-600'}`}
+                            >
+                                Tahun {year}
+                            </button>
                         ))}
                     </div>
                 )}
 
                 <div className="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 overflow-hidden">
                     {loading ? (
-                        <div className="flex flex-col items-center justify-center p-24 text-emerald-600"><Loader2 className="animate-spin w-12 h-12 mb-4" /><span className="text-xs font-black uppercase tracking-widest text-slate-400">Sinkronisasi Data...</span></div>
+                        <div className="flex flex-col items-center justify-center p-24 text-emerald-600">
+                            <Loader2 className="animate-spin w-12 h-12 mb-4" />
+                            <span className="text-xs font-black uppercase tracking-widest text-slate-400">Sinkronisasi Data...</span>
+                        </div>
                     ) : filteredData.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center p-24 text-slate-300"><AlertCircle className="w-16 h-16 mb-4 opacity-20" /><p className="font-black uppercase text-xs tracking-widest">Kosong di tahun {selectedYear}</p></div>
+                        <div className="flex flex-col items-center justify-center p-24 text-slate-300">
+                            <AlertCircle className="w-16 h-16 mb-4 opacity-20" />
+                            <p className="font-black uppercase text-xs tracking-widest">Kosong di tahun {selectedYear}</p>
+                        </div>
                     ) : (
                         <div className="overflow-x-auto">
                             <table className="w-full text-left text-sm border-collapse">
                                 <thead className="bg-slate-50/50 text-slate-400 font-black uppercase text-[10px] tracking-[0.2em] border-b border-slate-50">
-                                    <tr><th className="p-6 w-20 text-center">No</th><th className="p-6">Kegiatan & Dokumen</th><th className="p-6">Pemrakarsa</th><th className="p-6 text-center">Status PHP</th><th className="p-6 text-center w-40">Aksi</th></tr>
+                                    <tr>
+                                        <th className="p-6 w-20 text-center">No</th>
+                                        <th className="p-6">Kegiatan & Dokumen</th>
+                                        <th className="p-6">Pemrakarsa</th>
+                                        <th className="p-6 text-center">Status PHP</th>
+                                        <th className="p-6 text-center w-52">Aksi</th> {/* Lebar disesuaikan */}
+                                    </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-50">
                                     {filteredData.map((doc) => (
@@ -90,13 +112,35 @@ function PenerimaanContent() {
                                             </td>
                                             <td className="p-6 text-slate-500 font-bold text-xs uppercase italic">{doc.namaPemrakarsa || "-"}</td>
                                             <td className="p-6 text-center">
-                                                {doc.nomorPHP ? <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black bg-emerald-50 text-emerald-600 border border-emerald-100 uppercase tracking-widest"><CheckCircle className="w-3.5 h-3.5" /> Sudah Diterima</span> : <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black bg-amber-50 text-amber-600 border border-amber-100 uppercase tracking-widest animate-pulse"><Clock className="w-3.5 h-3.5" /> Menunggu</span>}
+                                                {doc.nomorPHP ? (
+                                                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black bg-emerald-50 text-emerald-600 border border-emerald-100 uppercase tracking-widest"><CheckCircle className="w-3.5 h-3.5" /> Sudah Diterima</span>
+                                                ) : (
+                                                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black bg-amber-50 text-amber-600 border border-amber-100 uppercase tracking-widest animate-pulse"><Clock className="w-3.5 h-3.5" /> Menunggu</span>
+                                                )}
                                             </td>
-                                            <td className="p-6 text-center">
-                                                {/* PERBAIKAN: Menambahkan fallback tahun agar tidak undefined */}
-                                                <Link href={`/penerimaan/${doc.noUrut}?thn=${doc.tahun || (doc.tanggalMasukDokumen ? doc.tanggalMasukDokumen.substring(0, 4) : new Date().getFullYear())}`} className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-md active:scale-95 ${doc.nomorPHP ? 'bg-slate-100 text-slate-400 hover:bg-slate-200' : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-100'}`}>
-                                                    {doc.nomorPHP ? 'Detail' : 'Catat PHP'}<ChevronRight size={14} className="group-hover:translate-x-0.5 transition-transform" />
-                                                </Link>
+                                            <td className="p-6">
+                                                <div className="flex items-center justify-center gap-2">
+                                                    {/* TOMBOL LIHAT FILE DRIVE */}
+                                                    {doc.filePHPScan && (
+                                                        <a 
+                                                            href={doc.filePHPScan} 
+                                                            target="_blank" 
+                                                            rel="noopener noreferrer"
+                                                            className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest bg-emerald-100 text-emerald-700 hover:bg-emerald-200 transition-all shadow-sm active:scale-95"
+                                                            title="Buka Dokumen di Google Drive"
+                                                        >
+                                                            <ExternalLink size={14} /> File
+                                                        </a>
+                                                    )}
+
+                                                    {/* TOMBOL CATAT PHP / DETAIL */}
+                                                    <Link 
+                                                        href={`/penerimaan/${doc.noUrut}?thn=${doc.tahun || (doc.tanggalMasukDokumen ? doc.tanggalMasukDokumen.substring(0, 4) : new Date().getFullYear())}`} 
+                                                        className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-md active:scale-95 ${doc.nomorPHP ? 'bg-slate-100 text-slate-400 hover:bg-slate-200 shadow-none' : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-100'}`}
+                                                    >
+                                                        {doc.nomorPHP ? 'Detail' : 'Catat PHP'}<ChevronRight size={14} className="group-hover:translate-x-0.5 transition-transform" />
+                                                    </Link>
+                                                </div>
                                             </td>
                                         </tr>
                                     ))}
@@ -112,7 +156,12 @@ function PenerimaanContent() {
 
 export default function PenerimaanPage() {
     return (
-        <Suspense fallback={<div className="min-h-screen flex flex-col items-center justify-center bg-slate-50"><Loader2 className="animate-spin w-12 h-12 text-emerald-600 mb-4" /><p className="text-xs font-black text-slate-400 uppercase tracking-widest">Menyiapkan Halaman...</p></div>}>
+        <Suspense fallback={
+            <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50">
+                <Loader2 className="animate-spin w-12 h-12 text-emerald-600 mb-4" />
+                <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Menyiapkan Halaman...</p>
+            </div>
+        }>
             <PenerimaanContent />
         </Suspense>
     );

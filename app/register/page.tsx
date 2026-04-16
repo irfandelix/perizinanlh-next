@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { MapPin, User, Phone, FileText, Printer, Save, Download } from 'lucide-react';
-import { PDFDownloadLink } from '@react-pdf/renderer';
+import { MapPin, User, Phone, FileText, Printer, Save, Download, Loader2 } from 'lucide-react';
+import { pdf } from '@react-pdf/renderer'; // Menggunakan fungsi pdf() untuk generate blob
 
 // Import Template
 import { TandaTerimaPDF } from '@/components/pdf/TandaTerimaPDF'; 
@@ -28,7 +28,6 @@ export default function RegisterDokumenPage() {
         pengirimSebagai: 'Pemrakarsa',
         namaPetugas: '',
         keterangan: '',
-        // Field Data dari Database
         nomorChecklist: '', 
         noUrut: '' 
     });
@@ -36,8 +35,11 @@ export default function RegisterDokumenPage() {
     const [checklistStatus, setChecklistStatus] = useState<Record<number, boolean>>({});
     const [checklistNotes, setChecklistNotes] = useState<Record<number, string>>({});
     const [statusVerifikasi, setStatusVerifikasi] = useState("Diterima");
+    
+    // UI States
     const [isClient, setIsClient] = useState(false);
-
+    const [isSaving, setIsSaving] = useState(false); // State untuk loading
+    
     useEffect(() => { setIsClient(true); }, []);
 
     // --- CHECKLIST ITEMS ---
@@ -76,19 +78,60 @@ export default function RegisterDokumenPage() {
         setChecklistNotes(prev => ({ ...prev, [index]: value }));
     };
 
+    // --- HELPER NAMA FILE ---
+    const getSafeFileName = (prefix: string, tempId: string = "DRAFT") => {
+        try {
+            const noUrut = tempId.includes('/') ? tempId.split('/')[1].split('.')[0] : tempId;
+            return `${prefix}_${noUrut}_${formData.jenisDokumen.replace(/[^a-zA-Z0-9]/g, '')}_${new Date().getFullYear()}.pdf`;
+        } catch (error) {
+            return `${prefix}_${new Date().getTime()}.pdf`;
+        }
+    };
+
+    // --- FUNGSI SIMPAN UTAMA ---
     const handleSimpan = async () => {
         if (!formData.nomorSuratPermohonan) {
             alert("Mohon isi Nomor Surat Permohonan!");
             return;
         }
 
-        try {
-            const payload = { ...formData, checklistStatus, checklistNotes, statusVerifikasi };
+        setIsSaving(true);
 
+        try {
+            // 1. Buat FormData
+            const payloadData = new FormData();
+            
+            // Masukkan semua data teks ke FormData
+            const allData = { ...formData, checklistStatus, checklistNotes, statusVerifikasi };
+            payloadData.append('data', JSON.stringify(allData)); // Kirim data kompleks sebagai JSON string
+            
+            // Nama pemrakarsa untuk membuat folder di Drive
+            if (formData.namaPemrakarsa) {
+                payloadData.append('namaPemrakarsa', formData.namaPemrakarsa);
+            }
+
+            // 2. Generate PDF Checklist di Background
+            const checklistBlob = await pdf(
+                <ChecklistPrintTemplate 
+                    data={formData} 
+                    checklistStatus={checklistStatus} 
+                    statusVerifikasi={statusVerifikasi} 
+                />
+            ).toBlob();
+            const fileChecklist = new File([checklistBlob], getSafeFileName("Checklist"), { type: 'application/pdf' });
+            payloadData.append('fileChecklist', fileChecklist);
+
+            // 3. Generate PDF Tanda Terima di Background
+            const tandaTerimaBlob = await pdf(<TandaTerimaPDF data={formData} />).toBlob();
+            const fileTandaTerima = new File([tandaTerimaBlob], getSafeFileName("TandaTerima"), { type: 'application/pdf' });
+            payloadData.append('fileTandaTerima', fileTandaTerima);
+
+            // 4. Kirim ke API Tahap A
+            // Catatan: Pastikan endpoint /api/submit/tahap-a kamu di-update untuk menangkap 'fileChecklist' & 'fileTandaTerima'
             const response = await fetch('/api/submit/tahap-a', { 
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
+                // Ingat: JANGAN set header Content-Type, biarkan browser atur untuk FormData
+                body: payloadData,
             });
 
             const result = await response.json();
@@ -103,29 +146,13 @@ export default function RegisterDokumenPage() {
                 }));
             }
 
-            alert(`✅ BERHASIL DISIMPAN!\nNomor: ${result.generatedData.nomorChecklist}`);
+            alert(`✅ BERHASIL DISIMPAN & DIUNGGAH KE DRIVE!\nNomor: ${result.generatedData?.nomorChecklist || '-'}`);
 
         } catch (error: any) {
             console.error(error);
             alert("❌ TERJADI KESALAHAN:\n" + error.message);
-        }
-    };
-
-    // --- HELPER NAMA FILE ---
-    const getFileName = (prefix: string) => {
-        if (!formData.nomorChecklist) return `${prefix}_draft.pdf`;
-
-        try {
-            // Format DB: 600.4/001.8/17/REG.UKLUPL/2025
-            const parts = formData.nomorChecklist.split('/');
-            const noUrut = parts[1] ? parts[1].split('.')[0] : '000';
-            const jenisDok = parts[3] || 'DOK';
-            const tahun = parts[4] || new Date().getFullYear();
-
-            // Format Akhir: checklist_001_REG.UKLUPL_2025.pdf
-            return `${prefix}_${noUrut}_${jenisDok}_${tahun}.pdf`;
-        } catch (error) {
-            return `${prefix}_${formData.nomorSuratPermohonan}.pdf`;
+        } finally {
+            setIsSaving(false);
         }
     };
 
@@ -158,12 +185,8 @@ export default function RegisterDokumenPage() {
                                     <option value="UKL-UPL">UKL-UPL</option>
                                     <option value="AMDAL">AMDAL</option>
                                     <option value="SPPL">SPPL</option>
-                                    
-                                    {/* --- OPSI BARU DITAMBAHKAN DI SINI --- */}
                                     <option value="KAJIAN TEKNIS AIR LIMBAH">Kajian Teknis Air Limbah</option>
                                     <option value="KAJIAN TEKNIS EMISI">Kajian Teknis Emisi</option>
-                                    
-                                    {/* Opsi Lama */}
                                     <option value="RINTEK LB3">Rincian Teknis Limbah B3</option>
                                     <option value="PERTEK AIR LIMBAH">Persetujuan Teknis Air Limbah</option>
                                     <option value="PERTEK EMISI">Persetujuan Teknis Emisi</option>
@@ -261,65 +284,24 @@ export default function RegisterDokumenPage() {
 
                 {/* ACTION BUTTONS */}
                 <div className="mb-12 flex flex-col md:flex-row gap-4">
-                    
-                    {/* 1. TOMBOL SIMPAN */}
-                    <button onClick={handleSimpan} className="bg-blue-600 flex-1 text-white py-4 rounded-xl font-bold hover:bg-blue-700 shadow-lg flex justify-center items-center gap-2">
-                        <Save className="w-5 h-5" /> Simpan Data
+                    {/* TOMBOL SIMPAN & GENERATE PDF */}
+                    <button 
+                        onClick={handleSimpan} 
+                        disabled={isSaving || !isClient}
+                        className={`w-full py-4 rounded-xl font-bold shadow-lg flex justify-center items-center gap-2 text-white transition ${
+                            isSaving ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'
+                        }`}
+                    >
+                        {isSaving ? (
+                            <><Loader2 className="w-5 h-5 animate-spin" /> Sedang Menyimpan & Upload...</>
+                        ) : (
+                            <><Save className="w-5 h-5" /> Simpan & Upload File ke Drive</>
+                        )}
                     </button>
-
-                    {/* 2. TOMBOL CETAK TANDA TERIMA (LOCKED SEBELUM SIMPAN) */}
-                    {isClient && (
-                        <div className="flex-1">
-                            <PDFDownloadLink 
-                                document={<TandaTerimaPDF data={formData} />} 
-                                fileName={getFileName('tanda_terima')}
-                                className="w-full"
-                            >
-                                {({ loading }) => (
-                                    <button 
-                                        disabled={loading || !formData.nomorChecklist}
-                                        className={`w-full py-4 rounded-xl font-bold shadow-lg flex justify-center items-center gap-2 text-white transition ${
-                                            loading || !formData.nomorChecklist ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'
-                                        }`}
-                                    >
-                                        <Printer className="w-5 h-5" />
-                                        {loading ? 'Loading...' : 'Unduh Tanda Terima'}
-                                    </button>
-                                )}
-                            </PDFDownloadLink>
-                            {!formData.nomorChecklist && <p className="text-xs text-center text-red-500 mt-1">*Simpan data dulu</p>}
-                        </div>
-                    )}
-
-                    {/* 3. TOMBOL CETAK CHECKLIST (LOCKED SEBELUM SIMPAN) */}
-                    {isClient && (
-                        <div className="flex-1">
-                            <PDFDownloadLink 
-                                document={
-                                    <ChecklistPrintTemplate 
-                                        data={formData} 
-                                        checklistStatus={checklistStatus} 
-                                        statusVerifikasi={statusVerifikasi} 
-                                    />
-                                } 
-                                fileName={getFileName('checklist')}
-                                className="w-full"
-                            >
-                                {({ loading }) => (
-                                    <button 
-                                        disabled={loading || !formData.nomorChecklist}
-                                        className={`w-full py-4 rounded-xl font-bold shadow-lg flex justify-center items-center gap-2 text-white transition ${
-                                            loading || !formData.nomorChecklist ? 'bg-gray-400 cursor-not-allowed' : 'bg-yellow-600 hover:bg-yellow-700'
-                                        }`}
-                                    >
-                                        <Download className="w-5 h-5" />
-                                        {loading ? 'Loading...' : 'Unduh Checklist'}
-                                    </button>
-                                )}
-                            </PDFDownloadLink>
-                            {!formData.nomorChecklist && <p className="text-xs text-center text-red-500 mt-1">*Simpan data dulu</p>}
-                        </div>
-                    )}
+                    
+                    <p className="text-xs text-slate-500 text-center w-full block md:hidden">
+                        (Sistem akan otomatis meng-generate Checklist & Tanda Terima ke PDF lalu mengirimnya ke Drive)
+                    </p>
                 </div>
             </div>
         </div>

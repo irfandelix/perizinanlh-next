@@ -2,12 +2,11 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Save, ArrowLeft, FileCheck, Loader2, Info, CheckCircle } from 'lucide-react';
+import { Save, ArrowLeft, FileCheck, Loader2, Info, CheckCircle, UploadCloud } from 'lucide-react';
 import Modal from '@/components/Modal';
-import api from '@/lib/api';
 
 export default function FormInputRisalah() {
-    // 1. UPDATE: Ambil params secara fleksibel (antisipasi nama folder [id] atau [noUrut])
+    // 1. Ambil params secara fleksibel
     const params = useParams();
     const rawId = params.id || params.noUrut; 
     const id = Array.isArray(rawId) ? rawId[0] : rawId;
@@ -17,6 +16,7 @@ export default function FormInputRisalah() {
     const [submitLoading, setSubmitLoading] = useState(false);
     const [doc, setDoc] = useState<any>(null);
     const [tanggal, setTanggal] = useState('');
+    const [file, setFile] = useState<File | null>(null); // TAMBAHAN: State untuk file
     const [modal, setModal] = useState({ show: false, title: '', message: '', isSuccess: false });
 
     useEffect(() => {
@@ -26,16 +26,17 @@ export default function FormInputRisalah() {
                 const res = await fetch('/api/record/list');
                 const result = await res.json();
                 if (result.success) {
-                    // CARI BERDASARKAN _id (PASTI UNIK & TIDAK TERTUKAR)
                     const current = result.data.find((d: any) => d._id === id);
-                    
                     if (current) {
                         setDoc(current);
                         if (current.tanggalRisalah) setTanggal(current.tanggalRisalah);
                     }
                 }
-            } catch (err) { console.error(err); } 
-            finally { setLoading(false); }
+            } catch (err) { 
+                console.error(err); 
+            } finally { 
+                setLoading(false); 
+            }
         };
         fetchDoc();
     }, [id]);
@@ -43,34 +44,55 @@ export default function FormInputRisalah() {
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
         setSubmitLoading(true);
+        
         try {
-            // Tetap kirim noUrut ke API untuk generate nomor surat, 
-            // tapi kita ambil dari object 'doc' yang sudah benar
-            const res = await api.post('/api/submit/g', { 
-                noUrut: doc.noUrut, 
-                tanggalPembuatanRisalah: tanggal 
-            });
-            // ... (sisanya sama)
-                
-                setModal({ 
-                    show: true, 
-                    title: 'Berhasil', 
-                    message: `Risalah Pengolah Data Berhasil Disimpan! Nomor: ${res.data.generatedNomor}`, 
-                    isSuccess: true 
-                });
-                
-                // Redirect ke halaman daftar risalah
-                setTimeout(() => router.push('/risalah-pengolah'), 2500);
-            } catch (err: any) {
-                setModal({ 
-                    show: true, 
-                    title: 'Gagal', 
-                    message: err.response?.data?.message || 'Terjadi kesalahan saat menyimpan.', 
-                    isSuccess: false 
-                });
-            } finally { 
-                setSubmitLoading(false); 
+            // 2. Siapkan FormData untuk kirim ke API Tahap G
+            const formData = new FormData();
+            formData.append('noUrut', doc.noUrut.toString());
+            formData.append('tanggalPembuatanRisalah', tanggal);
+            
+            // Nama pemrakarsa untuk membuat folder di Drive
+            if (doc.namaPemrakarsa) {
+                formData.append('namaPemrakarsa', doc.namaPemrakarsa);
             }
+
+            // Lampirkan file Risalah jika ada
+            if (file) {
+                formData.append('file', file);
+            }
+
+            // 3. Eksekusi pengiriman menggunakan FormData
+            const res = await fetch('/api/submit/g', {
+                method: 'POST',
+                body: formData,
+            });
+
+            const responseData = await res.json();
+
+            if (!res.ok || !responseData.success) {
+                throw new Error(responseData.message || "Gagal menyimpan ke server");
+            }
+                
+            setModal({ 
+                show: true, 
+                title: 'Berhasil', 
+                message: `Risalah Pengolahan Data & File Berhasil Disimpan! Nomor: ${responseData.generatedNomor || '-'}`, 
+                isSuccess: true 
+            });
+            
+            // Redirect ke halaman daftar risalah
+            setTimeout(() => router.push('/risalah-pengolah'), 2500);
+
+        } catch (err: any) {
+            setModal({ 
+                show: true, 
+                title: 'Gagal', 
+                message: err.message || 'Terjadi kesalahan saat menyimpan.', 
+                isSuccess: false 
+            });
+        } finally { 
+            setSubmitLoading(false); 
+        }
     };
 
     if (loading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin text-rose-600 w-10 h-10" /></div>;
@@ -106,16 +128,35 @@ export default function FormInputRisalah() {
                     )}
 
                     <form onSubmit={handleSave} className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                        <div className="max-w-md">
-                            <label className="block text-xs font-black mb-3 text-slate-500 uppercase tracking-widest">Tanggal Pembuatan Risalah</label>
-                            <input 
-                                type="date" 
-                                className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none focus:ring-4 focus:ring-rose-100 focus:border-rose-500 font-bold text-slate-800 cursor-pointer transition-all" 
-                                value={tanggal} 
-                                onChange={(e) => setTanggal(e.target.value)} 
-                                required 
-                            />
-                            <p className="text-[10px] text-slate-400 mt-3 italic font-medium">Nomor RPD akan otomatis diterbitkan oleh sistem setelah Anda menekan tombol simpan.</p>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            
+                            {/* Input Tanggal */}
+                            <div>
+                                <label className="block text-xs font-black mb-3 text-slate-500 uppercase tracking-widest">Tanggal Pembuatan Risalah</label>
+                                <input 
+                                    type="date" 
+                                    className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none focus:ring-4 focus:ring-rose-100 focus:border-rose-500 font-bold text-slate-800 cursor-pointer transition-all" 
+                                    value={tanggal} 
+                                    onChange={(e) => setTanggal(e.target.value)} 
+                                    required 
+                                />
+                                <p className="text-[10px] text-slate-400 mt-3 italic font-medium">Nomor RPD akan otomatis diterbitkan oleh sistem setelah Anda menekan tombol simpan.</p>
+                            </div>
+
+                            {/* Input Upload RPD */}
+                            <div>
+                                <label className="block text-xs font-black mb-3 text-slate-500 uppercase tracking-widest flex items-center gap-1">
+                                    <UploadCloud size={16} className="text-rose-500"/> Upload Risalah (PDF/Scan)
+                                </label>
+                                <input 
+                                    type="file" 
+                                    accept=".pdf,.doc,.docx"
+                                    onChange={(e) => setFile(e.target.files ? e.target.files[0] : null)}
+                                    className="w-full p-3 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none focus:ring-4 focus:ring-rose-100 focus:border-rose-500 font-medium text-sm text-slate-800 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-rose-100 file:text-rose-700 hover:file:bg-rose-200 cursor-pointer transition-all" 
+                                />
+                                <p className="text-[10px] text-slate-400 mt-3 font-medium italic">Dokumen akan otomatis tersimpan ke folder pemrakarsa di Google Drive LH.</p>
+                            </div>
+
                         </div>
 
                         <div className="flex justify-end pt-8 border-t border-slate-50">

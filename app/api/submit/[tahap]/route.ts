@@ -1,8 +1,13 @@
 import { NextResponse, NextRequest } from 'next/server';
 import clientPromise from '@/lib/db'; 
+import { getDriveService } from '@/lib/drive'; 
+import { Readable } from 'stream';
 
 type Params = { tahap: string; };
 
+// ==========================================
+// FUNGSI HELPER PENOMORAN
+// ==========================================
 const formatToThreeDigits = (num: number) => num.toString().padStart(3, '0');
 
 const getDateParts = (dateString: string) => {
@@ -35,9 +40,32 @@ const generateNomor = (nomorUntukSurat: number, dateString: string, tahapan: str
     let prefix = "600.4";
     if (tahapan.includes("BA.V") || tahapan.includes("BA.P")) prefix = "600.4.5";
 
-    return `${prefix}/${noUrutStr}.${month}/17/${tahapan}.${kodeJenis}/${year}`;
+    const romanMonths = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII"];
+    const romanMonth = romanMonths[month - 1];
+
+    return `${prefix}/${noUrutStr}.${romanMonth}/17/${tahapan}.${kodeJenis}/${year}`;
 };
 
+// ==========================================
+// FUNGSI HELPER GOOGLE DRIVE
+// ==========================================
+const getOrCreateFolder = async (drive: any, folderName: string, parentId: string) => {
+    const res = await drive.files.list({
+        q: `mimeType = 'application/vnd.google-apps.folder' and name = '${folderName}' and '${parentId}' in parents and trashed = false`,
+        fields: 'files(id, name)',
+    });
+    if (res.data.files && res.data.files.length > 0) return res.data.files[0].id;
+
+    const folder = await drive.files.create({
+        requestBody: { name: folderName, mimeType: 'application/vnd.google-apps.folder', parents: [parentId] },
+        fields: 'id',
+    });
+    return folder.data.id;
+};
+
+// ==========================================
+// MAIN POST ROUTE
+// ==========================================
 export async function POST(
     request: NextRequest, 
     { params }: { params: Promise<Params> } 
@@ -46,12 +74,38 @@ export async function POST(
 
     try {
         const { tahap } = await params;
-        const rawBody = await request.json();
-        let body = rawBody;
+        
+        const contentType = request.headers.get('content-type') || '';
+        let body: Record<string, any> = {};
+        
+        // Deklarasi file untuk berbagai skenario
+        let uploadedFile: File | null = null;
+        let fileChecklist: File | null = null;
+        let fileTandaTerima: File | null = null;
 
-        if (rawBody.formData) {
-            body = { ...rawBody.formData, ...rawBody };
-            delete body.formData;        
+        // --- 1. PARSING REQUEST ---
+        if (contentType.includes('multipart/form-data')) {
+            const formData = await request.formData();
+            
+            // Cek jika ada pengiriman JSON string dalam properti 'data' (dipakai di tahap A)
+            const stringData = formData.get('data');
+            if (stringData && typeof stringData === 'string') {
+                body = JSON.parse(stringData);
+            }
+            
+            formData.forEach((value, key) => {
+                if (value instanceof File) {
+                    if (key === 'fileChecklist') fileChecklist = value;
+                    else if (key === 'fileTandaTerima') fileTandaTerima = value;
+                    else uploadedFile = value; // Default untuk file tunggal
+                } else if (key !== 'data') {
+                    body[key] = value;
+                }
+            });
+        } else {
+            const rawBody = await request.json();
+            body = rawBody.formData ? { ...rawBody.formData, ...rawBody } : rawBody;
+            delete body.formData;
         }
 
         console.log(`[API] Processing Tahap: ${tahap}`);
@@ -59,178 +113,187 @@ export async function POST(
         const db = client.db(); 
         const collection = db.collection('dokumen'); 
 
-        // ==========================================
-        // TAHAP A (REGISTRASI AWAL MPP) 
-        // ==========================================
+        let driveData: any = null;
+        let checklistDriveData: any = null;
+        let tandaTerimaDriveData: any = null;
+
+        // --- 2. FUNGSI UPLOAD GOOGLE DRIVE ---
+        const handleDriveUpload = async (nomorSurat: string, file: File, namaPemrakarsa: string, subFolderPrefix: string = "") => {
+            const drive = getDriveService();
+            const rootFolderId = process.env.DRIVE_ROOT_FOLDER_ID || "root"; 
+            
+            const folderName = namaPemrakarsa || 'Dokumen_Tanpa_Nama';
+            const folderId = await getOrCreateFolder(drive, folderName, rootFolderId);
+
+            const safeNomor = nomorSurat.replace(/\//g, '_');
+            const newFileName = subFolderPrefix 
+                ? `${subFolderPrefix} - ${safeNomor} - ${file.name}`
+                : `${safeNomor} - ${file.name}`;
+            
+            const fileBuffer = Buffer.from(await file.arrayBuffer());
+            const uploadRes = await drive.files.create({
+                requestBody: { name: newFileName, parents: [folderId] },
+                media: { mimeType: file.type, body: Readable.from(fileBuffer) },
+                fields: 'id, webViewLink', 
+            });
+            return uploadRes.data;
+        };
+
+        // --- TAHAP A: REGISTRASI ---
         if (tahap === 'tahap-a') {
             const { year } = getDateParts(body.tanggalMasukDokumen);
-            
-            const lastDoc = await collection.find({ tanggalMasukDokumen: { $regex: new RegExp(`^${year}`) } })
-            .sort({ noUrut: -1 }).limit(1).toArray();
-
+            const lastDoc = await collection.find({ tanggalMasukDokumen: { $regex: new RegExp(`^${year}`) } }).sort({ noUrut: -1 }).limit(1).toArray();
             const noUrut = lastDoc.length > 0 ? (lastDoc[0].noUrut || 0) + 1 : 1;
             const nomorChecklist = generateNomor(noUrut, body.tanggalMasukDokumen, 'REG', body.jenisDokumen);
             
-            const newRecord = {
-                ...body,
-                noUrut, tahun: year, nomorChecklist, statusTerakhir: 'PROSES', createdAt: new Date(),
-                nomorUjiBerkas: "", tanggalUjiBerkas: "", nomorBAVerlap: "", tanggalVerlap: "",
-                nomorBAPemeriksaan: "", tanggalPemeriksaan: "", nomorRevisi1: "", tanggalRevisi1: "",
-                nomorPHP: "", tanggalPHP: "", fileTahapB: "", fileTahapC: "", fileTahapD: "", filePKPLH: "",
-                tanggalPenerbitanUa: "", tanggalRevisi: "" // Tambahan untuk kepastian di database
-            };
+            // Upload Multiple Files (Khusus Tahap A)
+            if (fileChecklist) {
+                checklistDriveData = await handleDriveUpload(nomorChecklist, fileChecklist, body.namaPemrakarsa, "Checklist Kelengkapan");
+            }
+            if (fileTandaTerima) {
+                tandaTerimaDriveData = await handleDriveUpload(nomorChecklist, fileTandaTerima, body.namaPemrakarsa, "Tanda Terima");
+            }
+            // Fallback jika dikirim pakai 'file' biasa (misal dari script lama)
+            if (uploadedFile && !fileChecklist) {
+                driveData = await handleDriveUpload(nomorChecklist, uploadedFile, body.namaPemrakarsa, "Surat Permohonan");
+            }
             
+            const newRecord = {
+                ...body, noUrut, tahun: year, nomorChecklist, statusTerakhir: 'PROSES', createdAt: new Date(),
+                // Simpan URL dari file yang di-generate sistem
+                fileTahapA_Checklist: checklistDriveData ? checklistDriveData.webViewLink : "",
+                fileTahapA_TandaTerima: tandaTerimaDriveData ? tandaTerimaDriveData.webViewLink : "",
+                // Fallback field lama
+                fileTahapA: driveData ? driveData.webViewLink : "", 
+                fileTahapA_id: driveData ? driveData.id : ""
+            };
             await collection.insertOne(newRecord);
-            return NextResponse.json({ success: true, message: `Registrasi Berhasil! Data urutan ke-${noUrut}.`, generatedData: { noUrut, nomorChecklist } });
+            return NextResponse.json({ success: true, message: `Registrasi Berhasil!`, generatedData: { noUrut, nomorChecklist } });
         }
 
-        // ==========================================
-        // REGISTRASI AMDALNET
-        // ==========================================
+        // --- AMDALNET ---
         else if (tahap === 'amdalnet') {
             const { year } = getDateParts(body.tanggalMasukDokumen);
-            
-            const lastDoc = await collection.find({ tanggalMasukDokumen: { $regex: new RegExp(`^${year}`) } })
-            .sort({ noUrut: -1 }).limit(1).toArray();
-
+            const lastDoc = await collection.find({ tanggalMasukDokumen: { $regex: new RegExp(`^${year}`) } }).sort({ noUrut: -1 }).limit(1).toArray();
             const noUrut = lastDoc.length > 0 ? (lastDoc[0].noUrut || 0) + 1 : 1;
-            
             const generatedChecklist = generateNomor(noUrut, body.tanggalMasukDokumen, 'REG', body.jenisDokumen);
             
-            const newRecord = {
-                ...body, 
-                noUrut: noUrut, 
-                tahun: year, 
-                nomorChecklist: generatedChecklist, 
-                sumberData: 'AMDALNET',            
-                statusTerakhir: 'PROSES', createdAt: new Date(),
-                nomorUjiBerkas: "", tanggalUjiBerkas: "", nomorBAVerlap: "", tanggalVerlap: "",
-                nomorBAPemeriksaan: "", tanggalPemeriksaan: "", nomorRevisi1: "", tanggalRevisi1: "",
-                nomorPHP: "", tanggalPHP: "", fileTahapB: "", fileTahapC: "", fileTahapD: "", filePKPLH: "",
-                tanggalPenerbitanUa: "", tanggalRevisi: "" // Tambahan
-            };
+            if (uploadedFile) driveData = await handleDriveUpload(generatedChecklist, uploadedFile, body.namaPemrakarsa, "Amdalnet");
             
+            const newRecord = {
+                ...body, noUrut, tahun: year, nomorChecklist: generatedChecklist, sumberData: 'AMDALNET', statusTerakhir: 'PROSES', createdAt: new Date(),
+                fileTahapA: driveData ? driveData.webViewLink : "",
+                fileTahapA_id: driveData ? driveData.id : ""
+            };
             await collection.insertOne(newRecord);
             return NextResponse.json({ success: true, message: `Registrasi Amdalnet Berhasil!`, nomorChecklist: generatedChecklist });
         }
 
-        // ==========================================
-        // LOGIKA UPDATE (TAHAP B, C, D, E, F, G, PENGEMBALIAN)
-        // ==========================================
+        // --- UPDATE TAHAP B - G ---
         const { noUrut } = body; 
-        if (!noUrut) return NextResponse.json({ success: false, message: 'No Urut tidak ditemukan di body request.' }, { status: 400 });
-
+        if (!noUrut) return NextResponse.json({ success: false, message: 'No Urut tidak ditemukan.' }, { status: 400 });
         const queryNoUrut = parseInt(noUrut);
         const existingData = await collection.findOne({ noUrut: queryNoUrut }, { sort: { createdAt: -1 } });
-        
-        if (!existingData) return NextResponse.json({ success: false, message: `Data dengan No Urut ${queryNoUrut} tidak ditemukan.` }, { status: 404 });
-
+        if (!existingData) return NextResponse.json({ success: false, message: `Data tidak ditemukan.` }, { status: 404 });
         const docId = existingData._id;
         let updateQuery: any = {};
 
+        // --- TAHAP B: BA HUA ---
         if (tahap === 'b') {
             const { tanggalPenerbitanUa } = body;
             generatedNomorStr = existingData.nomorUjiBerkas || generateNomor(queryNoUrut, tanggalPenerbitanUa, 'BA.HUA', existingData.jenisDokumen);
-            // PERBAIKAN: Menyimpan tanggalPenerbitanUa juga agar match dengan frontend
+            if (uploadedFile) driveData = await handleDriveUpload(generatedNomorStr, uploadedFile, existingData.namaPemrakarsa, "BA HUA");
             updateQuery = { 
-                nomorUjiBerkas: generatedNomorStr, 
-                tanggalUjiBerkas: tanggalPenerbitanUa,
-                tanggalPenerbitanUa: tanggalPenerbitanUa // Pastikan ini tersimpan
+                nomorUjiBerkas: generatedNomorStr, tanggalUjiBerkas: tanggalPenerbitanUa, tanggalPenerbitanUa,
+                ...(driveData && { fileTahapB: driveData.webViewLink, fileTahapB_id: driveData.id })
             };
         } 
+        // --- TAHAP C: VERLAP ---
         else if (tahap === 'c' || tahap === 'verlap') {
-            const tanggalVerifikasi = body.tanggalVerifikasi || body.tanggalVerlap;
-            if (!tanggalVerifikasi) return NextResponse.json({ success: false, message: 'Tanggal wajib diisi.' }, { status: 400 });
+            const tgl = body.tanggalVerifikasi || body.tanggalVerlap;
             let currentSeq = existingData.seqVerlap; 
             if (!currentSeq) {
-                const allDocs = await collection.find({ nomorBAVerlap: { $exists: true, $ne: "" } }).project({ nomorBAVerlap: 1, seqVerlap: 1 }).toArray();
-                let maxNumber = 0;
-                allDocs.forEach(doc => { if (doc.seqVerlap) { if (doc.seqVerlap > maxNumber) maxNumber = doc.seqVerlap; } else if (doc.nomorBAVerlap) { const match = doc.nomorBAVerlap.match(/\/(\d{3})\./); if (match && match[1]) { const num = parseInt(match[1], 10); if (num > maxNumber) maxNumber = num; } } });
-                currentSeq = maxNumber === 0 ? 1 : maxNumber + 2; 
+                const allDocs = await collection.find({ nomorBAVerlap: { $exists: true, $ne: "" } }).project({ seqVerlap: 1 }).toArray();
+                currentSeq = (Math.max(...allDocs.map(d => d.seqVerlap || 0), 0)) + 2;
             }
-            generatedNomorStr = generateNomor(currentSeq, tanggalVerifikasi, 'BA.V', existingData.jenisDokumen);
-            updateQuery = { nomorBAVerlap: generatedNomorStr, tanggalVerlap: tanggalVerifikasi, seqVerlap: currentSeq, status: 'Verifikasi Lapangan Selesai', updatedAt: new Date() };
+            generatedNomorStr = generateNomor(currentSeq, tgl, 'BA.V', existingData.jenisDokumen);
+            if (uploadedFile) driveData = await handleDriveUpload(generatedNomorStr, uploadedFile, existingData.namaPemrakarsa, "BA Verlap");
+            updateQuery = { nomorBAVerlap: generatedNomorStr, tanggalVerlap: tgl, seqVerlap: currentSeq, status: 'Verifikasi Selesai', ...(driveData && { fileTahapC: driveData.webViewLink, fileTahapC_id: driveData.id }) };
         }
+        // --- TAHAP D: PEMERIKSAAN ---
         else if (tahap === 'd') {
-            const { tanggalPemeriksaan } = body;
-            if (!tanggalPemeriksaan) return NextResponse.json({ success: false, message: 'Tanggal wajib diisi.' }, { status: 400 });
+            const tgl = body.tanggalPemeriksaan;
             let currentSeq = existingData.seqPemeriksaan;
             if (!currentSeq) {
-                const allDocs = await collection.find({ nomorBAPemeriksaan: { $exists: true, $ne: "" } }).project({ nomorBAPemeriksaan: 1, seqPemeriksaan: 1 }).toArray();
-                let maxNumber = 0;
-                allDocs.forEach(doc => { if (doc.seqPemeriksaan) { if (doc.seqPemeriksaan > maxNumber) maxNumber = doc.seqPemeriksaan; } else if (doc.nomorBAPemeriksaan) { const match = doc.nomorBAPemeriksaan.match(/\/(\d+)\./); if (match && match[1]) { const num = parseInt(match[1], 10); if (num > maxNumber) maxNumber = num; } } });
-                currentSeq = maxNumber === 0 ? 2 : maxNumber + 2; 
+                const allDocs = await collection.find({ nomorBAPemeriksaan: { $exists: true, $ne: "" } }).project({ seqPemeriksaan: 1 }).toArray();
+                currentSeq = (Math.max(...allDocs.map(d => d.seqPemeriksaan || 0), 0)) + 2;
             }
-            generatedNomorStr = existingData.nomorBAPemeriksaan || generateNomor(currentSeq, tanggalPemeriksaan, 'BA.P', existingData.jenisDokumen);
-            updateQuery = { nomorBAPemeriksaan: generatedNomorStr, tanggalPemeriksaan: tanggalPemeriksaan, seqPemeriksaan: currentSeq };
+            generatedNomorStr = existingData.nomorBAPemeriksaan || generateNomor(currentSeq, tgl, 'BA.P', existingData.jenisDokumen);
+            if (uploadedFile) driveData = await handleDriveUpload(generatedNomorStr, uploadedFile, existingData.namaPemrakarsa, "BA Pemeriksaan");
+            updateQuery = { nomorBAPemeriksaan: generatedNomorStr, tanggalPemeriksaan: tgl, seqPemeriksaan: currentSeq, ...(driveData && { fileTahapD: driveData.webViewLink, fileTahapD_id: driveData.id }) };
         }
+        // --- TAHAP E: REVISI ---
         else if (tahap === 'e') {
             const { tanggalRevisi, nomorRevisi } = body;
-            const revisionMap: Record<string, string> = { '1': 'nomorRevisi1', '2': 'nomorRevisi2', '3': 'nomorRevisi3', '4': 'nomorRevisi4', '5': 'nomorRevisi5' };
-            const dateMap: Record<string, string> = { '1': 'tanggalRevisi1', '2': 'tanggalRevisi2', '3': 'tanggalRevisi3', '4': 'tanggalRevisi4', '5': 'tanggalRevisi5' };
-            const fieldNo = revisionMap[nomorRevisi]; const fieldTgl = dateMap[nomorRevisi];
-            if (!fieldNo || !fieldTgl) return NextResponse.json({ success: false, message: 'Nomor Revisi tidak valid.' }, { status: 400 });
             generatedNomorStr = generateNomor(queryNoUrut, tanggalRevisi, `BA.P.${nomorRevisi}`, existingData.jenisDokumen);
-            
-            // PERBAIKAN: Menyimpan tanggalRevisi ke variable utama agar mudah dibaca dashboard
+            if (uploadedFile) driveData = await handleDriveUpload(generatedNomorStr, uploadedFile, existingData.namaPemrakarsa, `Revisi ${nomorRevisi}`);
             updateQuery = { 
-                [fieldNo]: generatedNomorStr, 
-                [fieldTgl]: tanggalRevisi, 
-                tanggalRevisi: tanggalRevisi, // Ditambah untuk mempermudah deteksi dashboard
-                statusTerakhir: 'REVISI' 
+                [`nomorRevisi${nomorRevisi}`]: generatedNomorStr, [`tanggalRevisi${nomorRevisi}`]: tanggalRevisi, tanggalRevisi, statusTerakhir: 'REVISI',
+                ...(driveData && { [`fileRevisi${nomorRevisi}`]: driveData.webViewLink, [`fileRevisi${nomorRevisi}_id`]: driveData.id })
             };
         }
+        // --- TAHAP F: PHP (PENYERAHAN PERBAIKAN) ---
         else if (tahap === 'f' || tahap === 'penerimaan') {
             const { tanggalPenyerahanPerbaikan, petugasPenerimaPerbaikan, nomorRevisi } = body;
-            const phpFieldMap: Record<string, string> = { '1': 'nomorPHP', '2': 'nomorPHP2', '3': 'nomorPHP3', '4': 'nomorPHP4', '5': 'nomorPHP5' };
-            const petugasFieldMap: Record<string, string> = { '1': 'petugasPenerimaPerbaikan', '2': 'petugasPHP2', '3': 'petugasPHP3', '4': 'petugasPHP4', '5': 'petugasPHP5' };
-            const dateFieldMap: Record<string, string> = { '1': 'tanggalPHP', '2': 'tanggalPHP2', '3': 'tanggalPHP3', '4': 'tanggalPHP4', '5': 'tanggalPHP5' };
-            const fieldNo = phpFieldMap[nomorRevisi]; const fieldPetugas = petugasFieldMap[nomorRevisi]; const fieldTgl = dateFieldMap[nomorRevisi];
-            if (!fieldNo) return NextResponse.json({ success: false, message: 'Nomor Revisi PHP tidak valid.' }, { status: 400 });
-            let kodeTahapan = 'PHP'; if (nomorRevisi !== '1') kodeTahapan = `PHP.${parseInt(nomorRevisi) - 1}`;
+            const revIdx = parseInt(nomorRevisi);
+            const kodeTahapan = revIdx === 1 ? 'PHP' : `PHP.${revIdx - 1}`;
             generatedNomorStr = generateNomor(queryNoUrut, tanggalPenyerahanPerbaikan, kodeTahapan, existingData.jenisDokumen);
-            updateQuery = { [fieldNo]: generatedNomorStr, [fieldTgl]: tanggalPenyerahanPerbaikan, [fieldPetugas]: petugasPenerimaPerbaikan, statusTerakhir: 'DIPERIKSA', updatedAt: new Date() };
-        }
-        // --- TAHAP G: RISALAH (DENGAN LOGIKA TAHUN TERBIT) ---
-        else if (tahap === 'g') {
-            const { tanggalPembuatanRisalah } = body;
-            const { year: yearTerbit } = getDateParts(tanggalPembuatanRisalah);
-
-            const lastRisalah = await collection.find({ 
-                tahunRisalah: yearTerbit, 
-                nomorRisalah: { $exists: true, $ne: "" } 
-            }).sort({ seqRisalah: -1 }).limit(1).toArray();
-
-            const nextSeq = lastRisalah.length > 0 ? (lastRisalah[0].seqRisalah || 0) + 1 : 1;
-            generatedNomorStr = generateNomor(nextSeq, tanggalPembuatanRisalah, 'RPD', existingData.jenisDokumen);
             
+            // LOGIKA UPLOAD HASIL SCAN SURAT PERMOHONAN PEMERIKSAAN
+            if (uploadedFile) {
+                driveData = await handleDriveUpload(generatedNomorStr, uploadedFile, existingData.namaPemrakarsa, "Scan Permohonan Pemeriksaan");
+            }
+
             updateQuery = { 
-                nomorRisalah: generatedNomorStr, 
-                tanggalRisalah: tanggalPembuatanRisalah, 
-                tahunRisalah: yearTerbit, 
-                seqRisalah: nextSeq 
+                [`nomorPHP${revIdx === 1 ? '' : revIdx}`]: generatedNomorStr, 
+                [`tanggalPHP${revIdx === 1 ? '' : revIdx}`]: tanggalPenyerahanPerbaikan, 
+                [`petugasPHP${revIdx === 1 ? '' : revIdx}`]: petugasPenerimaPerbaikan, 
+                statusTerakhir: 'DIPERIKSA', updatedAt: new Date(),
+                ...(driveData && { [`filePHPScan${revIdx === 1 ? '' : revIdx}`]: driveData.webViewLink, [`filePHPScan_id${revIdx === 1 ? '' : revIdx}`]: driveData.id })
             };
+        }
+        // --- TAHAP G: RPD ---
+        else if (tahap === 'g') {
+            const tgl = body.tanggalPembuatanRisalah;
+            const { year: yr } = getDateParts(tgl);
+            const lastR = await collection.find({ tahunRisalah: yr, nomorRisalah: { $ne: "" } }).sort({ seqRisalah: -1 }).limit(1).toArray();
+            const nxt = lastR.length > 0 ? (lastR[0].seqRisalah || 0) + 1 : 1;
+            generatedNomorStr = generateNomor(nxt, tgl, 'RPD', existingData.jenisDokumen);
+            if (uploadedFile) driveData = await handleDriveUpload(generatedNomorStr, uploadedFile, existingData.namaPemrakarsa, "Risalah RPD");
+            updateQuery = { nomorRisalah: generatedNomorStr, tanggalRisalah: tgl, tahunRisalah: yr, seqRisalah: nxt, ...(driveData && { fileTahapG: driveData.webViewLink, fileTahapG_id: driveData.id }) };
         }
         else if (tahap === 'pengembalian') {
-            const { tanggalPengembalian } = body;
-            if (!tanggalPengembalian) return NextResponse.json({ success: false, message: 'Tanggal Pengembalian wajib diisi.' }, { status: 400 });
-            updateQuery = { tanggalPengembalian: tanggalPengembalian, statusTerakhir: 'DIKEMBALIKAN', updatedAt: new Date() };
+            const { tanggalPengembalian, keteranganPengembalian } = body;
+            
+            // Jika ada file bukti pengembalian
+            if (uploadedFile) driveData = await handleDriveUpload(`KEMBALI_${queryNoUrut}`, uploadedFile, existingData.namaPemrakarsa, "Bukti Pengembalian");
+            
+            updateQuery = { 
+                tanggalPengembalian: tanggalPengembalian, 
+                keteranganPengembalian: keteranganPengembalian, 
+                statusTerakhir: 'DIKEMBALIKAN', 
+                updatedAt: new Date(),
+                ...(driveData && { filePengembalian: driveData.webViewLink, filePengembalian_id: driveData.id })
+            };
         } 
         else if (tahap === 'arsip') {
-            updateQuery = { 
-                arsipFisik: body.arsipFisik, 
-                updatedAt: new Date() 
-            };
-        }
-        else {
-            return NextResponse.json({ success: false, message: 'Tahap tidak valid atau URL salah.' }, { status: 400 });
+            updateQuery = { arsipFisik: body.arsipFisik, updatedAt: new Date() };
         }
 
-        const updateResult = await collection.updateOne({ _id: docId }, { $set: updateQuery });
-        if (updateResult.modifiedCount === 0 && updateResult.matchedCount === 0) return NextResponse.json({ success: false, message: 'Gagal update data.' }, { status: 500 });
-
+        await collection.updateOne({ _id: docId }, { $set: updateQuery });
         return NextResponse.json({ success: true, message: `Berhasil update data.`, generatedNomor: generatedNomorStr });
     } catch (error: any) {
-        return NextResponse.json({ success: false, message: error.message || "Kesalahan internal." }, { status: 500 });
+        console.error("API Error:", error);
+        return NextResponse.json({ success: false, message: error.message || "Internal error." }, { status: 500 });
     }
 }

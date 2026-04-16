@@ -1,12 +1,15 @@
 "use client";
 
-import React from 'react';
-import { Printer, ArrowLeft, CheckCircle2 } from 'lucide-react';
+import React, { useState } from 'react';
+import { Printer, ArrowLeft, CheckCircle2, Loader2 } from 'lucide-react';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 
 // --- MOCK DATA ---
 const detailData = {
-    id: "REG-2025-0812", 
+    id: "600.4.5/025.IV/REG.UKLUPL/2026", // Format nomor surat yang baru
     namaKegiatan: "Pembangunan Perumahan Griya Santosa Asri",
+    namaPemrakarsa: "Sutrisno", // Tambahkan ini jika belum ada, penting untuk penamaan folder Drive
     jenisDokumen: "UKL-UPL",
     tanggalMasuk: "10 Desember 2025",
     checklistStatus: {
@@ -18,7 +21,6 @@ const detailData = {
         3: "Peta perlu diperjelas koordinatnya",
         5: "Masih proses pengurusan"
     },
-    // Data Kontak
     kontak: {
         pemohon: "Sutrisno",
         telpPemohon: "081130000000",
@@ -33,6 +35,7 @@ const detailData = {
 };
 
 export default function HalamanDetailChecklist({ params }: { params: { id: string } }) {
+    const [isSaving, setIsSaving] = useState(false);
     
     // 18 ITEM DATA
     const checklistItems = [
@@ -56,6 +59,61 @@ export default function HalamanDetailChecklist({ params }: { params: { id: strin
         { id: 18, label: "Bukti Upload Permohonan pada AMDALNET dan/atau SIDARLING" }
     ];
 
+    // --- FUNGSI SIMPAN KE DRIVE LALU CETAK ---
+    const handleSimpanKeDrive = async () => {
+        const printElement = document.getElementById('print-page');
+        if (!printElement) return;
+
+        setIsSaving(true);
+        try {
+            // 1. Ambil screenshot dari elemen #print-page
+            const canvas = await html2canvas(printElement, { 
+                scale: 2, // Kualitas lebih tinggi
+                useCORS: true 
+            });
+            const imgData = canvas.toDataURL('image/png');
+
+            // 2. Buat PDF A4
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const imgProps = pdf.getImageProperties(imgData);
+            const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+
+            // 3. Konversi ke File
+            const pdfBlob = pdf.output('blob');
+            const safeId = detailData.id.replace(/\//g, '_');
+            const file = new File([pdfBlob], `Lembar_Verifikasi_${safeId}.pdf`, { type: 'application/pdf' });
+
+            // 4. Kirim ke API Route
+            // Catatan: Gunakan endpoint yang sesuai, misal jika ini tahap registrasi, arahkan ke tahap-a
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('namaPemrakarsa', detailData.namaPemrakarsa);
+            formData.append('noUrut', "1"); // Sesuaikan jika ada data asli dari params/database
+
+            const response = await fetch('/api/submit/tahap-a', {
+                method: 'POST',
+                body: formData,
+            });
+
+            const result = await response.json();
+            
+            if (!result.success) {
+                throw new Error(result.message || "Gagal upload ke API");
+            }
+            
+            // 5. Setelah berhasil disimpan, tampilkan dialog print bawaan browser
+            window.print();
+        } catch (error) {
+            console.error("Terjadi kesalahan:", error);
+            alert("File gagal tersimpan otomatis ke Drive, namun Anda tetap bisa mencetaknya secara manual.");
+            window.print(); // Tetap jalankan cetak fisik meski gagal upload
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
     return (
         <div className="min-h-screen bg-slate-100 font-sans">
             
@@ -65,10 +123,15 @@ export default function HalamanDetailChecklist({ params }: { params: { id: strin
                     <ArrowLeft className="w-4 h-4 mr-1" /> Kembali
                 </button>
                 <button 
-                    onClick={() => window.print()}
-                    className="flex items-center gap-2 bg-blue-600 text-white px-6 py-2 rounded-lg text-sm font-bold hover:bg-blue-700 transition shadow-sm"
+                    onClick={handleSimpanKeDrive}
+                    disabled={isSaving}
+                    className={`flex items-center gap-2 ${isSaving ? 'bg-slate-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'} text-white px-6 py-2 rounded-lg text-sm font-bold transition shadow-sm`}
                 >
-                    <Printer className="w-4 h-4" /> Cetak (Cap Besar)
+                    {isSaving ? (
+                        <><Loader2 className="w-4 h-4 animate-spin" /> Menyimpan...</>
+                    ) : (
+                        <><Printer className="w-4 h-4" /> Cetak (Cap Besar)</>
+                    )}
                 </button>
             </div>
 

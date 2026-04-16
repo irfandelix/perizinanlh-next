@@ -1,164 +1,194 @@
+'use client';
+
 import React from 'react';
 import { Page, Text, View, Document, StyleSheet, Image } from '@react-pdf/renderer';
 
 const styles = StyleSheet.create({
   page: { 
-    padding: 30, 
+    padding: 40, // Memberikan margin yang cukup untuk printer dinas
     fontFamily: 'Helvetica', 
-    fontSize: 11, 
-    lineHeight: 1.4 
+    fontSize: 10, 
+    lineHeight: 1.5 
   },
   
-  // --- KOP SURAT STYLE ---
+  // --- KOP SURAT ---
   kopContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 5,
-    marginTop: -10
-  },
-  logoContainer: {
-    width: '15%',
-    paddingRight: 10,
-    alignItems: 'center'
+    marginBottom: 2,
   },
   logo: {
-    width: 60,
-    height: 70, // Sesuaikan rasio logo Sragen
+    width: 55,
+    height: 70,
+    marginRight: 15,
   },
   kopTextContainer: {
-    width: '85%',
+    flex: 1,
     alignItems: 'center',
-    textAlign: 'center'
+    textAlign: 'center',
+    marginRight: 55, // Balancing offset karena logo berada di kiri
   },
   kopPemkab: {
     fontSize: 14,
+    fontFamily: 'Helvetica',
     textTransform: 'uppercase',
   },
   kopDinas: {
-    fontSize: 18,
-    fontFamily: 'Helvetica-Bold', // Gunakan Bold bawaan
-    fontWeight: 'bold',
+    fontSize: 17,
+    fontFamily: 'Helvetica-Bold',
     textTransform: 'uppercase',
     marginBottom: 2
   },
   kopAlamat: {
-    fontSize: 9,
+    fontSize: 8,
     fontFamily: 'Helvetica',
-  },
-  kopKontak: {
-    fontSize: 9,
-    fontFamily: 'Helvetica',
-  },
-  
-  // Garis Ganda (Double Line)
-  garisGandaContainer: {
-    marginBottom: 20,
-    marginTop: 5,
   },
   garisTebal: {
-    height: 3,
-    backgroundColor: 'black',
+    borderBottomWidth: 2,
+    borderBottomColor: 'black',
+    marginTop: 5,
   },
   garisTipis: {
-    height: 1,
-    backgroundColor: 'black',
-    marginTop: 1,
+    borderBottomWidth: 1,
+    borderBottomColor: 'black',
+    marginTop: 2,
+    marginBottom: 20,
   },
 
-  // --- JUDUL & ISI ---
-  judulContainer: { textAlign: 'center', marginBottom: 20 },
+  // --- JUDUL ---
+  judulContainer: { textAlign: 'center', marginBottom: 25 },
   judulH1: { 
     textDecoration: 'underline', 
-    fontSize: 14, 
-    fontWeight: 'bold',
+    fontSize: 13, 
     fontFamily: 'Helvetica-Bold', 
     textTransform: 'uppercase'
   },
-  judulP: { marginTop: 5, fontSize: 11 },
+  judulP: { marginTop: 5, fontSize: 10 },
   
-  isiTeks: { textAlign: 'justify', marginBottom: 20, lineHeight: 1.5 },
-  bold: { fontFamily: 'Helvetica-Bold', fontWeight: 'bold' },
+  // --- KONTEN DATA ---
+  isiTeks: { textAlign: 'justify', marginBottom: 20 },
+  row: { flexDirection: 'row', marginBottom: 6 },
+  label: { width: 120 },
+  value: { flex: 1, fontFamily: 'Helvetica-Bold' },
+  bold: { fontFamily: 'Helvetica-Bold' },
   
   // --- TANDA TANGAN ---
-  ttdContainer: { marginTop: 30, flexDirection: 'row', justifyContent: 'space-between' },
-  ttdBox: { textAlign: 'center', width: 220 },
+  ttdContainer: { 
+    marginTop: 30, 
+    flexDirection: 'row', 
+    justifyContent: 'space-between' 
+  },
+  ttdBox: { 
+    textAlign: 'center', 
+    width: 200 
+  },
+  ttdLabel: { marginBottom: 50 },
   ttdName: { 
-    marginTop: 60, 
-    borderBottomWidth: 1, 
-    borderBottomColor: 'black', 
-    fontWeight: 'bold',
     fontFamily: 'Helvetica-Bold',
-    paddingBottom: 2 
+    textDecoration: 'underline',
+    textTransform: 'uppercase'
+  },
+
+  // --- FOOTER ARSIP ---
+  footer: {
+    position: 'absolute',
+    bottom: 30,
+    left: 40,
+    right: 40,
+    fontSize: 7,
+    color: 'grey',
+    textAlign: 'center',
+    borderTopWidth: 0.5,
+    borderTopColor: '#EEEEEE',
+    paddingTop: 5
   }
 });
 
-// Pastikan Anda menaruh file logo (format .png atau .jpg) di folder public project Anda
-// Contoh: public/logo-sragen.png
-const LOGO_URL = '/logo-sragen.png'; 
+export const TandaTerimaPDF = ({ data }: { data: any }) => {
+  // Logic untuk memastikan logo terload baik di Local maupun Vercel saat upload Drive
+  const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+  const logoSrc = `${baseUrl}/logo-sragen.png`;
 
-export const TandaTerimaPDF = ({ data }: any) => (
-  <Document>
-    <Page size="A4" style={styles.page}>
-      
-      {/* --- KOP SURAT RESMI --- */}
-      <View style={styles.kopContainer}>
-        {/* Kolom Logo */}
-        <View style={styles.logoContainer}>
-            {/* Ganti src dengan path logo Sragen Anda */}
-            {/* Jika error di Vercel, gunakan URL absolut atau import gambar */}
-            <Image src='/logo-sragen.png' style={styles.logo} /> 
-        </View>
+  return (
+    <Document title={`Tanda Terima - ${data.namaPemrakarsa}`}>
+      <Page size="A4" style={styles.page}>
         
-        {/* Kolom Teks Kop */}
-        <View style={styles.kopTextContainer}>
-          <Text style={styles.kopPemkab}>PEMERINTAH KABUPATEN SRAGEN</Text>
-          <Text style={styles.kopDinas}>DINAS LINGKUNGAN HIDUP</Text>
-          <Text style={styles.kopAlamat}>
-            Jalan Ronggowarsito Nomor 18B, Sragen Wetan, Sragen, Jawa Tengah 57214
+        {/* --- KOP SURAT --- */}
+        <View style={styles.kopContainer}>
+          <Image src={logoSrc} style={styles.logo} /> 
+          <View style={styles.kopTextContainer}>
+            <Text style={styles.kopPemkab}>PEMERINTAH KABUPATEN SRAGEN</Text>
+            <Text style={styles.kopDinas}>DINAS LINGKUNGAN HIDUP</Text>
+            <Text style={styles.kopAlamat}>
+              Jalan Ronggowarsito Nomor 18B, Sragen Wetan, Sragen, Jawa Tengah 57214
+            </Text>
+            <Text style={styles.kopAlamat}>
+              Telepon (0271) 891136, Laman: www.dlh.sragenkab.go.id
+            </Text>
+          </View>
+        </View>
+        <View style={styles.garisTebal} />
+        <View style={styles.garisTipis} />
+
+        {/* --- JUDUL --- */}
+        <View style={styles.judulContainer}>
+          <Text style={styles.judulH1}>TANDA TERIMA BERKAS DOKUMEN</Text>
+          <Text style={styles.judulP}>
+            Nomor Registrasi: <Text style={styles.bold}>{data.nomorChecklist || "-"}</Text>
           </Text>
-          <Text style={styles.kopKontak}>
-            Telepon (0271) 891136, Faksimile (0271) 891136, Laman www.dlh.sragenkab.go.id
+        </View>
+
+        {/* --- ISI DATA --- */}
+        <View style={styles.isiTeks}>
+          <Text style={{ marginBottom: 10 }}>
+            Telah diterima berkas permohonan persetujuan lingkungan dengan rincian sebagai berikut:
           </Text>
-          <Text style={styles.kopKontak}>Pos-el dlh.sragenkab.go.id</Text>
+          
+          <View style={styles.row}>
+            <Text style={styles.label}>Nama Kegiatan</Text>
+            <Text style={styles.value}>: {data.namaKegiatan?.toUpperCase()}</Text>
+          </View>
+          <View style={styles.row}>
+            <Text style={styles.label}>Jenis Dokumen</Text>
+            <Text style={styles.value}>: {data.jenisDokumen}</Text>
+          </View>
+          <View style={styles.row}>
+            <Text style={styles.label}>Pemrakarsa</Text>
+            <Text style={styles.value}>: {data.namaPemrakarsa}</Text>
+          </View>
+          <View style={styles.row}>
+            <Text style={styles.label}>Tanggal Masuk</Text>
+            <Text style={styles.value}>: {data.tanggalMasukDokumen}</Text>
+          </View>
+          <View style={styles.row}>
+            <Text style={styles.label}>Nama Pengirim</Text>
+            <Text style={styles.value}>: {data.namaPengirim || "-"}</Text>
+          </View>
         </View>
-      </View>
 
-      {/* Garis Ganda Pembatas Kop */}
-      <View style={styles.garisGandaContainer}>
-         <View style={styles.garisTebal} />
-         <View style={styles.garisTipis} />
-      </View>
-
-      {/* --- JUDUL & NOMOR REGISTRASI --- */}
-      <View style={styles.judulContainer}>
-        <Text style={styles.judulH1}>TANDA TERIMA DOKUMEN</Text>
-        <Text style={styles.judulP}>
-          Nomor Registrasi: <Text style={styles.bold}>{data.nomorChecklist || "________"}</Text>
+        <Text style={{ fontSize: 9, fontStyle: 'italic', marginTop: 10, textAlign: 'justify' }}>
+          Dokumen ini merupakan bukti sah penerimaan berkas untuk dilanjutkan ke tahap verifikasi administrasi dan validasi lapangan oleh Tim Teknis Dinas Lingkungan Hidup Kabupaten Sragen.
         </Text>
-      </View>
 
-      {/* --- ISI TEKS --- */}
-      <View style={styles.isiTeks}>
-        <Text>
-          Pada tanggal <Text style={styles.bold}>{data.tanggalMasukDokumen || "-"}</Text> telah menerima Dokumen{" "}
-          <Text style={styles.bold}>{data.jenisDokumen} - {data.namaKegiatan}</Text> oleh{" "}
-          <Text style={styles.bold}>{data.namaPengirim || data.namaPemrakarsa}</Text> sebagai{" "}
-          <Text style={styles.bold}>{data.pengirimSebagai}</Text>. Dokumen tersebut telah diterima dalam keadaan baik melalui Gerai MPP.
-        </Text>
-      </View>
-
-      {/* --- TANDA TANGAN --- */}
-      <View style={styles.ttdContainer}>
-        <View style={styles.ttdBox}>
-          <Text>Yang Menyerahkan,</Text>
-          <Text style={styles.ttdName}>{data.namaPengirim || "......................"}</Text>
+        {/* --- TANDA TANGAN --- */}
+        <View style={styles.ttdContainer}>
+          <View style={styles.ttdBox}>
+            <Text style={styles.ttdLabel}>Yang Menyerahkan,</Text>
+            <Text style={styles.ttdName}>{data.namaPengirim || data.namaPemrakarsa || "......................"}</Text>
+          </View>
+          <View style={styles.ttdBox}>
+            <Text style={styles.ttdLabel}>Petugas Penerima,</Text>
+            <Text style={styles.ttdName}>{data.namaPetugas || "......................"}</Text>
+          </View>
         </View>
-        <View style={styles.ttdBox}>
-          <Text>Petugas Penerima,</Text>
-          <Text style={styles.ttdName}>{data.namaPetugas || "......................"}</Text>
-        </View>
-      </View>
 
-    </Page>
-  </Document>
-);
+        {/* --- FOOTER OTOMATIS --- */}
+        <View style={styles.footer}>
+          <Text>Dokumen ini dihasilkan secara otomatis oleh SI-DLH Sragen.</Text>
+          <Text>Waktu Pengarsipan Digital: {new Date().toLocaleString('id-ID')} WIB</Text>
+        </View>
+
+      </Page>
+    </Document>
+  );
+};

@@ -8,10 +8,19 @@ interface FileUploadProps {
   dbField: string;
   currentFileUrl?: string;
   namaKegiatan: string;
+  namaPemrakarsa?: string; // TAMBAHAN: Agar tidak error di halaman dashboard
   onUploadSuccess: () => void;
 }
 
-export default function FileUpload({ noUrut, fileType, dbField, currentFileUrl, namaKegiatan, onUploadSuccess }: FileUploadProps) {
+export default function FileUpload({ 
+  noUrut, 
+  fileType, 
+  dbField, 
+  currentFileUrl, 
+  namaKegiatan, 
+  namaPemrakarsa, // TAMBAHAN
+  onUploadSuccess 
+}: FileUploadProps) {
   const [uploading, setUploading] = useState(false);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -24,6 +33,11 @@ export default function FileUpload({ noUrut, fileType, dbField, currentFileUrl, 
     formData.append('fileType', fileType);
     formData.append('dbField', dbField);
     formData.append('namaKegiatan', namaKegiatan);
+    
+    // TAMBAHAN: Kirim namaPemrakarsa ke API jika datanya ada
+    if (namaPemrakarsa) {
+      formData.append('namaPemrakarsa', namaPemrakarsa);
+    }
 
     setUploading(true);
 
@@ -65,7 +79,7 @@ export default function FileUpload({ noUrut, fileType, dbField, currentFileUrl, 
           <span className="text-gray-400 text-xs">|</span>
           <label className="cursor-pointer text-xs text-orange-600 font-bold hover:text-orange-700">
             Ganti File
-            <input type="file" className="hidden" onChange={handleFileChange} disabled={uploading} />
+            <input type="file" className="hidden" onChange={handleFileChange} disabled={uploading} accept=".pdf" />
           </label>
         </div>
       ) : (
